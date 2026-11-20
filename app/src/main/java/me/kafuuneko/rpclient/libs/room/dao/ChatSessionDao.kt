@@ -10,6 +10,10 @@ import me.kafuuneko.rpclient.libs.room.model.MessageType
 /** 单聊会话元数据访问接口；消息写入和世界书运行时状态不得在此处单独编排。 */
 @Dao
 interface ChatSessionDao : MutableDao<ChatSession> {
+    /** 仅更新记忆开关，避免会话草稿覆盖其他字段。 */
+    @Query("UPDATE chat_sessions SET inheritCharacterMemory = :inherit, recallMemoryInNormalChat = :recall WHERE id = :id")
+    suspend fun updateMemorySettings(id: Long, inherit: Boolean, recall: Boolean)
+
     /**
      * 获取所有会话。
      *

@@ -11,6 +11,10 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.promptpreset.PromptPresetActivity
+import me.kafuuneko.rpclient.feature.promptpreset.model.promptPresetField
+import me.kafuuneko.rpclient.feature.prompttemplatelist.presentation.PromptTemplateListViewEvent
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptPresetTransferRepository
+import me.kafuuneko.rpclient.libs.memory.MissingMemorySlotException
 import me.kafuuneko.rpclient.feature.prompttemplatelist.presentation.PromptTemplateContentState
 import me.kafuuneko.rpclient.feature.prompttemplatelist.presentation.PromptTemplateDialogState
 import me.kafuuneko.rpclient.feature.prompttemplatelist.presentation.PromptTemplateItem
@@ -36,9 +40,73 @@ class PromptTemplateListViewModel :
         PromptTemplateListUiState.None
     ), KoinComponent {
     private val mRepository by inject<PromptPresetRepository>()
+    private val mTransfer by inject<PromptPresetTransferRepository>()
     private val mContext by inject<Context>()
     private var mSubscription: Job? = null
     private var mItems: List<PromptTemplateItem> = emptyList()
+    private var mPendingExport: String? = null
+
+    /** 用户选择文件后才读取内容，导入不会自动启用预设。 */
+    @UiIntentObserver(PromptTemplateListUiIntent.ImportClick::class)
+    private fun onImportClick() {
+        val state = getOrNull<PromptTemplateListUiState.Normal>() ?: return
+        if (state.busy || state.choosingDocument) return
+        state.copy(choosingDocument = true).setup()
+        PromptTemplateListViewEvent.OpenImporter.tryEmit()
+    }
+
+    /**
+     * 在打开系统选择器前捕获导出快照，避免等候期间的修改改变文件内容。
+     *
+     * @param intent 包含目标预设 ID 的导出意图
+     */
+    @UiIntentObserver(PromptTemplateListUiIntent.ExportClick::class)
+    private fun onExportClick(intent: PromptTemplateListUiIntent.ExportClick) {
+        val state = getOrNull<PromptTemplateListUiState.Normal>() ?: return
+        if (state.choosingDocument) return
+        perform {
+            mPendingExport = mRepository.exportPreset(
+                id = intent.id,
+                builtinName = mContext.getString(R.string.prompt_template_default),
+            )
+            getOrNull<PromptTemplateListUiState.Normal>()?.copy(choosingDocument = true)?.setup()
+            PromptTemplateListViewEvent.OpenExporter.tryEmit()
+        }
+    }
+
+    /**
+     * 导入成功后打开新副本；取消只清理选择器状态。
+     *
+     * @param intent 包含系统选择器返回文档 URI 的导入结果意图
+     */
+    @UiIntentObserver(PromptTemplateListUiIntent.ImportResult::class)
+    private fun onImportResult(intent: PromptTemplateListUiIntent.ImportResult) {
+        val state = getOrNull<PromptTemplateListUiState.Normal>() ?: return
+        state.copy(choosingDocument = false).setup()
+        val uri = intent.uri ?: return
+        perform { openDetail(mTransfer.importPreset(uri)) }
+    }
+
+    /**
+     * 只写入原快照；进程重启丢失快照时显示错误，不能导出另一预设。
+     *
+     * @param intent 包含系统保存选择器返回文档 URI 的导出结果意图
+     */
+    @UiIntentObserver(PromptTemplateListUiIntent.ExportResult::class)
+    private fun onExportResult(intent: PromptTemplateListUiIntent.ExportResult) {
+        val state = getOrNull<PromptTemplateListUiState.Normal>() ?: return
+        state.copy(choosingDocument = false).setup()
+        val snapshot = mPendingExport
+        mPendingExport = null
+        val uri = intent.uri ?: return
+        perform {
+            mTransfer.exportPreset(
+                uri = uri,
+                json = requireNotNull(snapshot) { "Prompt export snapshot is unavailable" },
+            )
+            AppViewEvent.PopupToastMessageByResId(R.string.prompt_template_exported).tryEmit()
+        }
+    }
 
     /** 首次进入后启动唯一列表订阅。 */
     @UiIntentObserver(PromptTemplateListUiIntent.Init::class)
@@ -241,7 +309,7 @@ class PromptTemplateListViewModel :
     /** 统一异步写入错误处理，保留弹窗草稿，不暴露异常原文。 */
     private fun perform(block: suspend () -> Unit) {
         val state = getOrNull<PromptTemplateListUiState.Normal>() ?: return
-        if (state.busy) return
+        if (state.busy || state.choosingDocument) return
         state.copy(busy = true).setup()
         // 不恢复操作前的整页快照，保留订阅期间收到的最新列表。
         viewModelScope.launch {
@@ -250,6 +318,16 @@ class PromptTemplateListViewModel :
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
+                if (error is MissingMemorySlotException) {
+                    AppViewEvent.PopupToastMessage(
+                        mContext.getString(
+                            R.string.prompt_template_import_slot_missing,
+                            mContext.getString(promptPresetField(error.type).titleRes),
+                            "{{${error.slot}}}"
+                        )
+                    ).tryEmit()
+                    return@launch
+                }
                 val message = if (error is PromptPresetConflictException) {
                     R.string.prompt_template_conflict
                 } else {

@@ -229,6 +229,7 @@ internal fun MainSettingsPage(
                 onClick = { MainUiIntent.OpenPromptPreset.emit() },
             )
         }
+        item { MemoryCenterEntryCard(onClick = { MainUiIntent.OpenMemoryCenter.emit() }) }
         item { PromptBehaviorPanel(state.promptBehaviorState, emit) }
         item { MainUserWritingSettings(state.impersonationOutput, emit) }
         item { WorldInfoBudgetPanel(state.worldInfoBudgetState, emit) }
@@ -996,6 +997,27 @@ private fun PromptPresetEntryCard(
             iconContainerColor = AccentVioletColor.copy(alpha = 0.14f),
             title = stringResource(R.string.prompt_preset_title),
             subtitle = activeLabel,
+            onClick = onClick,
+            trailing = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                    modifier = Modifier.size(18.dp),
+                )
+            },
+        )
+    }
+}
+
+@Composable
+private fun MemoryCenterEntryCard(onClick: () -> Unit) {
+    RpSettingsGroup {
+        RpSettingsTile(
+            icon = Icons.Rounded.Psychology,
+            iconColor = AccentEmeraldColor,
+            iconContainerColor = AccentEmeraldColor.copy(alpha = 0.14f),
+            title = stringResource(R.string.memory_center),
             onClick = onClick,
             trailing = {
                 Icon(

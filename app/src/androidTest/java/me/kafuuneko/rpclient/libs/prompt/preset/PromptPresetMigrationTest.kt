@@ -6,6 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.memory.MissingMemorySlotException
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.migration.PersonaSchemaMigration
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetConflictException
@@ -26,6 +27,66 @@ class PromptPresetMigrationTest {
     @get:Rule
     val helper =
         MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), AppDatabase::class.java)
+
+    /** 便携包只创建独立副本，未知键、显式空值和活动选择均保持原语义。 */
+    @Test
+    fun portableImportPreservesSelectionAndRollsBackFailedEntries() = runBlocking {
+        val previous = AppModel.activePromptPresetId
+        try {
+            withDatabase { database ->
+                val repository = PromptPresetRepository(database)
+                val active = repository.create(name = "Active", description = "")
+                repository.activate(active)
+                val json = PromptPresetCodec.encode(
+                    PortablePromptPreset(
+                        "Imported", "kept", mapOf("main" to "", "future_key" to "  future\n")
+                    )
+                )
+                val imported = repository.importPreset(json)
+                assertEquals(active, repository.getActiveSnapshot().presetId)
+                assertEquals("", repository.getDetail(imported).snapshot.mainPrompt)
+                assertEquals(
+                    PromptPresetCodec.decode(json),
+                    PromptPresetCodec.decode(repository.exportPreset(imported, "Default"))
+                )
+                // 注入真实 SQLite 写入故障，确认新元数据不会成为孤立的半成品。
+                val sql = database.openHelper.writableDatabase
+                sql.execSQL("CREATE TRIGGER reject_portable BEFORE INSERT ON prompt_preset_entries BEGIN SELECT RAISE(ABORT, 'fixture'); END")
+                assertTrue(runCatching { repository.importPreset(json) }.isFailure)
+                sql.query("SELECT COUNT(*) FROM prompt_presets").use {
+                    it.moveToFirst()
+                    assertEquals(2, it.getInt(0))
+                }
+                assertEquals(active, repository.getActiveSnapshot().presetId)
+            }
+        } finally {
+            AppModel.activePromptPresetId = previous
+        }
+    }
+
+    /** 校验先于 revision 更新，错误格式和并发冲突都不能留下部分写入。 */
+    @Test
+    fun memorySlotValidationPreservesRevisionAndExplicitEmpty() = runBlocking {
+        withDatabase { database ->
+            val repository = PromptPresetRepository(database)
+            val id = repository.create(name = "Memory", description = "")
+            assertTrue(runCatching {
+                repository.savePrompt(id, 1, PromptType.CharacterMemoryItem, "missing body")
+            }.exceptionOrNull() is MissingMemorySlotException)
+            assertEquals(1L, repository.getDetail(id).preset.revision)
+            repository.savePrompt(id, 1, PromptType.CharacterMemoryItem, "")
+            val captured = repository.getDetail(id).snapshot
+            repository.savePrompt(
+                id,
+                2,
+                PromptType.CharacterMemoryItem,
+                PromptType.CharacterMemoryItem.defaultValue
+            )
+            // 恢复默认删除覆盖，旧运行快照仍保持用户当时主动清空的值。
+            assertEquals("", captured.values[PromptType.CharacterMemoryItem])
+            assertTrue(database.getPromptPresetDao().getEntries(id).isEmpty())
+        }
+    }
 
     /** 所有支持的旧结构都迁到当前 v6，旧用户文件与原文保持不变。 */
     @Test

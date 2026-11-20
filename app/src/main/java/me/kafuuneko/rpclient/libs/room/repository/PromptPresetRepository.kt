@@ -6,6 +6,9 @@ import kotlinx.coroutines.flow.combine
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.prompt.preset.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.prompt.preset.PromptType
+import me.kafuuneko.rpclient.libs.memory.MemoryPromptRenderer
+import me.kafuuneko.rpclient.libs.prompt.preset.PortablePromptPreset
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptPresetCodec
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.PromptPreset
 import me.kafuuneko.rpclient.libs.room.entity.PromptPresetEntry
@@ -146,6 +149,7 @@ class PromptPresetRepository(private val mDatabase: AppDatabase) {
     suspend fun savePrompt(id: Long, revision: Long, type: PromptType, content: String) =
         mDatabase.withTransaction {
             require(id != PromptTemplateSnapshot.BUILTIN_ID) { "Default prompt preset is read-only" }
+            MemoryPromptRenderer.validate(type, content)
             val preset = requireNotNull(mDao.getPreset(id)) { "Prompt preset is missing" }
             checkRevision(
                 mDao.updatePreset(
@@ -160,6 +164,56 @@ class PromptPresetRepository(private val mDatabase: AppDatabase) {
             if (content == type.defaultValue) mDao.deleteEntry(id, type.key)
             else mDao.saveEntry(PromptPresetEntry(id, type.key, content))
         }
+
+    /**
+     * 捕获指定预设的稀疏覆盖项，导出不会改变当前选择。
+     * @param id 来源预设 ID。
+     * @param builtinName 当前语言下的内置预设名称。
+     * @return 可供系统文档导出器写入的完整 JSON 快照。
+     */
+    suspend fun exportPreset(id: Long, builtinName: String): String = mDatabase.withTransaction {
+        val builtin = id == PromptTemplateSnapshot.BUILTIN_ID
+        val preset = if (builtin) defaultPreset() else
+            requireNotNull(mDao.getPreset(id)) { "Prompt preset is missing" }
+        val overrides = if (builtin) emptyMap() else
+            mDao.getEntries(id).associate { it.promptKey to it.content }
+        return@withTransaction PromptPresetCodec.encode(
+            PortablePromptPreset(
+                if (builtin) builtinName else preset.name,
+                preset.description,
+                overrides
+            )
+        )
+    }
+
+    /**
+     * 导入为独立自定义副本，保留未知键和显式空值。
+     * @param json 用户选定文件的正文。
+     * @return 新副本 ID，是否启用仍由用户单独选择。
+     */
+    suspend fun importPreset(json: String): Long {
+        val portable = PromptPresetCodec.decode(json)
+        // 解析和校验先于写入；元数据与全部覆盖项共享同一短事务。
+        return mDatabase.withTransaction {
+            val now = System.currentTimeMillis()
+            val id = mDao.insertPreset(
+                PromptPreset(
+                    name = portable.name,
+                    description = portable.description,
+                    createdAt = now,
+                    updatedAt = now
+                )
+            )
+            mDao.insertEntries(portable.overrides.map { (key, content) ->
+                PromptPresetEntry(
+                    id,
+                    key,
+                    content
+                )
+            })
+            id
+        }
+    }
 
     /**
      * 校验自定义预设存在后把当前 ID 保存到 AppModel。

@@ -254,14 +254,14 @@ private class ChatPromptBuildSession(
         val rawDrafts = buildList {
             // 历史前固定消息
             fixedMessages.beforeHistory.forEach { piece ->
-                add(piece.resolve())
+                add(piece.resolve().copy(beforeMemorySlot = true))
             }
             // 示例对话块
             examplePieces.forEach { piece ->
-                add(piece.resolve())
+                add(piece.resolve().copy(beforeMemorySlot = true))
             }
             // 新对话分隔提示词
-            buildNewChatPiece(context)?.let(::add)
+            buildNewChatPiece(context)?.let { add(it.copy(beforeMemorySlot = true)) }
             // 聊天历史与深度注入项
             addAll(chatMessages)
             // 历史后固定指令（Post-history instructions）
@@ -315,6 +315,7 @@ private class ChatPromptBuildSession(
             ),
             preOmittedItems = worldSelection.omittedItems,
             tokenizer = tokenizer,
+            normalMemory = context.normalMemory.takeIf { context.generationMode.usesCharacterReplyTask() && context.summaryInstruction == null && context.userWritingDraft == null },
         )
         // 没有任何可用历史时拒绝推进摘要位置，避免仅凭指令或旧摘要覆盖新范围。
         if (context.summaryInstruction != null) {

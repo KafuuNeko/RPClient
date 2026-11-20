@@ -51,6 +51,7 @@ import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
+import me.kafuuneko.rpclient.libs.room.migration.MemoryDatabaseConstraints
 import me.kafuuneko.rpclient.libs.room.migration.PersonaSchemaMigration
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
@@ -63,7 +64,11 @@ import me.kafuuneko.rpclient.libs.room.repository.LLMTokenUsageRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
 import me.kafuuneko.rpclient.libs.room.repository.PageBackgroundRepository
+import me.kafuuneko.rpclient.libs.room.repository.MemoryRepository
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
+import me.kafuuneko.rpclient.libs.memory.MemoryTransferRepository
+import me.kafuuneko.rpclient.libs.memory.MemoryRetriever
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptPresetTransferRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
 import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.libs.search.SearchDatabaseCallback
@@ -154,6 +159,10 @@ internal val appModules = module {
     }
     single<PromptPreferences> { PromptTemplateSnapshot.defaults() }
     singleOf(::PromptPresetRepository)
+    singleOf(::MemoryRepository)
+    singleOf(::MemoryRetriever)
+    singleOf(::MemoryTransferRepository)
+    singleOf(::PromptPresetTransferRepository)
     singleOf(::ChatPromptBuilder)
     singleOf(::SummaryPromptBuilder)
     singleOf(::ChatArchiveCodec)
@@ -199,6 +208,7 @@ internal val appModules = module {
         Room.databaseBuilder(get(), AppDatabase::class.java, "primary.sqlite")
             .addMigrations(PersonaSchemaMigration)
             .addCallback(SearchDatabaseCallback)
+            .addCallback(MemoryDatabaseConstraints)
             .build()
     }
 

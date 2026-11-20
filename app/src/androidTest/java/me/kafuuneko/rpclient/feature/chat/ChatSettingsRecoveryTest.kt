@@ -244,10 +244,23 @@ class ChatSettingsRecoveryTest {
                         )
                         withTimeout(15_000) { states.first { it.members.first().id != mCharacterIds.first() } }
                     }
+                    // 删除成员先确认私有记忆清理范围，再触发真实数据库失败。
+                    if (intent is GroupChatUiIntent.RemoveMember) {
+                        vm.emit(intent)
+                        withTimeout(15_000) {
+                            states.first { it.dialogState is GroupChatDialogState.RemoveMember }
+                        }
+                    }
                     val notification = async(start = CoroutineStart.UNDISPATCHED) {
                         withTimeout(15_000) { vm.viewEventFlow.first() }
                     }
-                    vm.emit(intent)
+                    vm.emit(
+                        if (intent is GroupChatUiIntent.RemoveMember) {
+                            GroupChatUiIntent.ConfirmRemoveMember
+                        } else {
+                            intent
+                        }
+                    )
                     notification.await().consumeIfNotHandled {
                         assertEquals(
                             AppViewEvent.PopupToastMessageByResId(R.string.story_save_failed_short),

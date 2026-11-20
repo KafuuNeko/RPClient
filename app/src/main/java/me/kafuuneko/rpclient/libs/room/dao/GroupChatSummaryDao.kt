@@ -12,6 +12,10 @@ interface GroupChatSummaryDao : MutableDao<GroupChatSummary> {
     @Query("SELECT * FROM group_chat_summaries WHERE id = :id")
     suspend fun getById(id: Long): GroupChatSummary?
 
+    /** 收集删除或失效前的摘要来源，零边界表示全部。 */
+    @Query("SELECT id FROM group_chat_summaries WHERE sessionId = :sessionId AND coveredMessageId >= :messageId")
+    suspend fun memorySummaryIds(sessionId: Long, messageId: Long): List<Long>
+
     /** 读取会话最新摘要快照。 */
     @Query(
         """

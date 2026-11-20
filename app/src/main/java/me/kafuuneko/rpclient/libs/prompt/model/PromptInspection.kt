@@ -9,6 +9,8 @@ import me.kafuuneko.rpclient.libs.regex.RegexExecutionHit
 enum class PromptSourceKind {
     MainPrompt,
 
+    Memory,
+
     WorldInfo,
 
     UserPersona,
@@ -82,7 +84,10 @@ data class PromptSource(
     /** 用于解释当前状态的详细信息。 */
     val detail: String = "",
     /** 领域对象的稳定 ID，用于在后处理和预算裁剪后追踪来源。 */
-    val referenceId: Long? = null
+    val referenceId: Long? = null,
+    /** 记忆来源使用表类别及修订区分相同本地主键，只供本地检查。 */
+    val memoryTable: String? = null,
+    val revision: Long? = null
 )
 
 /** Prompt 内容未进入最终请求的原因。 */
@@ -90,6 +95,10 @@ enum class PromptOmissionReason {
     ContextBudget,
 
     WorldInfoBudget,
+
+    MemoryBudget,
+
+    MemoryUnavailable,
 
     ImageCount,
 
@@ -209,5 +218,7 @@ data class PromptMessageDraft(
     /** 合并消息包含的全部领域来源；未合并消息默认只包含 [source]。 */
     val sources: List<PromptSource> = listOf(source),
     val images: List<LLMImageReference> = emptyList(),
-    val unavailableImages: List<UnavailablePromptImage> = emptyList()
+    val unavailableImages: List<UnavailablePromptImage> = emptyList(),
+    /** 最终化前记录的历史插槽边界，不改变后处理或原保留优先级。 */
+    val beforeMemorySlot: Boolean = false
 )

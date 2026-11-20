@@ -60,6 +60,9 @@ data class GroupChatSession(
     @ColumnInfo(defaultValue = "1") val includeCharacterExamples: Boolean = true,
     // 正 ID 绑定具体人设，-1 随全局默认项变化。
     val userPersonaId: Long = UserPersona.FOLLOW_DEFAULT,
+    // 通用继承和普通回复召回各自保存，旧会话默认不增加记忆内容。
+    @ColumnInfo(defaultValue = "1") val inheritCharacterMemory: Boolean = true,
+    @ColumnInfo(defaultValue = "0") val recallMemoryInNormalChat: Boolean = false,
 ) {
     /** 本轮发言者选择策略。 */
     enum class ActivationStrategy {

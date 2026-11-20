@@ -109,6 +109,13 @@ private fun DialogSwitch(
     // 会话就绪后的弹窗由互斥的业务对话框状态统一分发。
     when (val dialogState = state.dialogState) {
         GroupChatDialogState.None -> Unit
+        is GroupChatDialogState.RemoveMember -> AppDangerDialog(
+            onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
+            title = stringResource(R.string.delete),
+            message = stringResource(R.string.memory_remove_member, dialogState.memoryCount),
+            onConfirm = { emitIntent(GroupChatUiIntent.ConfirmRemoveMember) },
+        )
+
         is GroupChatDialogState.SessionLorebook -> GroupSessionLorebookDialog(
             groups = state.settingsState.lorebookGroups,
             dialogState = dialogState,

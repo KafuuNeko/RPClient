@@ -8,6 +8,7 @@ sealed class PromptTemplateListUiState {
         val contentState: PromptTemplateContentState = PromptTemplateContentState.Loading,
         val dialogState: PromptTemplateDialogState = PromptTemplateDialogState.None,
         val busy: Boolean = false,
+        val choosingDocument: Boolean = false,
     ) : PromptTemplateListUiState()
 
     data class Finished(val previous: PromptTemplateListUiState) : PromptTemplateListUiState()

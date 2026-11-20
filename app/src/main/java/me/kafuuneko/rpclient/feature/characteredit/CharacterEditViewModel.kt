@@ -24,6 +24,8 @@ import me.kafuuneko.rpclient.feature.characteredit.model.hasUnsavedChangesFrom
 import me.kafuuneko.rpclient.feature.characteredit.model.promptText
 import me.kafuuneko.rpclient.feature.characteredit.model.withPromptText
 import me.kafuuneko.rpclient.feature.characteredit.model.withValidLorebookAssociation
+import me.kafuuneko.rpclient.feature.memoryedit.MemoryEditActivity
+import me.kafuuneko.rpclient.libs.memory.MemoryTarget
 import me.kafuuneko.rpclient.feature.characteredit.model.withValidProviderAssociation
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditDialogState
 import me.kafuuneko.rpclient.feature.characteredit.presentation.CharacterEditLoadState
@@ -100,6 +102,21 @@ class CharacterEditViewModel : CoreViewModelWithEvent<CharacterEditUiIntent, Cha
                 getOrNull<CharacterEditUiState.Normal>()?.copy(background = background)?.setup()
             }
         }
+    }
+
+    /** 打开独立范围编辑器，父页面未保存的表单继续由当前 ViewModel 持有。 */
+    @UiIntentObserver(CharacterEditUiIntent.OpenMemory::class)
+    private fun onOpenMemory() {
+        val state = getOrNull<CharacterEditUiState.Normal>() ?: return
+        if (state.form.id <= 0) {
+            AppViewEvent.PopupToastMessageByResId(R.string.memory_save_character).tryEmit()
+            return
+        }
+        if (state.loadState != CharacterEditLoadState.None) return
+        AppViewEvent.StartActivity(
+            MemoryEditActivity::class.java,
+            MemoryEditActivity.extras(MemoryTarget.Character(state.form.id)),
+        ).tryEmit()
     }
 
     /** 初始化编辑页，拉取候选世界书与提供商列表，并加载目标角色或新建空表单。 */

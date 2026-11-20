@@ -12,6 +12,14 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
  */
 @Dao
 interface ChatMessageDao : MutableDao<ChatMessage> {
+    /** 记忆来源清理使用完整 ID 集合，包含摘要。 */
+    @Query("SELECT id FROM chat_messages WHERE sessionId = :sessionId")
+    suspend fun memoryAllIds(sessionId: Long): List<Long>
+
+    /** 收集即将因历史修改而被删除的摘要来源。 */
+    @Query("SELECT id FROM chat_messages WHERE sessionId = :sessionId AND source = 'Summary' AND coveredMessageId >= :messageId")
+    suspend fun memorySummaryIds(sessionId: Long, messageId: Long): List<Long>
+
     /** 统计定位窗口之后的消息数，保持 Display Regex 的全历史深度语义。 */
     @Query(
         """SELECT COUNT(*) FROM chat_messages WHERE sessionId = :sessionId AND source != 'Summary'

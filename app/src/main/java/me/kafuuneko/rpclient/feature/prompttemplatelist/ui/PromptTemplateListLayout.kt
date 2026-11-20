@@ -32,6 +32,8 @@ import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.FileDownload
+import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.CardDefaults
@@ -116,7 +118,8 @@ private fun NormalView(
     state: PromptTemplateListUiState.Normal,
     emit: PromptTemplateListUiIntent.() -> Unit,
 ) {
-    val canCreate = !state.busy && state.contentState is PromptTemplateContentState.Ready
+    val busy = state.busy || state.choosingDocument
+    val canCreate = !busy && state.contentState is PromptTemplateContentState.Ready
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     Column(
         modifier = Modifier
@@ -127,6 +130,15 @@ private fun NormalView(
             title = stringResource(R.string.prompt_preset_title),
             onBack = { PromptTemplateListUiIntent.Back.emit() },
             actions = {
+                IconButton(
+                    onClick = { PromptTemplateListUiIntent.ImportClick.emit() },
+                    enabled = !busy,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.FileDownload,
+                        contentDescription = stringResource(R.string.prompt_template_import),
+                    )
+                }
                 IconButton(
                     onClick = { PromptTemplateListUiIntent.Create.emit() },
                     enabled = canCreate,
@@ -160,7 +172,7 @@ private fun NormalView(
                 PromptTemplateContentState.Failed -> {
                     item {
                         FailedCard(
-                            enabled = !state.busy,
+                            enabled = !busy,
                             onRetry = { PromptTemplateListUiIntent.Retry.emit() },
                         )
                     }
@@ -173,14 +185,14 @@ private fun NormalView(
                     ) { item ->
                         TemplateCard(
                             item = item,
-                            busy = state.busy,
+                            busy = busy,
                             emit = emit,
                         )
                     }
                     if (content.items.none { presetItem -> !presetItem.isBuiltin }) {
                         item {
                             EmptyCustomPresetsCard(
-                                enabled = !state.busy,
+                                enabled = canCreate,
                                 onCreateClick = { PromptTemplateListUiIntent.Create.emit() },
                             )
                         }
@@ -564,6 +576,19 @@ private fun TemplateCardActions(
         )
 
         Spacer(modifier = Modifier.weight(1f))
+
+        IconButton(
+            onClick = { PromptTemplateListUiIntent.ExportClick(item.id).emit() },
+            enabled = !busy,
+            modifier = Modifier.size(36.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.FileUpload,
+                contentDescription = stringResource(R.string.prompt_template_export),
+                tint = iconTint,
+                modifier = Modifier.size(19.dp),
+            )
+        }
 
         IconButton(
             onClick = { PromptTemplateListUiIntent.Copy(item.id).emit() },

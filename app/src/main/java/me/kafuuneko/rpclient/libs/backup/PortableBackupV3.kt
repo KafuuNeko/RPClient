@@ -603,6 +603,8 @@ internal class BackupV3Writer(
             JSONObject().put("id", session.getLong("id"))
                 .put("characterId", session.opt("characterId"))
                 .put("userPersonaId", session.getLong("userPersonaId"))
+                .put("inheritCharacterMemory", session.opt("inheritCharacterMemory"))
+                .put("recallMemoryInNormalChat", session.opt("recallMemoryInNormalChat"))
                 .put("userNameOverride", overrideState(session, "userName"))
                 .put("userDescriptionOverride", overrideState(session, "userDescription"))
         )
@@ -1308,6 +1310,13 @@ internal class BackupV3Reader(
         // 可空作者备注缺省时继续继承角色卡，不写入字符串形式的 null。
         archive.creatorNotes?.let { row.put("creatorNotes", it) }
         val session = header?.getAsJsonObject("session")
+        // 旧归档缺少本地记忆开关，保留旧结构并由 Room 迁移补入默认值。
+        listOf("inheritCharacterMemory", "recallMemoryInNormalChat").forEach { key ->
+            session.longValue(key)?.let { value ->
+                require(value in 0L..1L) { "Invalid conversation memory setting" }
+                row.put(key, value)
+            }
+        }
         if (mHasPersonas) {
             val id = session.longValue("userPersonaId") ?: mDefaultPersona.getLong("id")
             val persona =

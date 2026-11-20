@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
+import me.kafuuneko.rpclient.libs.memory.MemoryTarget
 import androidx.room.withTransaction
 import com.google.gson.Gson
 import java.util.UUID
@@ -139,7 +140,8 @@ class GroupChatRepository(
     private val mAppDatabase: AppDatabase,
     private val mGson: Gson,
     private val mImages: MessageImageRepository,
-    private val mPersonas: UserPersonaRepository
+    private val mPersonas: UserPersonaRepository,
+    private val mMemory: MemoryRepository
 ) {
     /** 原子保存用户正文、最终图片索引及有序附件；调用方须先完成图片处理。 */
     suspend fun createUserMessageWithImages(
@@ -718,7 +720,7 @@ class GroupChatRepository(
     /**
      * 从消息前缀创建独立群聊，复制当前成员、设置及分支点有效的摘要。
      *
-     * - 会话、消息、成员关系和附件引用在同一事务中创建，不修改源群聊。
+     * - 会话、消息、成员关系、附件引用和分支点有效的记忆在同一事务中创建。
      * - 世界书运行时重置，批次 ID 与摘要覆盖边界映射到新会话。
      * @param sourceSessionId 源群聊会话 ID。
      * @param throughMessageId 包含在分支中的最后一条消息 ID。
@@ -778,13 +780,13 @@ class GroupChatRepository(
             targetSessionId = branchSessionId,
         )
         // 零边界保留主动清空语义，非零边界必须真实映射到复制消息。
-        if (sourceSummary != null) {
+        val copiedSummaryIds = if (sourceSummary != null) {
             val copiedBoundaryId = if (sourceSummary.coveredMessageId == 0L) 0L else {
                 requireNotNull(copiedIdBySourceId[sourceSummary.coveredMessageId]) {
                     "Summary boundary is outside the copied group chat history"
                 }
             }
-            mSummaryDao.insertOrReplace(
+            val copiedSummaryId = mSummaryDao.insertOrReplace(
                 data = sourceSummary.copy(
                     id = 0L,
                     sessionId = branchSessionId,
@@ -792,7 +794,17 @@ class GroupChatRepository(
                     coveredMessageId = copiedBoundaryId,
                 ),
             )
+            mapOf(sourceSummary.id to copiedSummaryId)
+        } else {
+            emptyMap()
         }
+        // 记忆证据只有对应的消息或摘要已复制时才可在分支中继续使用。
+        mMemory.copyBranch(
+            source = MemoryTarget.Group(sourceSessionId),
+            target = MemoryTarget.Group(branchSessionId),
+            messages = copiedIdBySourceId,
+            summaries = copiedSummaryIds,
+        )
         branchSessionId
     }
 
@@ -849,6 +861,7 @@ class GroupChatRepository(
             ) {
                 "A message cannot have empty content and no images"
             }
+            mMemory.groupMessageChanged(id)
             mMessageDao.updateContent(id, content)
             mSummaryDao.deleteCovering(message.sessionId, message.id)
         }
@@ -858,6 +871,7 @@ class GroupChatRepository(
     suspend fun deleteMessage(id: Long) {
         mImages.mutate {
             val message = mMessageDao.getMessageById(id) ?: return@mutate
+            mMemory.groupMessageChanged(id, hardDelete = true)
             mSummaryDao.deleteCovering(message.sessionId, message.id)
             mImages.deleteInTransaction(this, MessageType.Group, listOf(id))
             mMessageDao.deleteById(id)
@@ -882,6 +896,12 @@ class GroupChatRepository(
     suspend fun deleteMessagesFrom(id: Long) {
         mImages.mutate {
             val message = mMessageDao.getMessageById(id) ?: return@mutate
+            mMemory.invalidateSources(
+                groupIds = mMessageDao.getMessageIdsBySessionId(
+                    message.sessionId,
+                    id
+                ), summaryIds = mSummaryDao.memorySummaryIds(message.sessionId, id)
+            )
             mSummaryDao.deleteCovering(message.sessionId, message.id)
             mImages.deleteInTransaction(
                 mutation = this,
@@ -934,11 +954,29 @@ class GroupChatRepository(
         }
     }
 
-    /** 移除成员并重排顺序，同时保证群聊至少保留两名成员。 */
-    suspend fun removeMember(sessionId: Long, characterId: Long) {
+    /** 查询移除成员将清理的本群私有记忆数量。 */
+    suspend fun privateMemoryCount(sessionId: Long, characterId: Long): Int =
+        mMemory.privateMemoryCount(sessionId, characterId)
+
+    /**
+     * 移除成员并重排顺序，离群前冻结已提升证据，同时保证群聊至少保留两名成员。
+     *
+     * @param sessionId 群聊会话 ID
+     * @param characterId 待移出的角色 ID
+     * @param expectedMemoryCount 确认弹窗展示的私有记忆条数，为空时不比较
+     */
+    suspend fun removeMember(sessionId: Long, characterId: Long, expectedMemoryCount: Int? = null) {
         mAppDatabase.withTransaction {
             val members = mMemberDao.getMembers(sessionId)
             require(members.size > 2) { "A group chat requires at least two characters" }
+            if (expectedMemoryCount != null) require(
+                mMemory.privateMemoryCount(
+                    sessionId,
+                    characterId
+                ) == expectedMemoryCount
+            ) { "Private memory count changed, confirm removal again" }
+            // 证据快照与成员关系删除同属事务，失败时一并回滚。
+            mMemory.groupMemberRemoved(sessionId, characterId)
             mMemberDao.deleteMember(sessionId, characterId)
             mMemberDao.getMembers(sessionId).forEachIndexed { index, member ->
                 mMemberDao.updateSortOrder(sessionId, member.characterId, index)
@@ -1003,7 +1041,13 @@ class GroupChatRepository(
     /** 覆盖保存会话级设置。 */
     suspend fun updateSession(session: GroupChatSession) = mAppDatabase.withTransaction {
         mPersonas.chatPersona(session.userPersonaId)
-        mSessionDao.update(session)
+        val current = requireNotNull(mSessionDao.getSessionById(session.id))
+        mSessionDao.update(
+            session.copy(
+                inheritCharacterMemory = current.inheritCharacterMemory,
+                recallMemoryInNormalChat = current.recallMemoryInNormalChat
+            )
+        )
     }
 
     /**
@@ -1158,6 +1202,7 @@ class GroupChatRepository(
             require(mSummaryDao.getLatest(sessionId)?.id == summaryIdToUpdate) {
                 "Summary to update is no longer the latest snapshot"
             }
+            mMemory.invalidateSources(summaryIds = listOf(summaryIdToUpdate), hardDelete = false)
             mSummaryDao.updateContent(summaryIdToUpdate, content, coveredMessageId, now)
             return@withTransaction summaryIdToUpdate
         }
@@ -1186,6 +1231,7 @@ class GroupChatRepository(
             val latest = mSummaryDao.getLatest(sessionId)
             if (content.isBlank()) {
                 if (latest?.coveredMessageId == 0L) {
+                    mMemory.invalidateSources(summaryIds = listOf(latest.id), hardDelete = false)
                     mSummaryDao.updateContent(
                         id = latest.id,
                         content = "",
@@ -1206,6 +1252,7 @@ class GroupChatRepository(
             }
             val latestMessageId = mMessageDao.getLatestMessage(sessionId)?.id ?: 0L
             if (latest != null && latest.coveredMessageId == latestMessageId) {
+                mMemory.invalidateSources(summaryIds = listOf(latest.id), hardDelete = false)
                 mSummaryDao.updateContent(
                     id = latest.id,
                     content = content,
@@ -1231,6 +1278,7 @@ class GroupChatRepository(
             val latest = mSummaryDao.getLatest(sessionId) ?: return@withTransaction false
             val previous =
                 mSummaryDao.getPreviousById(sessionId, latest.id) ?: return@withTransaction false
+            mMemory.invalidateSources(summaryIds = listOf(latest.id))
             mSummaryDao.delete(latest)
             previous.id > 0L
         }
@@ -1243,6 +1291,7 @@ class GroupChatRepository(
                 type = MessageType.Group,
                 ids = mMessageDao.getMessageIdsBySessionId(id),
             )
+            mMemory.conversationDeleted(MemoryTarget.Group(id))
             mSessionDao.deleteById(id)
         }
     }

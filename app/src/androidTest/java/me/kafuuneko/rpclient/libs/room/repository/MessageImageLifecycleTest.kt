@@ -82,14 +82,17 @@ class MessageImageLifecycleTest {
         images = MessageImageRepository(database, files)
         chat = ChatRepository(
             mAppDatabase = database,
+            mMemory = MemoryRepository(database),
             mPersonas = UserPersonaRepository(database, files), mGson = Gson(), mImages = images
         )
         group = GroupChatRepository(
             mAppDatabase = database,
+            mMemory = MemoryRepository(database),
             mPersonas = UserPersonaRepository(database, files), mGson = Gson(), mImages = images
         )
         characters = CharacterRepository(
             mAppDatabase = database,
+            mMemory = MemoryRepository(database),
             mGson = Gson(),
             mRegexCodec = RegexScriptCodec(Gson()),
             mImages = images,

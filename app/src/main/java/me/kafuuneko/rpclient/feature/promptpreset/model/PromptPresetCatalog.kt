@@ -57,6 +57,24 @@ private val storyScope = listOf(PromptPresetScope.Story)
 /** 每个字段只归属一个用途分区；适用场景按当前构建器的读取关系声明。 */
 val promptPresetFields = listOf(
     PromptPresetField(
+        type = PromptType.CharacterMemoryContext,
+        titleRes = R.string.prompt_character_memory_context,
+        section = PromptPresetSection.MemoryInjection,
+        scopes = chatScopes,
+    ),
+    PromptPresetField(
+        type = PromptType.CharacterMemoryItem,
+        titleRes = R.string.prompt_character_memory_item,
+        section = PromptPresetSection.MemoryInjection,
+        scopes = chatScopes,
+    ),
+    PromptPresetField(
+        type = PromptType.MemoryExtract,
+        titleRes = R.string.prompt_memory_extract,
+        section = PromptPresetSection.SummaryGeneration,
+        scopes = chatScopes,
+    ),
+    PromptPresetField(
         type = PromptType.Main,
         titleRes = R.string.prompt_main_title,
         section = PromptPresetSection.Basic,
@@ -296,6 +314,15 @@ internal fun availableMacros(type: PromptType): List<String> {
         PromptType.StorySummary -> listOf("{{summary}}")
 
         PromptType.StoryMemory -> listOf("{{memory}}")
+        PromptType.CharacterMemoryContext -> listOf(
+            "{{memory}}",
+            "{{char}}",
+            "{{user}}",
+            "{{group}}"
+        )
+
+        PromptType.CharacterMemoryItem -> listOf("{{fact}}", "{{char}}", "{{user}}", "{{group}}")
+        PromptType.MemoryExtract -> listOf("{{char}}", "{{user}}", "{{group}}")
         PromptType.StoryContinuationGuidance -> listOf("{{guidance}}")
         PromptType.WorldInfoFormat -> listOf("{0}")
         PromptType.DescriptionFormat -> listOf("{{description}}", "{{char}}")

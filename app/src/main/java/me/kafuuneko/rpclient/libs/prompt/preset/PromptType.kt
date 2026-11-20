@@ -196,6 +196,25 @@ Continue the manuscript immediately after its current ending.
 Do not repeat or summarize existing text. Advance the current scene naturally and return only the continuation.
 """.trimLineBreaks()
 
+private val DEFAULT_CHARACTER_MEMORY_CONTEXT = """
+The following is background remembered by the character, for reference in this reply.
+<character_memories>
+{{memory}}
+</character_memories>
+""".trimLineBreaks()
+
+private val DEFAULT_CHARACTER_MEMORY_ITEM = """
+  <memory>{{fact}}</memory>
+""".trimLineBreaks()
+
+private val DEFAULT_MEMORY_EXTRACT = """
+Identify durable facts, events, preferences, promises, relationships and clues supported by the supplied sources.
+Preserve who knows each fact and which conversation and user persona it belongs to.
+Distinguish confirmed events from plans, guesses and character background. Do not invent evidence.
+Compare existing memories, report contradictions, and retain independent supporting sources.
+Do not promote conversation events or relationship progress to cross-conversation memory.
+""".trimLineBreaks()
+
 /**
  * 可由用户覆盖的 Prompt 模板类型。
  *
@@ -242,6 +261,15 @@ enum class PromptType(val key: String, val defaultValue: String) {
     GroupUserWriting(key = "group_user_writing", defaultValue = DEFAULT_GROUP_USER_WRITING),
     NewGroupChat(key = "new_group_chat", defaultValue = DEFAULT_NEW_GROUP_CHAT),
     GroupSummarize(key = "group_summarize", defaultValue = DEFAULT_GROUP_SUMMARIZE),
+    CharacterMemoryContext(
+        key = "character_memory_context",
+        defaultValue = DEFAULT_CHARACTER_MEMORY_CONTEXT
+    ),
+    CharacterMemoryItem(
+        key = "character_memory_item",
+        defaultValue = DEFAULT_CHARACTER_MEMORY_ITEM
+    ),
+    MemoryExtract(key = "memory_extract", defaultValue = DEFAULT_MEMORY_EXTRACT),
     StoryMain(key = "story_main", defaultValue = DEFAULT_STORY_MAIN),
     StoryMemory(key = "story_memory", defaultValue = DEFAULT_STORY_MEMORY),
     StorySummary(key = "story_summary", defaultValue = DEFAULT_STORY_SUMMARY),

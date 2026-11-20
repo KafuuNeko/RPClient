@@ -37,6 +37,7 @@ class ChatRepositorySummaryTest {
             .build()
         repository = ChatRepository(
             mAppDatabase = database,
+            mMemory = MemoryRepository(database),
             mPersonas = UserPersonaRepository(database, FileRepository(context, database)),
             mGson = Gson(),
             mImages = MessageImageRepository(

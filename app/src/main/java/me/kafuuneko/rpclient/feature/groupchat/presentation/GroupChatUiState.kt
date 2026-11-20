@@ -159,6 +159,8 @@ data class GroupChatSettingsState(
 
 /** 群聊页面互斥显示的业务对话框。 */
 sealed class GroupChatDialogState {
+    data class RemoveMember(val characterId: Long, val memoryCount: Int) : GroupChatDialogState()
+
     data object Saving : GroupChatDialogState()
 
     /** 群聊设置存在未保存修改，等待用户选择保存、放弃或继续编辑。 */

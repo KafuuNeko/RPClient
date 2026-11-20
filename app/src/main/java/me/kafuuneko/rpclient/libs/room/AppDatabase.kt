@@ -1,9 +1,22 @@
 package me.kafuuneko.rpclient.libs.room
 
+import me.kafuuneko.rpclient.libs.room.migration.MemorySchemaMigration
 import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import me.kafuuneko.rpclient.libs.room.dao.GroupChatMemoryDao
+import me.kafuuneko.rpclient.libs.room.entity.GroupChatMemory
+import me.kafuuneko.rpclient.libs.room.entity.GroupChatMemoryRevision
+import me.kafuuneko.rpclient.libs.room.entity.GroupChatMemorySource
+import me.kafuuneko.rpclient.libs.room.dao.ChatMemoryDao
+import me.kafuuneko.rpclient.libs.room.entity.ChatMemory
+import me.kafuuneko.rpclient.libs.room.entity.ChatMemoryRevision
+import me.kafuuneko.rpclient.libs.room.entity.ChatMemorySource
+import me.kafuuneko.rpclient.libs.room.dao.CharacterMemoryDao
+import me.kafuuneko.rpclient.libs.room.entity.CharacterMemory
+import me.kafuuneko.rpclient.libs.room.entity.CharacterMemoryRevision
+import me.kafuuneko.rpclient.libs.room.entity.CharacterMemorySource
 import me.kafuuneko.rpclient.libs.room.dao.CharacterDao
 import me.kafuuneko.rpclient.libs.room.dao.CharacterLLMProviderAssociationDao
 import me.kafuuneko.rpclient.libs.room.dao.ChatMessageDao
@@ -66,6 +79,15 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration3To4Spe
 /** RPClient 的 Room 数据库入口，集中声明实体、类型转换器和 DAO。 */
 @Database(
     entities = [
+        CharacterMemory::class,
+        CharacterMemoryRevision::class,
+        CharacterMemorySource::class,
+        ChatMemory::class,
+        ChatMemoryRevision::class,
+        ChatMemorySource::class,
+        GroupChatMemory::class,
+        GroupChatMemoryRevision::class,
+        GroupChatMemorySource::class,
         UserPersona::class,
         UserPersonaSettings::class,
         PromptPreset::class,
@@ -97,17 +119,27 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration3To4Spe
         LLMTokenUsageRecord::class,
         MessageImageEntity::class
     ],
-    version = 6,
+    version = 7,
     autoMigrations = [
         AutoMigration(from = 1, to = 2, spec = AppDatabaseAutoMigration1To2Spec::class),
         AutoMigration(from = 2, to = 3, spec = AppDatabaseAutoMigration2To3Spec::class),
         AutoMigration(from = 3, to = 4, spec = AppDatabaseAutoMigration3To4Spec::class),
         AutoMigration(from = 4, to = 5),
+        AutoMigration(from = 6, to = 7, spec = MemorySchemaMigration::class),
     ],
     exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
+    /** GroupChat 记忆及证据的类型化数据入口。 */
+    abstract fun getGroupChatMemoryDao(): GroupChatMemoryDao
+
+    /** Chat 记忆及证据的类型化数据入口。 */
+    abstract fun getChatMemoryDao(): ChatMemoryDao
+
+    /** Character 记忆及证据的类型化数据入口。 */
+    abstract fun getCharacterMemoryDao(): CharacterMemoryDao
+
     /** 用户人设及默认选择。 */
     abstract fun getUserPersonaDao(): UserPersonaDao
 

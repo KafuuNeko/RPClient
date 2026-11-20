@@ -59,6 +59,7 @@ class LLMProviderDeletionTest {
         val gson = Gson()
         mCharacterRepository = CharacterRepository(
             mAppDatabase = mDatabase,
+            mMemory = MemoryRepository(mDatabase),
             mGson = gson,
             mRegexCodec = RegexScriptCodec(gson),
             mImages = MessageImageRepository(mDatabase, FileRepository(context, mDatabase)),

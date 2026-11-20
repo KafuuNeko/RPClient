@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.PersonAdd
+import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -116,6 +117,11 @@ internal fun GroupChatSettingsPage(
         ) {
             item {
                 SettingsSection(title = stringResource(R.string.chat_settings_actions)) {
+                    SettingsActionRow(
+                        icon = Icons.Rounded.Psychology,
+                        title = stringResource(R.string.memory_editor),
+                        onClick = { emitIntent(GroupChatUiIntent.OpenMemory) },
+                    )
                     SettingsActionRow(
                         icon = Icons.Rounded.Refresh,
                         title = stringResource(R.string.regenerate_latest_reply),

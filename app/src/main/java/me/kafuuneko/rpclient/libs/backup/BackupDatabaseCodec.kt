@@ -327,6 +327,12 @@ internal object BackupDatabaseCodec {
         }
     }
 
+    private val MEMORY_TABLES = setOf(
+        "character_memories", "chat_memories", "group_chat_memories",
+        "character_memory_revisions", "chat_memory_revisions", "group_chat_memory_revisions",
+        "character_memory_sources", "chat_memory_sources", "group_chat_memory_sources",
+    )
+
     /** 反复删除缺少父记录的行，直到外键检查通过；级联子记录由外键动作处理。 */
     private fun pruneForeignKeyViolations(db: SQLiteDatabase, report: (String) -> Unit) {
         // 人设绑定错误交给整体恢复校验，不能通过删除会话来修剪这类引用。
@@ -336,6 +342,9 @@ internal object BackupDatabaseCodec {
                 while (cursor.moveToNext()) {
                     val table = cursor.getString(0)
                     val parent = cursor.getString(2)
+                    require(table !in MEMORY_TABLES && parent !in MEMORY_TABLES) {
+                        "Backup contains an invalid authoritative memory reference."
+                    }
                     require(table != "user_personas" && parent != "user_personas") {
                         "Backup contains an invalid user persona reference in $table."
                     }
@@ -343,8 +352,13 @@ internal object BackupDatabaseCodec {
                 }
             }
             if (violations.isEmpty()) return
+            // 违反外键的成员行可能仍是私有记忆的有效父行，防止普通修剪级联删除权威数据。
+            val memoriesBefore = memoryRowCounts(db)
             violations.forEach { (table, rowId) ->
                 db.execSQL("DELETE FROM " + quote(table) + " WHERE rowid = ?", arrayOf<Any>(rowId))
+            }
+            require(memoryRowCounts(db) == memoriesBefore) {
+                "Repairing the backup would delete authoritative memories."
             }
             report(
                 "Removed " + violations.size + " row(s) whose parent record is missing, in: " +
@@ -352,6 +366,15 @@ internal object BackupDatabaseCodec {
             )
         }
     }
+
+    /** 比较暂存库修剪前后的权威数据行数，旧备份可以没有记忆表。 */
+    private fun memoryRowCounts(db: SQLiteDatabase): List<Long> =
+        MEMORY_TABLES.filter { sqliteTableExists(db, it) }.map { table ->
+            db.rawQuery("SELECT COUNT(*) FROM " + quote(table), null).use { cursor ->
+                check(cursor.moveToFirst()) { "Could not count staged memories." }
+                cursor.getLong(0)
+            }
+        }
 
     /** 保留每列的 SQLite 类型，通过绑定参数写入业务行。 */
     private fun insertRows(db: SQLiteDatabase, table: String, rows: List<JSONObject>) {

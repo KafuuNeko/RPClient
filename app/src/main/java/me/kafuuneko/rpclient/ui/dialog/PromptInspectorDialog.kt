@@ -688,9 +688,11 @@ private fun OmittedItemCard(item: PromptOmittedItem) {
     // 根据预算或图片约束类型映射对应的本地化移除原因
     val omissionReasonResId = when (item.reason) {
         PromptOmissionReason.WorldInfoBudget -> R.string.prompt_omission_world_info_budget
+        PromptOmissionReason.MemoryBudget -> R.string.prompt_omission_memory_budget
+        PromptOmissionReason.MemoryUnavailable -> R.string.prompt_omission_memory_unavailable
         PromptOmissionReason.ImageCount -> R.string.image_error_count
         PromptOmissionReason.RequestBytes -> R.string.image_error_large
-        else -> R.string.prompt_omission_context_budget
+        PromptOmissionReason.ContextBudget -> R.string.prompt_omission_context_budget
     }
 
     Card(

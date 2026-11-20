@@ -69,6 +69,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.toGenerationParametersSta
 import me.kafuuneko.rpclient.feature.main.presentation.toMainSummaryInjectionState
 import me.kafuuneko.rpclient.feature.main.presentation.toggleItem
 import me.kafuuneko.rpclient.feature.main.presentation.withRecentState
+import me.kafuuneko.rpclient.feature.memorycenter.MemoryCenterActivity
 import me.kafuuneko.rpclient.feature.prompttemplatelist.PromptTemplateListActivity
 import me.kafuuneko.rpclient.feature.regexscript.RegexScriptActivity
 import me.kafuuneko.rpclient.feature.requestlog.RequestLogActivity
@@ -1136,6 +1137,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         val state = getOrNull<MainUiState.Normal>() ?: return
         mPersonas.setAvatar(state.settingsState.identityState.persona.selectedId, null)
         refreshIdentity()
+    }
+
+    /** 打开角色记忆目录页。 */
+    @UiIntentObserver(MainUiIntent.OpenMemoryCenter::class)
+    private fun onOpenMemoryCenter() {
+        if (!isStateOf<MainUiState.Normal>()) return
+        AppViewEvent.StartActivity(MemoryCenterActivity::class.java).tryEmit()
     }
 
     /** 打开全局 Prompt 提示词预设页。 */

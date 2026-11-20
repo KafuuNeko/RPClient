@@ -127,6 +127,10 @@ object AppModel : KotprefModel() {
     var includeThinkInContext by booleanPref(default = false)
 
     // 普通生成最多读取的最近历史消息数；0 表示不限制并保持旧版行为。
+    // 普通记忆只使用剩余额度，配置不影响原历史预算。
+    var normalMemoryMaxItems by intPref(default = 6)
+    var normalMemoryMaxTokens by intPref(default = 512)
+
     var maxPromptHistoryMessages by intPref(default = DEFAULT_MAX_PROMPT_HISTORY_MESSAGES)
 
     // 是否启用调试模式；开启后记录原始 LLM 请求和响应 JSON。

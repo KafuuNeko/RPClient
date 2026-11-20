@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.groupchat
 
+import me.kafuuneko.rpclient.libs.memory.MemoryPromptInput
 import me.kafuuneko.rpclient.libs.macro.MacroExpansion
 import me.kafuuneko.rpclient.libs.macro.MacroValue
 import me.kafuuneko.rpclient.libs.prompt.buildUserWritingPrompt
@@ -95,6 +96,8 @@ data class GroupChatPromptContext(
     val userWritingDraft: String? = null,
     /** 重生成或原位替换残缺回复时撤销本轮世界书时序，不改变生成类型过滤。 */
     val isReplayingTurn: Boolean = generationMode == GroupChatGenerationMode.Regenerate,
+    /** 仅普通角色发言使用的已授权参考资料。 */
+    val normalMemory: MemoryPromptInput? = null,
 )
 
 /** 群聊回复的生成模式。 */
@@ -323,7 +326,7 @@ private class GroupChatPromptBuildSession(
 
         // 串联所有分区消息草稿
         val rawDrafts = buildList {
-            addAll(fixedMessages.beforeHistory)
+            addAll(fixedMessages.beforeHistory.map { it.copy(beforeMemorySlot = true) })
             addAll(historyMessages)
             addAll(fixedMessages.afterHistory)
             continueTarget?.let(::add)
@@ -353,6 +356,7 @@ private class GroupChatPromptBuildSession(
             ),
             preOmittedItems = worldSelection.omittedItems,
             tokenizer = tokenizer,
+            normalMemory = context.normalMemory.takeIf { context.generationMode.usesCharacterReplyTask() && context.summaryInstruction == null && context.userWritingDraft == null },
         )
         // 没有可用历史时不能用空素材摘要推进覆盖位置。
         if (context.summaryInstruction != null) {

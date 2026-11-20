@@ -10,6 +10,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.memory.MemoryTable
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspectionItem
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
@@ -358,6 +359,7 @@ internal fun resolveRoleColors(role: LLMMessageRole): PromptRoleColors {
 internal fun PromptSourceKind.baseLabel(): String {
     // 统一维护全部 Prompt 来源枚举与多语言资源映射，供归组胶囊和分段标题复用
     val sourceLabelResId = when (this) {
+        PromptSourceKind.Memory -> R.string.prompt_character_memory_context
         PromptSourceKind.MainPrompt -> R.string.prompt_source_main
         PromptSourceKind.WorldInfo -> R.string.prompt_source_world_info
         PromptSourceKind.UserPersona -> R.string.prompt_source_user_persona
@@ -397,5 +399,15 @@ internal fun PromptSourceKind.baseLabel(): String {
 @Composable
 internal fun PromptSource.label(): String {
     val base = kind.baseLabel()
+    // 记忆来源使用本地化范围名称配合主键和修订号展示，避免直接暴露内部表名。
+    if (kind == PromptSourceKind.Memory && referenceId != null) {
+        val scopeLabel = when (memoryTable) {
+            MemoryTable.Character.name -> stringResource(id = R.string.memory_scope_character)
+            MemoryTable.Chat.name -> stringResource(id = R.string.prompt_scope_chat)
+            MemoryTable.Group.name -> stringResource(id = R.string.prompt_scope_group)
+            else -> memoryTable.orEmpty()
+        }
+        return "$base · $scopeLabel/$referenceId@$revision"
+    }
     return if (detail.isBlank()) base else "$base · $detail"
 }

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileUpload
+import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -90,6 +91,11 @@ internal fun ChatSettingsPage(
         ) {
             item {
                 SettingsSection(title = stringResource(R.string.chat_settings_actions)) {
+                    SettingsActionRow(
+                        icon = Icons.Rounded.Psychology,
+                        title = stringResource(R.string.memory_editor),
+                        onClick = { ChatUiIntent.OpenMemory.emit() },
+                    )
                     SettingsActionRow(
                         icon = Icons.Rounded.Refresh,
                         title = stringResource(R.string.regenerate_latest_reply),

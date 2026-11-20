@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.chat
 
+import me.kafuuneko.rpclient.libs.room.repository.MemoryRepository
 import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import android.content.Context
 import android.content.ContextWrapper
@@ -91,6 +92,7 @@ class ChatArchiveRepositoryTest {
         val bytes = imageBytes(Bitmap.CompressFormat.PNG)
         val chats = ChatRepository(
             mAppDatabase = database,
+            mMemory = MemoryRepository(database),
             mPersonas = UserPersonaRepository(database, files),
             mGson = Gson(),
             mImages = MessageImageRepository(
@@ -178,7 +180,8 @@ class ChatArchiveRepositoryTest {
                 database,
                 Gson(),
                 MessageImageRepository(database, files),
-                UserPersonaRepository(database, files)
+                UserPersonaRepository(database, files),
+                MemoryRepository(database)
             )
         val messages = database.getChatMessageDao().getMessagesBySessionId(sessionId)
         assertEquals(

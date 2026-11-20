@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.character
 
+import me.kafuuneko.rpclient.libs.room.repository.MemoryRepository
 import android.content.Context
 import android.content.ContextWrapper
 import android.database.sqlite.SQLiteException
@@ -11,6 +12,7 @@ import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.gson.Gson
+import com.google.gson.JsonArray
 import com.google.gson.JsonParser
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -66,6 +68,7 @@ class CharacterCardExportTest {
         mFiles = FileRepository(mContext, mDatabase)
         mCharacters = CharacterRepository(
             mAppDatabase = mDatabase,
+            mMemory = MemoryRepository(mDatabase),
             mGson = mGson,
             mRegexCodec = codec,
             mImages = MessageImageRepository(mDatabase, mFiles)
@@ -112,7 +115,10 @@ class CharacterCardExportTest {
         val document =
             JsonParser.parseString(CharacterCardPngCodec.readCharacterJson(png)).asJsonObject
         val original = JsonParser.parseString(mCards.exportJson(id)).asJsonObject
-        assertEquals(original.get("data"), document.get("data"))
+        // PNG 优先读取 V3 元数据，除原角色数据外还须包含新版要求的群聊开场白数组。
+        val expectedData = original.getAsJsonObject("data")
+            .apply { add("group_only_greetings", JsonArray()) }
+        assertEquals(expectedData, document.get("data"))
     }
 
     /** 混合 PNG／JSON ZIP 可再次导入，重名角色与重复选择均按原有规则处理。 */

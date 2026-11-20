@@ -20,7 +20,10 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.libs.memory.MemoryRetriever
+import me.kafuuneko.rpclient.libs.memory.MemoryTarget
 import me.kafuuneko.rpclient.feature.characteredit.CharacterEditActivity
+import me.kafuuneko.rpclient.feature.memoryedit.MemoryEditActivity
 import me.kafuuneko.rpclient.feature.chat.model.ActiveStreamingGeneration
 import me.kafuuneko.rpclient.feature.chat.model.AutoSummaryData
 import me.kafuuneko.rpclient.feature.chat.model.BuiltGenerationRequest
@@ -365,6 +368,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     private val mPersonas by inject<UserPersonaRepository>()
+    private val mMemoryRetriever by inject<MemoryRetriever>()
     private val mPromptPresets by inject<PromptPresetRepository>()
     private val mImageCapabilities by inject<ImageInputCapabilityResolver>()
     private val mImageRuntime by inject<MessageImageRuntime>()
@@ -372,6 +376,16 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         MessageImageCoordinator(mImageRuntime, mFileRepository) { state ->
             getOrNull<ChatUiState.Normal>()?.copy(imageState = state)?.setup()
         }
+    }
+
+    /** 打开独立范围编辑器，父页面未保存的表单继续由当前 ViewModel 持有。 */
+    @UiIntentObserver(ChatUiIntent.OpenMemory::class)
+    private fun onOpenMemory() {
+        val state = getOrNull<ChatUiState.Normal>() ?: return
+        AppViewEvent.StartActivity(
+            MemoryEditActivity::class.java,
+            MemoryEditActivity.extras(MemoryTarget.Chat(state.session.id)),
+        ).tryEmit()
     }
 
     /**
@@ -3337,10 +3351,31 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val creatorNotes = mChatRepository.getSessionCreatorNotes(session)
         val regexScripts = mRegexRepository.activeScripts(listOf(character))
         val imageReferences = mImageRuntime.prepareCandidates(generationHistory.messages)
+        val normalMemory = if (session.recallMemoryInNormalChat && session.inheritCharacterMemory &&
+            generationMode in setOf(PromptGenerationMode.Normal, PromptGenerationMode.Regenerate) &&
+            summaryInstruction == null && userWritingDraft == null
+        ) {
+            mMemoryRetriever.prepare(
+                target = MemoryTarget.Chat(sessionId),
+                speakerId = character.id,
+                personaId = persona.id,
+                texts = listOfNotNull(generationHistory.messages.lastOrNull { it.source == ChatMessage.Source.User.name }?.content) + generationHistory.messages.takeLast(
+                    2
+                ).map { it.content },
+                templates = promptTemplates,
+                characterName = character.name,
+                userName = persona.name,
+                excludedMessageId = excludedMessageId ?: 0,
+                maxItems = AppModel.normalMemoryMaxItems,
+                maxTokens = AppModel.normalMemoryMaxTokens,
+            )
+        } else null
+
         val buildResult = withContext(Dispatchers.Default) {
             mChatPromptBuilder.buildWithMetadata(
                 preferences = promptTemplates,
                 context = PromptBuildContext(
+                    normalMemory = normalMemory,
                     userName = persona.name,
                     userDescription = persona.description,
                     character = character,

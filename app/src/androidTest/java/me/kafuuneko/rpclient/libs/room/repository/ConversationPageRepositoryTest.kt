@@ -37,6 +37,7 @@ class ConversationPageRepositoryTest {
             .build()
         chatRepository = ChatRepository(
             mAppDatabase = database,
+            mMemory = MemoryRepository(database),
             mPersonas = UserPersonaRepository(database, FileRepository(context, database)),
             mGson = Gson(),
             mImages = MessageImageRepository(
@@ -49,6 +50,7 @@ class ConversationPageRepositoryTest {
         )
         groupChatRepository = GroupChatRepository(
             mAppDatabase = database,
+            mMemory = MemoryRepository(database),
             mPersonas = UserPersonaRepository(database, FileRepository(context, database)),
             mGson = Gson(),
             mImages = MessageImageRepository(

@@ -827,6 +827,7 @@ private fun EditPromptDialog(
         onConfirm = onSave,
         confirmEnabled = !busy && dialogState.hasChanges && !dialogState.hasInvalidRequiredMacro,
         isConfirmLoading = busy,
+        confirmText = stringResource(R.string.save),
     )
 }
 

@@ -181,6 +181,8 @@ sealed class MainUiIntent {
         val role: SummaryInjectionRole
     ) : MainUiIntent()
 
+    data object OpenMemoryCenter : MainUiIntent()
+
     data object OpenPromptPreset : MainUiIntent()
 
     data object OpenRegexScripts : MainUiIntent()

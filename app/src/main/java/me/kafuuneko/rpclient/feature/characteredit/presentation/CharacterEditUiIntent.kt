@@ -5,6 +5,8 @@ import me.kafuuneko.rpclient.feature.imagecrop.model.BackgroundCropResult
 
 /** 角色创建/编辑页面的字段变更、文件选择、保存与删除意图。 */
 sealed class CharacterEditUiIntent {
+    data object OpenMemory : CharacterEditUiIntent()
+
     data class Init(val characterId: Long?) : CharacterEditUiIntent()
 
     data object Resume : CharacterEditUiIntent()

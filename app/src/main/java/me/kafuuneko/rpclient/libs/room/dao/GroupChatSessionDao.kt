@@ -10,6 +10,10 @@ import me.kafuuneko.rpclient.libs.room.model.MessageType
 /** 群聊会话基本信息的数据库访问接口。 */
 @Dao
 interface GroupChatSessionDao : MutableDao<GroupChatSession> {
+    /** 仅更新记忆开关，避免会话草稿覆盖其他字段。 */
+    @Query("UPDATE group_chat_sessions SET inheritCharacterMemory = :inherit, recallMemoryInNormalChat = :recall WHERE id = :id")
+    suspend fun updateMemorySettings(id: Long, inherit: Boolean, recall: Boolean)
+
     /** 按最近活跃时间读取全部群聊。 */
     @Query("SELECT * FROM group_chat_sessions ORDER BY latestTime DESC, id DESC")
     suspend fun getAllSessions(): List<GroupChatSession>

@@ -10,12 +10,17 @@ import java.io.ByteArrayInputStream
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
+import me.kafuuneko.rpclient.libs.memory.MemoryDraft
+import me.kafuuneko.rpclient.libs.memory.MemoryRestoreValidator
+import me.kafuuneko.rpclient.libs.memory.MemoryTarget
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
+import me.kafuuneko.rpclient.libs.room.entity.GroupChatMemorySource
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSummary
+import me.kafuuneko.rpclient.libs.room.entity.MemorySourceFields
 import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
 import me.kafuuneko.rpclient.libs.room.model.PreparedFile
@@ -34,6 +39,7 @@ import org.junit.runner.RunWith
 /**
  * 使用真实 Room 和独占文件目录验证群聊分支的数据生命周期。
  * - 覆盖消息截断、摘要边界与源会话的双向隔离。
+ * - 验证按分支边界复制记忆并重映射证据。
  * - 验证跨消息类型的附件引用、删除回收和跨表失败回滚。
  */
 @RunWith(AndroidJUnit4::class)
@@ -42,6 +48,7 @@ class GroupChatRepositoryBranchTest {
     private lateinit var mFiles: FileRepository
     private lateinit var mImages: MessageImageRepository
     private lateinit var mPersonas: UserPersonaRepository
+    private lateinit var mMemory: MemoryRepository
     private lateinit var mRepository: GroupChatRepository
     private lateinit var mDirectory: File
     private lateinit var mCharacterIds: List<Long>
@@ -61,7 +68,8 @@ class GroupChatRepositoryBranchTest {
         mFiles = FileRepository(context, mDatabase)
         mImages = MessageImageRepository(mDatabase, mFiles)
         mPersonas = UserPersonaRepository(mDatabase, mFiles)
-        mRepository = GroupChatRepository(mDatabase, Gson(), mImages, mPersonas)
+        mMemory = MemoryRepository(mDatabase)
+        mRepository = GroupChatRepository(mDatabase, Gson(), mImages, mPersonas, mMemory)
         // 群聊关系采用非默认顺序和静音状态，防止复制时误走新建群聊的默认配置。
         mCharacterIds = listOf("Alice", "Bob", "Carol").map { name -> insertCharacter(name) }
         mSessionId = mRepository.createSession(
@@ -273,7 +281,7 @@ class GroupChatRepositoryBranchTest {
                 userNote = ""
             ),
         )
-        val single = ChatRepository(mDatabase, Gson(), mImages, mPersonas)
+        val single = ChatRepository(mDatabase, Gson(), mImages, mPersonas, mMemory)
             .createUserMessageWithImages(
                 singleId,
                 "Single",
@@ -419,6 +427,82 @@ class GroupChatRepositoryBranchTest {
         val page = requireNotNull(mRepository.getGroupChatPageData(branchId, pageSize = 5))
         assertEquals(nextId, page.data.messages.last().id)
         assertEquals("Message 1999", page.data.messages[3].content)
+    }
+
+    /** 分支只保留当时的记忆修订，已复制的摘要来源在源会话删除后仍有效。 */
+    @Test
+    fun branchRetainsHistoricalMemoryAndRemapsSummaryEvidence() = runBlocking {
+        // 在首条群聊消息的边界保存记忆及摘要证据，再制造仅存在于后续历史的修订。
+        val firstMessageId = message("Shared clue", createTime = 1_000L)
+        val summary = "Found the clue"
+        val sourceSummaryId = mRepository.saveSummary(mSessionId, summary, firstMessageId)
+        val target = MemoryTarget.Group(mSessionId)
+        val draft = MemoryDraft("Early clue", privateCharacterId = mCharacterIds.first())
+        val memory = mMemory.save(target, draft)
+        val dao = mDatabase.getGroupChatMemoryDao()
+        val revision = dao.revisions(memory.ref.id).single()
+        dao.insertSources(
+            listOf(
+                GroupChatMemorySource(
+                    fields = MemorySourceFields(
+                        revisionId = revision.id,
+                        sourceKind = "GroupSummary",
+                        confidence = "Observed",
+                        sourceKey = "summary/$sourceSummaryId",
+                        groupSummaryId = sourceSummaryId,
+                        fingerprint = MemoryRestoreValidator.fingerprint(summary),
+                        quote = summary,
+                        createdAt = 1_000L,
+                    ),
+                ),
+            ),
+        )
+        message("Later clue", createTime = 2_000L)
+        mMemory.save(target, draft.copy(body = "Later revision"), memory.ref, expectedRevision = 1)
+        mMemory.save(target, MemoryDraft("Future memory"))
+
+        // 截断后读取实际新行，验证独立 UUID、原受众及新外键。
+        val branchId = mRepository.createBranchSession(mSessionId, firstMessageId, "Branch")
+        val copied = dao.list(branchId).single()
+        val copiedSummary = requireNotNull(mDatabase.getGroupChatSummaryDao().getLatest(branchId))
+        val copiedRevision = dao.revisions(copied.id).single()
+        assertEquals(draft.body, copied.fields.content.body)
+        assertEquals(draft.privateCharacterId, copied.privateCharacterId)
+        assertNotEquals(memory.fields.uuid, copied.fields.uuid)
+        assertNotEquals(sourceSummaryId, copiedSummary.id)
+
+        mRepository.deleteSession(mSessionId)
+        val evidence =
+            dao.sources(copiedRevision.id).single { it.fields.sourceKind == "GroupSummary" }
+        assertEquals(copiedSummary.id, evidence.fields.groupSummaryId)
+        assertTrue(evidence.fields.valid)
+    }
+
+    /** 历史受众已退出群聊时，该条目不会因复制而扩大范围。 */
+    @Test
+    fun branchSkipsPrivateRevisionForDepartedMember() = runBlocking {
+        val firstMessageId = message("Before scope change", createTime = 1_000L)
+        val departingMemberId = mCharacterIds.last()
+        val target = MemoryTarget.Group(mSessionId)
+        val memory = mMemory.save(
+            target,
+            MemoryDraft("Originally private", privateCharacterId = departingMemberId),
+        )
+        // 变为共享后移除成员，条目仍在，但较早版本的私有外键不能写入分支。
+        message("After scope change", createTime = 2_000L)
+        mMemory.changeScope(
+            target,
+            memory.ref,
+            expectedRevision = 1,
+            personaId = null,
+            privateId = null
+        )
+        mRepository.removeMember(mSessionId, departingMemberId)
+
+        val branchId = mRepository.createBranchSession(mSessionId, firstMessageId, "Branch")
+        assertTrue(branchId > 0)
+        assertTrue(mDatabase.getGroupChatMemoryDao().list(branchId).isEmpty())
+        assertEquals(memory.ref.id, mDatabase.getGroupChatMemoryDao().list(mSessionId).single().id)
     }
 
     /** 构造真实角色外键，群聊成员的独立关系通过业务仓库验证。 */

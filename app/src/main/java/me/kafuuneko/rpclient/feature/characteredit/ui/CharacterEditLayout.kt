@@ -35,6 +35,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -85,6 +86,7 @@ import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
 import me.kafuuneko.rpclient.ui.dialog.AppPromptEditorDialog
 import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
+import me.kafuuneko.rpclient.ui.theme.AccentEmeraldColor
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.theme.CharacterAccentColors
 import me.kafuuneko.rpclient.ui.widgets.AppCard
@@ -404,7 +406,7 @@ private fun HeroHeaderPanel(
                 }
             }
 
-            // 背景操作与角色删除分开排列，触摸层置于头像内容之上。
+            // 删除、背景与记忆入口纵向排列在右上角，触摸层置于头像内容之上。
             Column(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -413,7 +415,7 @@ private fun HeroHeaderPanel(
                 val enabled = loadState == CharacterEditLoadState.None
                 IconButton(
                     onClick = { CharacterEditUiIntent.DeleteCharacterClick.emit() },
-                    enabled = enabled
+                    enabled = enabled,
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Delete,
@@ -423,7 +425,7 @@ private fun HeroHeaderPanel(
                 }
                 IconButton(
                     onClick = { CharacterEditUiIntent.PickBackground.emit() },
-                    enabled = enabled
+                    enabled = enabled,
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Image,
@@ -434,13 +436,29 @@ private fun HeroHeaderPanel(
                 if (form.backgroundFileUuid != null) {
                     IconButton(
                         onClick = { CharacterEditUiIntent.RemoveBackground.emit() },
-                        enabled = enabled
+                        enabled = enabled,
                     ) {
                         Icon(
-                            Icons.Rounded.Close,
-                            stringResource(R.string.character_remove_background)
+                            imageVector = Icons.Rounded.Close,
+                            contentDescription = stringResource(R.string.character_remove_background),
                         )
                     }
+                }
+                IconButton(
+                    onClick = { CharacterEditUiIntent.OpenMemory.emit() },
+                    enabled = enabled,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Psychology,
+                        contentDescription = stringResource(
+                            if (form.id > 0) R.string.memory_editor else R.string.memory_save_character,
+                        ),
+                        tint = if (form.id > 0) {
+                            AccentEmeraldColor
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f)
+                        },
+                    )
                 }
             }
         }

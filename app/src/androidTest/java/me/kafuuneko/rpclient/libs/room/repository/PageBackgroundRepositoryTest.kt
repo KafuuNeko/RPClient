@@ -385,6 +385,7 @@ class PageBackgroundRepositoryTest {
         val gson = Gson()
         val characters = CharacterRepository(
             mAppDatabase = database,
+            mMemory = MemoryRepository(database),
             mGson = gson,
             mRegexCodec = RegexScriptCodec(gson),
             mImages = MessageImageRepository(
@@ -458,6 +459,7 @@ class PageBackgroundRepositoryTest {
         val gson = Gson()
         val characters = CharacterRepository(
             mAppDatabase = database,
+            mMemory = MemoryRepository(database),
             mGson = gson,
             mRegexCodec = RegexScriptCodec(gson),
             mImages = MessageImageRepository(

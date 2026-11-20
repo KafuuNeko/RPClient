@@ -6,6 +6,8 @@ import me.kafuuneko.rpclient.libs.media.MessageImageAction
 
 /** 群聊页面可接收的全部用户意图和生命周期事件。 */
 sealed class GroupChatUiIntent {
+    data object OpenMemory : GroupChatUiIntent()
+
     data class ChangeUserName(val value: String) : GroupChatUiIntent()
     data class ChangeUserDescription(val value: String) : GroupChatUiIntent()
     data class SelectPersona(val id: Long) : GroupChatUiIntent()
@@ -145,6 +147,8 @@ sealed class GroupChatUiIntent {
     data class ToggleLorebook(val lorebookId: Long) : GroupChatUiIntent()
 
     data class ToggleLorebookEntry(val entryId: Long) : GroupChatUiIntent()
+
+    data object ConfirmRemoveMember : GroupChatUiIntent()
 
     data class RemoveMember(val characterId: Long) : GroupChatUiIntent()
 

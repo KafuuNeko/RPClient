@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.libs.prompt.request
 
+import me.kafuuneko.rpclient.libs.memory.MemoryPromptInput
+import me.kafuuneko.rpclient.libs.memory.NormalMemoryPromptComposer
 import me.kafuuneko.rpclient.libs.llm.ImageRequestException
 import me.kafuuneko.rpclient.libs.llm.ImageRequestFailure
 import me.kafuuneko.rpclient.libs.llm.model.LLMContentBlock
@@ -24,7 +26,9 @@ data class PromptFinalizationResult(
     /** 经过业务层组装、准备提交给模型服务的请求。 */
     val request: LLMGenerationRequest,
     /** 与实际请求一致、供 Prompt 检查器展示的构建明细。 */
-    val inspection: PromptInspection
+    val inspection: PromptInspection,
+    /** 已保留的有序原始草稿，供可选记忆重计量使用，不从检查器重建。 */
+    val retainedDrafts: List<PromptMessageDraft> = emptyList(),
 )
 
 /**
@@ -66,6 +70,51 @@ class PromptRequestFinalizer(
      * - 若所有可丢弃消息均淘汰后依然超限，则抛出 [PromptBudgetExceededException]。
      */
     fun finalize(
+        drafts: List<PromptMessageDraft>,
+        provider: LLMProvider?,
+        model: String?,
+        options: LLMGenerationOptions,
+        includeReasoningInContent: Boolean,
+        captureReasoning: Boolean = includeReasoningInContent,
+        maxContextTokens: Int,
+        maxResponseTokens: Int,
+        postProcessingMode: PromptPostProcessingMode,
+        strictPromptPlaceholder: String,
+        postProcessingNames: PromptPostProcessingNames = PromptPostProcessingNames(),
+        preOmittedItems: List<PromptOmittedItem> = emptyList(),
+        normalMemory: MemoryPromptInput? = null,
+        tokenizer: PromptTokenizer = tokenizerFor(provider?.let {
+            it.copy(
+                model = model?.takeIf(
+                    String::isNotBlank
+                ) ?: it.model
+            )
+        }),
+    ): PromptFinalizationResult {
+        // 基线只构建一次，普通记忆只复用已经保留的草稿重新计量。
+        val calculate: (List<PromptMessageDraft>) -> PromptFinalizationResult = { input ->
+            finalizeBaseline(
+                drafts = input,
+                provider = provider,
+                model = model,
+                options = options,
+                includeReasoningInContent = includeReasoningInContent,
+                captureReasoning = captureReasoning,
+                maxContextTokens = maxContextTokens,
+                maxResponseTokens = maxResponseTokens,
+                postProcessingMode = postProcessingMode,
+                strictPromptPlaceholder = strictPromptPlaceholder,
+                postProcessingNames = postProcessingNames,
+                preOmittedItems = preOmittedItems,
+                tokenizer = tokenizer,
+            )
+        }
+        val baseline = calculate(drafts)
+        return NormalMemoryPromptComposer.compose(baseline, normalMemory, tokenizer, calculate)
+    }
+
+    /** 保留原预算淘汰算法；记忆重计量时调用方已保护全部基线草稿。 */
+    private fun finalizeBaseline(
         drafts: List<PromptMessageDraft>,
         provider: LLMProvider?,
         model: String?,
@@ -154,6 +203,7 @@ class PromptRequestFinalizer(
             if (finalTokenCount <= promptBudget && resourcesFit) {
                 unavailable.requireAvailable()
                 return createFinalizationResult(
+                    retainedDrafts = kept.toList(),
                     processed = processed,
                     messages = messages,
                     finalTokenCount = finalTokenCount,
@@ -262,6 +312,7 @@ class PromptRequestFinalizer(
             )
         }
         return createFinalizationResult(
+            retainedDrafts = retained.map { it.draft },
             processed = processed,
             messages = retained.map { it.message },
             finalTokenCount = currentTokenCount.toTokenInt(),
@@ -274,6 +325,7 @@ class PromptRequestFinalizer(
 
     /** 使用统一数据源创建最终请求与 Prompt 检查报告。 */
     private fun createFinalizationResult(
+        retainedDrafts: List<PromptMessageDraft>,
         processed: List<TrackedPromptMessage>,
         messages: List<LLMMessage>,
         finalTokenCount: Int,
@@ -284,6 +336,7 @@ class PromptRequestFinalizer(
     ): PromptFinalizationResult {
         // 请求和检查报告共用相同的最终消息序列，避免调试结果与实际提交内容分叉
         return PromptFinalizationResult(
+            retainedDrafts = retainedDrafts,
             request = LLMGenerationRequest(
                 messages = messages,
                 model = environment.model,

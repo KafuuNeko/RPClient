@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
+import me.kafuuneko.rpclient.libs.memory.MemoryTarget
 import androidx.room.withTransaction
 import com.google.gson.Gson
 import me.kafuuneko.rpclient.libs.regex.RegexScriptCodec
@@ -25,7 +26,8 @@ class CharacterRepository(
     private val mAppDatabase: AppDatabase,
     private val mGson: Gson,
     private val mRegexCodec: RegexScriptCodec,
-    private val mImages: MessageImageRepository
+    private val mImages: MessageImageRepository,
+    private val mMemory: MemoryRepository
 ) {
     private val mCharacterDao = mAppDatabase.getCharacterDao()
     private val mCharacterLLMProviderAssociationDao =
@@ -230,6 +232,7 @@ class CharacterRepository(
             for (id in characterIds) {
                 val character = mCharacterDao.getCharacterById(id) ?: continue
                 mAppDatabase.getChatSessionDao().getSessionsByCharacterId(id).forEach { session ->
+                    mMemory.conversationDeleted(MemoryTarget.Chat(session.id))
                     mImages.deleteInTransaction(
                         mutation = this,
                         type = MessageType.Single,

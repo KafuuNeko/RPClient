@@ -26,6 +26,8 @@ import me.kafuuneko.rpclient.libs.prompt.preset.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.prompt.preset.PromptType
 import me.kafuuneko.rpclient.libs.prompt.summary.requiredRawSummaryMacro
 import me.kafuuneko.rpclient.libs.prompt.summary.splitRawSummaryFormat
+import me.kafuuneko.rpclient.libs.memory.MemoryPromptRenderer
+import me.kafuuneko.rpclient.libs.memory.MissingMemorySlotException
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetConflictException
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
 import org.koin.core.component.KoinComponent
@@ -189,12 +191,25 @@ class PromptPresetViewModel :
         val state = getOrNull<PromptPresetUiState.Normal>() ?: return
         val dialog = state.dialogState as? PromptPresetDialogState.EditPrompt ?: return
         if (dialog.readOnly || !dialog.hasChanges) return
+        // 校验非空记忆模板是否保留必需的正文占位槽。
+        try {
+            MemoryPromptRenderer.validate(dialog.type, dialog.draftText)
+        } catch (error: MissingMemorySlotException) {
+            AppViewEvent.PopupToastMessage(
+                mContext.getString(
+                    R.string.prompt_memory_slot_missing,
+                    "{{${error.slot}}}",
+                )
+            ).tryEmit()
+            return
+        }
         // 提前提示无效的素材占位符，避免生成摘要时回退默认格式。
         val contentMacro = dialog.type.requiredRawSummaryMacro()
         if (contentMacro != null && dialog.type.splitRawSummaryFormat(dialog.draftText) == null) {
             PromptPresetViewEvent.ShowInvalidSummaryFormat("{{$contentMacro}}").tryEmit()
             return
         }
+        // 持久化当前模板字段并刷新版本快照。
         perform {
             mRepository.savePrompt(mPresetId, state.revision, dialog.type, dialog.draftText)
             refresh()

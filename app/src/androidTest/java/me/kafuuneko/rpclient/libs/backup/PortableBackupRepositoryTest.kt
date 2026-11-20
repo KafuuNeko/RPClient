@@ -9,6 +9,7 @@ import android.net.Uri
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.google.gson.Gson
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.util.UUID
@@ -19,13 +20,23 @@ import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageBackground
+import me.kafuuneko.rpclient.libs.memory.MemoryDraft
+import me.kafuuneko.rpclient.libs.memory.MemoryRestoreValidator
+import me.kafuuneko.rpclient.libs.memory.MemoryTarget
 import me.kafuuneko.rpclient.libs.prompt.preset.PromptType
+import me.kafuuneko.rpclient.libs.room.repository.MemoryRepository
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
+import me.kafuuneko.rpclient.libs.room.entity.GroupChatMember
+import me.kafuuneko.rpclient.libs.room.entity.GroupChatMemorySource
+import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
+import me.kafuuneko.rpclient.libs.room.entity.MemorySourceFields
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
+import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
+import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
 import me.kafuuneko.rpclient.libs.room.repository.PageBackgroundRepository
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
@@ -331,6 +342,197 @@ class PortableBackupRepositoryTest {
             native.copy(id = nativeId),
             primary.getLLMProviderDao().getProviderById(nativeId)
         )
+    }
+
+    /** 全量恢复同时保留三类归属、开关和修订，损坏的记忆行会在替换主库前被拒绝。 */
+    @Test
+    fun memoryBackupRoundTripRejectsTamperedCurrentSnapshot() = runBlocking {
+        val character = primary.getCharacterDao().insertOrReplace(
+            Character(
+                name = "Archivist", avatar = "", characterTags = "[]", description = "",
+                personality = "", scenario = "", firstMessages = "", examplesOfDialogue = "",
+                postHistoryInstructions = ""
+            )
+        )
+        val reader = primary.getCharacterDao().insertOrReplace(
+            requireNotNull(primary.getCharacterDao().getCharacterById(character))
+                .copy(id = 0, name = "Reader")
+        )
+        val single = primary.getChatSessionDao().insertOrReplace(
+            ChatSession(
+                characterId = character, createTime = 1, latestTime = 1, lorebookEntrySet = "[]",
+                title = "Archive", userNote = ""
+            )
+        )
+        val group = primary.getGroupChatSessionDao().insertOrReplace(
+            GroupChatSession(title = "Group archive", createTime = 1, latestTime = 1)
+        )
+        primary.getGroupChatMemberDao().insertOrIgnore(GroupChatMember(group, reader, 0))
+        val memories = MemoryRepository(primary)
+        val common = memories.save(MemoryTarget.Character(character), MemoryDraft("Original"))
+        val updated =
+            memories.save(common.target, MemoryDraft("Common memory", pinned = true), common.ref, 1)
+        val local = memories.save(
+            MemoryTarget.Chat(single),
+            MemoryDraft("Local memory", privateCharacterId = character)
+        )
+        val shared = memories.save(MemoryTarget.Group(group), MemoryDraft("Group memory"))
+        val private = memories.save(
+            shared.target,
+            MemoryDraft("Private memory", privateCharacterId = reader),
+        )
+        memories.updateSettings(local.target, inherit = false, recall = true)
+        val archive = File(root, "memories.zip")
+        val backup = PortableBackupRepository(
+            context,
+            primary,
+            logs,
+            BackupArchiveRepository(context, primary)
+        )
+        backup.exportArchive(Uri.fromFile(archive))
+        // 破坏归档快照后验证当前数据库仍可读，再使用原包执行真正的替换。
+        val unpacked = File(root, "unpacked-memories").apply { mkdirs() }
+        BackupArchiveFiles.extractArchive(context, Uri.fromFile(archive), unpacked)
+        val badRows = File(unpacked, "tables/character_memories.jsonl")
+        val badRow = JSONObject(badRows.readText()).put("body", "Inconsistent snapshot")
+        badRows.writeText(badRow.toString() + "\n")
+        val badArchive = File(root, "invalid-memories.zip")
+        zipDirectory(unpacked, badArchive)
+        assertTrue(runCatching { backup.restoreArchive(Uri.fromFile(badArchive)) }.isFailure)
+        assertEquals(
+            "Common memory",
+            memories.history(updated.target, updated.ref).first().fields.content.body
+        )
+        // 父角色文件缺失只能报错，普通外键修剪不得通过移除成员级联掉其私有记忆。
+        val originalRows = File(unpacked, "tables/character_memories.jsonl")
+        ZipFile(archive).use { zip ->
+            zip.getInputStream(zip.getEntry("tables/character_memories.jsonl")).use { source ->
+                originalRows.outputStream().use(source::copyTo)
+            }
+        }
+        assertTrue(File(unpacked, "characters/Reader-$reader.json").delete())
+        zipDirectory(unpacked, badArchive)
+        assertTrue(runCatching { backup.restoreArchive(Uri.fromFile(badArchive)) }.isFailure)
+        assertEquals(
+            "Private memory",
+            memories.history(private.target, private.ref).first().fields.content.body
+        )
+        memories.delete(updated.target, updated.ref, 2)
+        backup.restoreArchive(Uri.fromFile(archive))
+        openDatabases()
+        // 恢复后重新查询所有者、历史、证据及当前会话开关。
+        val restored = MemoryRepository(primary)
+        assertEquals(
+            listOf("Common memory", "Original"),
+            restored.history(updated.target, updated.ref).map { it.fields.content.body })
+        assertEquals(
+            "UserEdit",
+            restored.history(local.target, local.ref).first().sources.single().sourceKind
+        )
+        assertEquals(
+            "Group memory",
+            restored.history(shared.target, shared.ref).first().fields.content.body
+        )
+        assertFalse(restored.targetInfo(local.target).inherit)
+        assertTrue(restored.targetInfo(local.target).recall)
+    }
+
+    /** 群记忆提升后离群，再走完整 ZIP 导出与数据库替换恢复也不能丢失证据或失败。 */
+    @Test
+    fun promotedMemoryRestoresAfterLeavingSourceGroup() = runBlocking {
+        // 建立可实际移出一人的群聊，来源完全使用群消息而非用户独立确认。
+        val characters = listOf("Departing", "Remaining", "Other").map { name ->
+            primary.getCharacterDao().insertOrReplace(
+                Character(
+                    name = name,
+                    avatar = "",
+                    characterTags = "[]",
+                    description = "",
+                    personality = "",
+                    scenario = "",
+                    firstMessages = "",
+                    examplesOfDialogue = "",
+                    postHistoryInstructions = "",
+                )
+            )
+        }
+        val files = FileRepository(context, primary)
+        val memories = MemoryRepository(primary)
+        val groups = GroupChatRepository(
+            primary,
+            Gson(),
+            MessageImageRepository(primary, files),
+            UserPersonaRepository(primary, files),
+            memories
+        )
+        val group = primary.getGroupChatSessionDao()
+            .insertOrReplace(GroupChatSession(title = "Source", createTime = 1, latestTime = 1))
+        primary.getGroupChatMemberDao().insertOrReplaceAll(characters.mapIndexed { index, id ->
+            GroupChatMember(
+                group,
+                id,
+                index
+            )
+        })
+        val message = primary.getGroupChatMessageDao().insertOrReplace(
+            GroupChatMessage(
+                sessionId = group, createTime = 1, source = GroupChatMessage.Source.User,
+                content = "Original group evidence", speakerNameSnapshot = "User",
+            )
+        )
+        val source = memories.save(
+            MemoryTarget.Group(group),
+            MemoryDraft("Promoted fact", privateCharacterId = characters.first())
+        )
+        val revision = primary.getGroupChatMemoryDao().revisions(source.ref.id).single()
+        primary.openHelper.writableDatabase.execSQL(
+            "DELETE FROM group_chat_memory_sources WHERE revisionId = ?",
+            arrayOf(revision.id)
+        )
+        primary.getGroupChatMemoryDao().insertSources(
+            listOf(
+                GroupChatMemorySource(
+                    fields = MemorySourceFields(
+                        revisionId = revision.id,
+                        sourceKind = "GroupMessage",
+                        confidence = "Observed",
+                        sourceKey = "group/$message",
+                        groupMessageId = message,
+                        fingerprint = MemoryRestoreValidator.fingerprint("Original group evidence"),
+                        quote = "Original group evidence",
+                        createdAt = 1,
+                    )
+                )
+            )
+        )
+        val promoted = memories.promote(source.target, source.ref, 1, characters.first())
+        groups.removeMember(group, characters.first(), expectedMemoryCount = 1)
+
+        // 真实备份恢复会重新执行整库业务校验；先删除在线条目以验证归档确实还原了它。
+        val archive = File(root, "promoted-after-removal.zip")
+        val backup = PortableBackupRepository(
+            context,
+            primary,
+            logs,
+            BackupArchiveRepository(context, primary)
+        )
+        backup.exportArchive(Uri.fromFile(archive))
+        memories.delete(promoted.target, promoted.ref, 1)
+        backup.restoreArchive(Uri.fromFile(archive))
+        openDatabases()
+        val restored = MemoryRepository(primary).history(promoted.target, promoted.ref).single()
+        assertEquals("Promoted fact", restored.fields.content.body)
+        assertEquals("PromotedSnapshot", restored.sources.single().sourceKind)
+        assertEquals("Original group evidence", restored.sources.single().quote)
+        assertNull(restored.sources.single().groupMessageId)
+        assertTrue(
+            primary.getGroupChatMemberDao().getMembers(group)
+                .none { it.characterId == characters.first() })
+        assertEquals(
+            "Original group evidence",
+            primary.getGroupChatMessageDao().getMessageById(message)?.content
+        )
+        MemoryRestoreValidator.validate(primary.openHelper.writableDatabase)
     }
 
     /** 完整备份保留多开场白的空段与空白，旧 v3 未带扩展的角色仍可恢复。 */

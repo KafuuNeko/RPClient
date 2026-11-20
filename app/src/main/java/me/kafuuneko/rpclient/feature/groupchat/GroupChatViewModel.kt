@@ -23,6 +23,9 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.memoryedit.MemoryEditActivity
+import me.kafuuneko.rpclient.libs.memory.MemoryRetriever
+import me.kafuuneko.rpclient.libs.memory.MemoryTarget
 import me.kafuuneko.rpclient.feature.groupchat.GroupChatViewModel.Companion.AUTO_MODE_DELAY_MS
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatAvailableCharacterItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
@@ -175,6 +178,7 @@ class GroupChatViewModel :
     ), KoinComponent {
     // 数据仓库与服务依赖注入
     private val mPersonas by inject<UserPersonaRepository>()
+    private val mMemoryRetriever by inject<MemoryRetriever>()
     private val mPromptPresets by inject<PromptPresetRepository>()
     private val mFileRepository by inject<FileRepository>()
 
@@ -184,6 +188,8 @@ class GroupChatViewModel :
     /** 分支导航专用事件流，普通 Toast 等瞬时事件仍使用通用通道。 */
     val branchNavigationFlow = mBranchNavigation.asSharedFlow()
 
+    private var mReturningFromMemory = false
+
     /** 以文件 UUID 共享头像，按像素内存限制缓存，避免每条消息重复解码。 */
     private val mAvatarCache = object : LruCache<String, ImageBitmap>(AVATAR_CACHE_SIZE_BYTES) {
         /** 文件仓库使用 ARGB_8888 解码，按每个像素四字节计算缓存占用。 */
@@ -191,6 +197,17 @@ class GroupChatViewModel :
     }
 
     private var mReplyRetryContext: ReplyRetryContext? = null
+
+    /** 打开独立范围编辑器，父页面未保存的表单继续由当前 ViewModel 持有。 */
+    @UiIntentObserver(GroupChatUiIntent.OpenMemory::class)
+    private fun onOpenMemory() {
+        val state = getOrNull<GroupChatUiState.Normal>() ?: return
+        mReturningFromMemory = true
+        AppViewEvent.StartActivity(
+            MemoryEditActivity::class.java,
+            MemoryEditActivity.extras(MemoryTarget.Group(state.sessionId)),
+        ).tryEmit()
+    }
 
     /** 从失败角色恢复剩余轮次；若流式中断留下残缺回复则原位覆盖首位角色，已完成回复及用户图片继续保留。 */
     @UiIntentObserver(GroupChatUiIntent.RetryGeneration::class)
@@ -544,6 +561,11 @@ class GroupChatViewModel :
      */
     @UiIntentObserver(GroupChatUiIntent.Resume::class)
     private suspend fun onResume() {
+        // 独立记忆页不会改动群聊表单，返回时保留全部待保存设置及成员顺序。
+        if (mReturningFromMemory) {
+            mReturningFromMemory = false
+            return
+        }
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (uiState.dialogState.isBlocking()) return
         // 返回页面时重新确认文件可读性，避免外部编辑或文件删除后仍展示旧头像。
@@ -2225,27 +2247,62 @@ class GroupChatViewModel :
      */
     @UiIntentObserver(GroupChatUiIntent.RemoveMember::class)
     private suspend fun onRemoveMember(intent: GroupChatUiIntent.RemoveMember) {
-        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
-        if (uiState.dialogState.isBlocking() || mGenerationJob?.isCompleted == false) return
-        // 最少成员限制与数据库写入故障分别提示，取消不得被转换为业务失败。
-        try {
-            withContext(Dispatchers.IO) {
-                mGroupChatRepository.removeMember(uiState.sessionId, intent.characterId)
-            }
-        } catch (error: CancellationException) {
-            throw error
-        } catch (_: IllegalArgumentException) {
+        val state = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (state.dialogState.isBlocking() || mGenerationJob?.isCompleted == false) return
+        if (state.members.size <= 2) {
             AppViewEvent.PopupToastMessageByResId(R.string.group_chat_select_two_characters)
                 .tryEmit()
             return
+        }
+        // 读取清理范围失败时保留表单，避免异常终止后续 Intent 消费。
+        val count = try {
+            withContext(Dispatchers.IO) {
+                mGroupChatRepository.privateMemoryCount(state.sessionId, intent.characterId)
+            }
         } catch (_: SQLiteException) {
             AppViewEvent.PopupToastMessageByResId(R.string.story_save_failed_short).tryEmit()
             return
         }
-        refreshState(
-            page = uiState.page,
-            preserveSettingsDraft = uiState.page == GroupChatPage.Settings,
-        )
+        // 异步查询期间页面可能刷新，确认弹窗只更新最新状态。
+        val latest = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (latest.sessionId != state.sessionId || latest.dialogState.isBlocking() ||
+            mGenerationJob?.isCompleted == false
+        ) return
+        latest.copy(dialogState = GroupChatDialogState.RemoveMember(intent.characterId, count))
+            .setup()
+    }
+
+    /** 确认后在同一事务内复核受影响数量，确认期间新增记忆时要求重新操作。 */
+    @UiIntentObserver(GroupChatUiIntent.ConfirmRemoveMember::class)
+    private suspend fun onConfirmRemoveMember() {
+        val state = getOrNull<GroupChatUiState.Normal>() ?: return
+        val dialog = state.dialogState as? GroupChatDialogState.RemoveMember ?: return
+        if (mGenerationJob?.isCompleted == false) return
+        // 在 IO 调度器内执行事务删除与私有记忆数量复核，成功后刷新群聊状态。
+        try {
+            withContext(Dispatchers.IO) {
+                mGroupChatRepository.removeMember(
+                    sessionId = state.sessionId,
+                    characterId = dialog.characterId,
+                    expectedMemoryCount = dialog.memoryCount,
+                )
+            }
+            refreshState(
+                page = state.page,
+                dialogState = GroupChatDialogState.None,
+                preserveSettingsDraft = state.page == GroupChatPage.Settings,
+            )
+        } catch (error: Exception) {
+            // 取消异常继续向上传播，业务校验或持久化失败时提示并关闭确认框。
+            if (error is CancellationException) throw error
+            val message = if (error is SQLiteException) {
+                R.string.story_save_failed_short
+            } else {
+                R.string.memory_failed
+            }
+            AppViewEvent.PopupToastMessageByResId(message).tryEmit()
+            state.copy(dialogState = GroupChatDialogState.None).setup()
+        }
     }
 
     /**
@@ -3084,11 +3141,36 @@ class GroupChatViewModel :
         val lorebookContext = loadLorebookContext(data, speaker)
         val scripts = mRegexRepository.activeScripts(data.members.map { it.character })
         val imageReferences = mImageRuntime.prepareCandidates(promptData.messageImages)
+        val normalMemory =
+            if (data.session.recallMemoryInNormalChat && data.session.inheritCharacterMemory &&
+                generationMode in setOf(
+                    GroupChatGenerationMode.Normal,
+                    GroupChatGenerationMode.Regenerate
+                ) && userWritingDraft == null
+            ) {
+                mMemoryRetriever.prepare(
+                    target = MemoryTarget.Group(sessionId),
+                    speakerId = speaker.character.id,
+                    personaId = data.persona.id,
+                    texts = listOfNotNull(data.messages.lastOrNull { it.source == GroupChatMessage.Source.User }?.content) + data.messages.takeLast(
+                        2
+                    ).map { it.content },
+                    templates = templates,
+                    characterName = speaker.character.name,
+                    userName = data.persona.name,
+                    groupNames = data.members.map { it.character.name },
+                    excludedMessageId = replacingReply?.id ?: 0,
+                    maxItems = AppModel.normalMemoryMaxItems,
+                    maxTokens = AppModel.normalMemoryMaxTokens,
+                )
+            } else null
+
         // 构建多角色群聊 Prompt 请求
         val buildResult = withContext(Dispatchers.Default) {
             mPromptBuilder.buildWithMetadata(
                 preferences = templates,
                 context = GroupChatPromptContext(
+                    normalMemory = normalMemory,
                     persona = data.persona,
                     session = data.session,
                     members = data.members,

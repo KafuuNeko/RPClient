@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
+import me.kafuuneko.rpclient.libs.memory.MemoryTarget
 import androidx.room.withTransaction
 import com.google.gson.Gson
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
@@ -111,7 +112,8 @@ class ChatRepository(
     private val mAppDatabase: AppDatabase,
     private val mGson: Gson,
     private val mImages: MessageImageRepository,
-    private val mPersonas: UserPersonaRepository
+    private val mPersonas: UserPersonaRepository,
+    private val mMemory: MemoryRepository
 ) {
     private val mChatSessionDao = mAppDatabase.getChatSessionDao()
     private val mChatMessageDao = mAppDatabase.getChatMessageDao()
@@ -230,7 +232,13 @@ class ChatRepository(
                 )
             )
         } else {
-            mChatSessionDao.update(normalized)
+            val current = requireNotNull(mChatSessionDao.getSessionById(session.id))
+            mChatSessionDao.update(
+                normalized.copy(
+                    inheritCharacterMemory = current.inheritCharacterMemory,
+                    recallMemoryInNormalChat = current.recallMemoryInNormalChat
+                )
+            )
             session.id
         }
     }
@@ -373,7 +381,9 @@ class ChatRepository(
                 emptyList()
             }
             val copiedIdBySourceId =
-                branchMessages.map { message -> message.id }.zip(insertedMessageIds).toMap()
+                branchMessages.map { message -> message.id }
+                    .zip(insertedMessageIds)
+                    .toMap(mutableMapOf())
             mImages.copyInTransaction(
                 mutation = this,
                 type = MessageType.Single,
@@ -386,7 +396,7 @@ class ChatRepository(
                     ?.takeIf { id -> id != 0L }
                     ?.let(copiedIdBySourceId::get)
                     ?: 0L
-                mChatMessageDao.insertOrReplace(
+                val copiedSummaryId = mChatMessageDao.insertOrReplace(
                     data = sourceSummary.copy(
                         id = 0L,
                         sessionId = branchSessionId,
@@ -394,7 +404,13 @@ class ChatRepository(
                         coveredMessageId = copiedBoundaryId,
                     ),
                 )
+                copiedIdBySourceId[sourceSummary.id] = copiedSummaryId
             }
+            mMemory.copyBranch(
+                source = MemoryTarget.Chat(sourceSessionId),
+                target = MemoryTarget.Chat(branchSessionId),
+                messages = copiedIdBySourceId,
+            )
             branchSessionId
         }
     }
@@ -406,7 +422,13 @@ class ChatRepository(
      */
     suspend fun updateSession(session: ChatSession) = mAppDatabase.withTransaction {
         mPersonas.chatPersona(session.userPersonaId)
-        mChatSessionDao.update(session.withNormalizedCreatorNotes())
+        val current = requireNotNull(mChatSessionDao.getSessionById(session.id))
+        mChatSessionDao.update(
+            session.withNormalizedCreatorNotes().copy(
+                inheritCharacterMemory = current.inheritCharacterMemory,
+                recallMemoryInNormalChat = current.recallMemoryInNormalChat
+            )
+        )
     }
 
     /**
@@ -640,6 +662,7 @@ class ChatRepository(
                 type = MessageType.Single,
                 ids = mChatMessageDao.getMessageIdsBySessionId(id),
             )
+            mMemory.conversationDeleted(MemoryTarget.Chat(id))
             mChatMessageDao.deleteMessagesBySessionId(id)
             mChatSessionDao.deleteSessionById(id)
         }
@@ -1226,6 +1249,7 @@ class ChatRepository(
                 require(message.sessionId == sessionId && message.source != ChatMessage.Source.Summary) {
                     "Generation target must be a regular message in the same session"
                 }
+                mMemory.chatMessageChanged(messageId)
                 mChatMessageDao.updateMessageContent(messageId, content)
                 mChatMessageDao.deleteSummariesCoveringMessage(sessionId, messageId)
                 messageId
@@ -1280,6 +1304,7 @@ class ChatRepository(
                 value = message.source != ChatMessage.Source.User || message.content.isNotBlank()
                     || attachments.isNotEmpty(),
             ) { "A message cannot have empty content and no images" }
+            mMemory.chatMessageChanged(message.id)
             mChatMessageDao.update(message)
             if (current != null && current.source != ChatMessage.Source.Summary) {
                 mChatMessageDao.deleteSummariesCoveringMessage(current.sessionId, current.id)
@@ -1303,6 +1328,7 @@ class ChatRepository(
                     .getByMessage(MessageType.Single, id)
                     .isNotEmpty(),
             ) { "A message cannot have empty content and no images" }
+            mMemory.chatMessageChanged(id)
             mChatMessageDao.updateMessageContent(id, content)
             if (message.source != ChatMessage.Source.Summary) {
                 mChatMessageDao.deleteSummariesCoveringMessage(message.sessionId, message.id)
@@ -1362,6 +1388,7 @@ class ChatRepository(
                 ) {
                     "Summary to update is no longer the latest snapshot"
                 }
+                mMemory.invalidateSources(chatIds = listOf(summaryIdToUpdate), hardDelete = false)
                 mChatMessageDao.updateSummary(summaryIdToUpdate, content, coveredMessageId)
                 return@withTransaction summaryIdToUpdate
             }
@@ -1408,6 +1435,7 @@ class ChatRepository(
                 val latestMessageId =
                     mChatMessageDao.getLatestMessageBySessionId(sessionId)?.id ?: 0L
                 if (current != null && current.coveredMessageId == latestMessageId) {
+                    mMemory.invalidateSources(chatIds = listOf(current.id), hardDelete = false)
                     mChatMessageDao.updateMessageContent(current.id, content)
                     return@withTransaction
                 }
@@ -1435,6 +1463,7 @@ class ChatRepository(
                 ?: return@withTransaction false
             val previous = mChatMessageDao.getPreviousSummaryBeforeId(sessionId, latest.id)
                 ?: return@withTransaction false
+            mMemory.invalidateSources(chatIds = listOf(latest.id))
             mChatMessageDao.delete(latest)
             previous.id > 0L
         }
@@ -1448,6 +1477,7 @@ class ChatRepository(
     suspend fun deleteMessage(id: Long) {
         mImages.mutate {
             val message = mChatMessageDao.getMessageById(id) ?: return@mutate
+            mMemory.chatMessageChanged(id, hardDelete = true)
             if (message.source != ChatMessage.Source.Summary) {
                 mChatMessageDao.deleteSummariesCoveringMessage(message.sessionId, message.id)
             }
@@ -1468,6 +1498,7 @@ class ChatRepository(
                 type = MessageType.Single,
                 ids = mChatMessageDao.getMessageIdsBySessionId(sessionId),
             )
+            mMemory.conversationDeleted(MemoryTarget.Chat(sessionId))
             mChatMessageDao.deleteMessagesBySessionId(sessionId)
         }
     }

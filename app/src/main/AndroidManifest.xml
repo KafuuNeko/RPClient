@@ -23,6 +23,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.RPClient"
         android:usesCleartextTraffic="true">
+        <activity android:name=".feature.memorycenter.MemoryCenterActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".feature.memoryedit.MemoryEditActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".feature.contentsearch.ContentSearchActivity"
             android:exported="false"
