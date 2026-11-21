@@ -14,6 +14,8 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.LLMUsage
+import me.kafuuneko.rpclient.libs.llm.model.isOutputIncomplete
+import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
 import java.io.IOException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -113,6 +115,7 @@ class GeminiInteractionsCodecTest {
         assertEquals(" null\n", http.content)
         assertEquals("summary", http.reasoningContent)
         assertEquals(LLMUsage(7, 42, 49, 4, 22), http.usage)
+        assertFalse(http.isOutputIncomplete())
         // 后一步先到达的正文须待前一步摘要完成，并保留纯空白增量。
         val frames = listOf(
             "step.start" to """{"index":0,"step":{"type":"thought"}}""",
@@ -150,6 +153,88 @@ class GeminiInteractionsCodecTest {
         assertEquals(http.finishReason, end.finishReason)
     }
 
+    /** 未完整生成仍保留已产生的正文与用量，两种传输都必须将完整性状态交给业务层。 */
+    @Test
+    fun incompleteResponsesPreserveTextAndNativeStatusInHttpAndSse() {
+        val metadata =
+            """"status":"incomplete","model":"served","usage":{"total_input_tokens":7,"total_output_tokens":20,"total_tokens":27}"""
+        val raw = """{$metadata,"steps":[
+            {"type":"model_output","content":[{"type":"text","text":"  Available paragraph\n"}]}
+        ]}"""
+        val http = GeminiInteractionsResponseCodec.decode(raw, mProvider, includeReasoning = false)
+        assertEquals("  Available paragraph\n", http.content)
+        assertEquals("served", http.model)
+        assertEquals(
+            LLMUsage(promptTokens = 7, completionTokens = 20, totalTokens = 27),
+            http.usage
+        )
+        assertEquals(raw, http.rawResponse)
+        assertEquals("incomplete", http.finishReason)
+        // v1 未提供更具体原因，不能将 incomplete 擅自改成输出 Token 耗尽。
+        assertTrue(http.isOutputIncomplete())
+        assertFalse(http.isOutputTokenLimitReached())
+
+        val decoder = GeminiInteractionsStreamDecoder()
+        val frames = listOf(
+            "step.start" to """{"index":0,"step":{"type":"model_output"}}""",
+            "step.delta" to """{"index":0,"delta":{"type":"text","text":"  Available paragraph\n"}}""",
+            "step.stop" to """{"index":0}""",
+            "interaction.completed" to """{"interaction":{$metadata}}""",
+        )
+        val parts = frames.flatMap { (type, json) -> decoder.accept(SseEvent(type, json)) }
+        decoder.requireFinished()
+        assertTrue(decoder.isFinished)
+        assertEquals(
+            http.content,
+            parts.filterIsInstance<LLMProviderStreamPart.Text>().joinToString("") { it.content },
+        )
+        // 流式终态也保留原生状态和服务端用量，不能将半截正文伪装为正常完成。
+        val end = parts.last() as LLMProviderStreamPart.Finished
+        assertEquals(http.finishReason, end.finishReason)
+        assertEquals(http.model, end.model)
+        assertEquals(http.usage, end.usage)
+    }
+
+    /** 接受不完整正文不放宽空回复、客户端工具和协议错误的边界。 */
+    @Test
+    fun incompleteResponsesStillRejectEmptyAndToolDependentOutput() {
+        // 只有思考、空白或缺少文本块时，仍然不能形成可保存的普通回复。
+        for (step in listOf(
+            """{"type":"thought","summary":[{"type":"text","text":"thinking"}]}""",
+            """{"type":"model_output","content":[{"type":"text","text":"  "}]}""",
+        )) {
+            assertThrows(LLMEmptyResponseException::class.java) {
+                GeminiInteractionsResponseCodec.decode(
+                    raw = """{"status":"incomplete","steps":[$step]}""",
+                    provider = mProvider,
+                    includeReasoning = false,
+                )
+            }
+        }
+        // 即使前面有可展示正文，函数调用与显式错误也不能被静默忽略。
+        for (raw in listOf(
+            """{"status":"incomplete","steps":[{"type":"model_output","content":[{"type":"text","text":"progress"}]},{"type":"function_call"}]}""",
+            """{"status":"incomplete","error":{"code":"invalid_api_key"},"steps":[]}""",
+        )) {
+            assertThrows(LLMResponseException::class.java) {
+                GeminiInteractionsResponseCodec.decode(
+                    raw = raw,
+                    provider = mProvider,
+                    includeReasoning = false
+                )
+            }
+        }
+        val decoder = GeminiInteractionsStreamDecoder()
+        assertThrows(LLMEmptyResponseException::class.java) {
+            decoder.accept(
+                SseEvent(
+                    event = "interaction.completed",
+                    data = """{"interaction":{"status":"incomplete"}}""",
+                )
+            )
+        }
+    }
+
     /** 未结束步骤、断流、服务端错误和工具请求都不能伪装成成功的普通回复。 */
     @Test
     fun interruptedAndNonTextTurnsFailExplicitly() {
@@ -180,7 +265,6 @@ class GeminiInteractionsCodecTest {
             )
         }
         for (status in listOf(
-            "incomplete",
             "failed",
             "cancelled",
             "in_progress",

@@ -73,9 +73,11 @@ import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.defaults.DefaultNames
 import me.kafuuneko.rpclient.libs.llm.GenerationFailure as LLMGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
+import me.kafuuneko.rpclient.libs.llm.LLMResponseException
 import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.isOutputIncomplete
 import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
 import me.kafuuneko.rpclient.libs.prompt.macro.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
@@ -1759,6 +1761,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                 uiState.copy(dialogState = StoryEditorDialogState.SummaryTokenLimit).setup()
                 return
             }
+            if (response.isOutputIncomplete()) throw LLMResponseException("incomplete_summary")
             val summary = response.content.summarySafeContent().trim()
             if (summary.isBlank()) error("Story summary response is empty")
             val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return

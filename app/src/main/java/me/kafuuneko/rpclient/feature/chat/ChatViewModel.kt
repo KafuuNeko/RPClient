@@ -28,6 +28,8 @@ import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookEntryData
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageCursor
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageDisplayContext
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
+import me.kafuuneko.rpclient.feature.chat.model.ChatSettingEdit
+import me.kafuuneko.rpclient.feature.chat.model.ChatSettingField
 import me.kafuuneko.rpclient.feature.chat.model.GenerationOutput
 import me.kafuuneko.rpclient.feature.chat.model.LoadedChatMessagePage
 import me.kafuuneko.rpclient.feature.chat.model.PreparedSummaryRequest
@@ -41,6 +43,7 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatDialogState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLoadState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatPage
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatSettingsState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatViewEvent
@@ -69,8 +72,10 @@ import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.llm.GenerationFailure
 import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
+import me.kafuuneko.rpclient.libs.llm.LLMResponseException
 import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.isOutputIncomplete
 import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.media.MessageImageCoordinator
@@ -385,6 +390,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         refreshed.copy(
             // 选择图片的回调可能在读取人设和会话期间完成，发布前取最新附件草稿。
             imageState = mImageCoordinator.state,
+            settingsState = getOrNull<ChatUiState.Normal>()?.settingsState ?: uiState.settingsState,
             conversationState = refreshed.conversationState.copy(
                 inputDraft = getOrNull<ChatUiState.Normal>()?.conversationState?.inputDraft
                     ?: refreshed.conversationState.inputDraft,
@@ -1577,51 +1583,55 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     /**
-     * 保存编辑后的会话标题。
+     * 保存用户编辑的设置字段，并在同一状态快照中发布保存回执。
      *
-     * @param intent 包含新标题的意图（空白时回退为默认“未命名会话”）
+     * 保留各字段原有的空白、默认值和继承规则，回执不依赖输入原文与入库文本相等。
+     * @param intent 字段、用户原文和本次编辑的唯一标识。
      */
-    @UiIntentObserver(ChatUiIntent.SaveTitle::class)
-    private suspend fun onSaveTitle(intent: ChatUiIntent.SaveTitle) {
+    @UiIntentObserver(ChatUiIntent.SaveSetting::class)
+    private suspend fun onSaveSetting(intent: ChatUiIntent.SaveSetting) {
         if (!isStateOf<ChatUiState.Normal>()) return
         val sessionId = mSessionId ?: return
+        val value = intent.edit.value
+        // 规范化和持久化留在业务层，输入框只负责草稿与回执的时序。
         withContext(Dispatchers.IO) {
-            mChatRepository.updateSessionTitle(
-                id = sessionId,
-                title = intent.value.trim().ifBlank { mContext.getString(R.string.untitled_chat) },
-            )
-        }
-        refreshUiState(sessionId = sessionId)
-    }
+            when (intent.field) {
+                ChatSettingField.Title -> mChatRepository.updateSessionTitle(
+                    id = sessionId,
+                    title = value.trim().ifBlank { mContext.getString(R.string.untitled_chat) },
+                )
 
-    /**
-     * 保存手动编辑的当前会话摘要正文。
-     *
-     * @param intent 包含摘要新文本的意图
-     */
-    @UiIntentObserver(ChatUiIntent.SaveSummary::class)
-    private suspend fun onSaveSummary(intent: ChatUiIntent.SaveSummary) {
-        if (!isStateOf<ChatUiState.Normal>()) return
-        val sessionId = mSessionId ?: return
-        withContext(Dispatchers.IO) {
-            mChatRepository.updateCurrentSummary(sessionId, intent.value)
-        }
-        refreshUiState(sessionId = sessionId)
-    }
+                ChatSettingField.Summary -> mChatRepository.updateCurrentSummary(
+                    sessionId = sessionId,
+                    content = value,
+                )
 
-    /**
-     * 保存当前会话的用户备注（User Note）。
-     *
-     * @param intent 包含新备注文本的意图
-     */
-    @UiIntentObserver(ChatUiIntent.SaveUserNote::class)
-    private suspend fun onSaveUserNote(intent: ChatUiIntent.SaveUserNote) {
-        if (!isStateOf<ChatUiState.Normal>()) return
-        val sessionId = mSessionId ?: return
-        withContext(Dispatchers.IO) {
-            mChatRepository.updateSessionUserNote(sessionId, intent.value)
+                ChatSettingField.UserNote -> mChatRepository.updateSessionUserNote(
+                    id = sessionId,
+                    userNote = value,
+                )
+
+                ChatSettingField.UserName -> mChatRepository.updateSessionUserName(
+                    id = sessionId,
+                    userName = value.ifEmpty { null },
+                )
+
+                ChatSettingField.UserDescription -> mChatRepository.updateSessionUserDescription(
+                    id = sessionId,
+                    userDescription = value.takeIf(String::isNotEmpty),
+                )
+
+                ChatSettingField.CreatorNotes -> mChatRepository.updateSessionCreatorNotes(
+                    id = sessionId,
+                    creatorNotes = value,
+                )
+            }
         }
-        refreshUiState(sessionId = sessionId)
+        // 回执与加载后的实际文本一起发布，避免先回填旧值再确认保存。
+        refreshUiState(
+            sessionId = sessionId,
+            savedSettingEdits = mapOf(intent.field to intent.edit.id),
+        )
     }
 
     /**
@@ -1680,54 +1690,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val id = mSessionId ?: return
         mChatRepository.selectPersona(id, intent.id)
         refreshUiState(sessionId = id)
-    }
-
-    /**
-     * 保存当前会话的用户名称。
-     *
-     * 清除覆盖后按当前绑定的人设解析用户名。
-     */
-    @UiIntentObserver(ChatUiIntent.SaveUserName::class)
-    private suspend fun onSaveUserName(intent: ChatUiIntent.SaveUserName) {
-        if (!isStateOf<ChatUiState.Normal>()) return
-        val sessionId = mSessionId ?: return
-        withContext(Dispatchers.IO) {
-            mChatRepository.updateSessionUserName(sessionId, intent.value.ifEmpty { null })
-        }
-        refreshUiState(sessionId = sessionId)
-    }
-
-    /**
-     * 保存当前会话的用户描述。
-     *
-     * 保留用户输入的描述原文，清空后继承绑定人设。
-     */
-    @UiIntentObserver(ChatUiIntent.SaveUserDescription::class)
-    private suspend fun onSaveUserDescription(intent: ChatUiIntent.SaveUserDescription) {
-        if (!isStateOf<ChatUiState.Normal>()) return
-        val sessionId = mSessionId ?: return
-        withContext(Dispatchers.IO) {
-            mChatRepository.updateSessionUserDescription(
-                sessionId,
-                intent.value.takeIf(String::isNotEmpty)
-            )
-        }
-        refreshUiState(sessionId = sessionId)
-    }
-
-    /**
-     * 保存当前会话的作者注释（Creator Notes 覆盖）。
-     *
-     * @param intent 包含作者注释文本的意图
-     */
-    @UiIntentObserver(ChatUiIntent.SaveCreatorNotes::class)
-    private suspend fun onSaveCreatorNotes(intent: ChatUiIntent.SaveCreatorNotes) {
-        if (!isStateOf<ChatUiState.Normal>()) return
-        val sessionId = mSessionId ?: return
-        withContext(Dispatchers.IO) {
-            mChatRepository.updateSessionCreatorNotes(sessionId, intent.value)
-        }
-        refreshUiState(sessionId = sessionId)
     }
 
     /**
@@ -2527,6 +2489,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 uiState.copy(dialogState = ChatDialogState.SummaryTokenLimit).setup()
                 return
             }
+            if (response.isOutputIncomplete()) throw LLMResponseException("incomplete_summary")
             val summaryContent = response.content.summarySafeContent()
             if (summaryContent.isBlank()) {
                 error(mContext.getString(R.string.summary_failed))
@@ -3090,6 +3053,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             ?.conversationState?.messages?.size
             ?.coerceAtLeast(MESSAGE_PAGE_SIZE)
             ?: MESSAGE_PAGE_SIZE,
+        savedSettingEdits: Map<ChatSettingField, String> = emptyMap(),
     ) {
         // 主动发送或继续生成后展示最新输出，搜索历史窗口只用于阅读。
         if (generationState is ChatGenerationState.Requesting || generationState is ChatGenerationState.Streaming) mSearchAnchorId =
@@ -3108,9 +3072,17 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 messageLimit = messageLimit,
             )
         } ?: return
-        val currentConversation = getOrNull<ChatUiState.Normal>()?.conversationState
+        val currentState = getOrNull<ChatUiState.Normal>()
+        val currentConversation = currentState?.conversationState
+        // 回执同时记录规范化后的文本，后续生成或恢复摘要不会冒充这次保存。
+        val settingsState = currentState?.settingsState ?: ChatSettingsState()
         nextState.copy(
             imageState = mImageCoordinator.state,
+            settingsState = settingsState.copy(
+                savedEdits = settingsState.savedEdits + savedSettingEdits.mapValues { (field, id) ->
+                    ChatSettingEdit(id = id, value = field.valueIn(nextState.session))
+                },
+            ),
             conversationState = nextState.conversationState.copy(
                 writingState = currentConversation?.writingState,
                 inputDraft = if (mActiveWritingToken != null) currentConversation?.inputDraft.orEmpty()

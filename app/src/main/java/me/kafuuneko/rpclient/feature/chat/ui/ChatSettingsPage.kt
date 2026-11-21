@@ -36,8 +36,11 @@ import kotlinx.coroutines.delay
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
+import me.kafuuneko.rpclient.feature.chat.model.ChatSettingEdit
+import me.kafuuneko.rpclient.feature.chat.model.ChatSettingField
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLoadState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatSettingsState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
 import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
@@ -50,15 +53,17 @@ import me.kafuuneko.rpclient.ui.widgets.SettingsActionRow
 import me.kafuuneko.rpclient.ui.widgets.SettingsSection
 import me.kafuuneko.rpclient.ui.widgets.UserPersonaPicker
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
+import java.util.UUID
 
 /**
- * 渲染单聊设置页，字段草稿与自动保存时序沿用原实现。
+ * 渲染单聊设置页，按字段保存回执保护较新的输入草稿。
  *
  * @param session 当前会话配置
  * @param lorebookState 会话世界书状态
  * @param loadState 当前加载状态
  * @param showCharacterExamplesSwitch 是否展示角色卡示例对话开关
  * @param emit 原有单聊意图发送入口
+ * @param settingsState 各字段最近一次保存的回执
  */
 @Composable
 internal fun ChatSettingsPage(
@@ -67,8 +72,9 @@ internal fun ChatSettingsPage(
     loadState: ChatLoadState,
     showCharacterExamplesSwitch: Boolean,
     emit: ChatUiIntent.() -> Unit,
+    settingsState: ChatSettingsState = ChatSettingsState(),
 ) {
-    // 沿用会话和世界书状态节点，各设置项继续发送原有意图。
+    // 会话与世界书独立渲染，文本保存通过带编辑标识的意图提交。
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -134,18 +140,26 @@ internal fun ChatSettingsPage(
                     AutoSaveTextField(
                         label = stringResource(R.string.title),
                         value = session.title,
+                        savedEdit = settingsState.savedEdits[ChatSettingField.Title],
                         minLines = 1,
                         maxLines = 1,
                         singleLine = true,
-                        onSave = { text -> ChatUiIntent.SaveTitle(text).emit() },
+                        onSave = { edit ->
+                            ChatUiIntent.SaveSetting(field = ChatSettingField.Title, edit = edit)
+                                .emit()
+                        },
                     )
                     AutoSaveTextField(
                         label = stringResource(R.string.current_summary),
                         value = session.summarize,
+                        savedEdit = settingsState.savedEdits[ChatSettingField.Summary],
                         placeholder = stringResource(R.string.no_summary_yet),
                         minLines = 3,
                         maxLines = 8,
-                        onSave = { text -> ChatUiIntent.SaveSummary(text).emit() },
+                        onSave = { edit ->
+                            ChatUiIntent.SaveSetting(field = ChatSettingField.Summary, edit = edit)
+                                .emit()
+                        },
                     )
                     // 摘要操作紧随正文，与群聊保持一致，便于查看内容后直接处理。
                     SettingsActionRow(
@@ -170,10 +184,14 @@ internal fun ChatSettingsPage(
                     AutoSaveTextField(
                         label = stringResource(R.string.user_note),
                         value = session.userNote,
+                        savedEdit = settingsState.savedEdits[ChatSettingField.UserNote],
                         placeholder = stringResource(R.string.empty),
                         minLines = 3,
                         maxLines = 8,
-                        onSave = { text -> ChatUiIntent.SaveUserNote(text).emit() },
+                        onSave = { edit ->
+                            ChatUiIntent.SaveSetting(field = ChatSettingField.UserNote, edit = edit)
+                                .emit()
+                        },
                     )
                     UserPersonaPicker(
                         state = session.persona,
@@ -183,27 +201,43 @@ internal fun ChatSettingsPage(
                         alwaysMinimizeLabel = true,
                         label = stringResource(R.string.user_display_name),
                         value = session.userName,
+                        savedEdit = settingsState.savedEdits[ChatSettingField.UserName],
                         minLines = 1,
                         maxLines = 1,
                         singleLine = true,
-                        onSave = { text -> ChatUiIntent.SaveUserName(text).emit() },
+                        onSave = { edit ->
+                            ChatUiIntent.SaveSetting(field = ChatSettingField.UserName, edit = edit)
+                                .emit()
+                        },
                     )
                     AutoSaveTextField(
                         label = stringResource(R.string.user_persona_description),
                         value = session.userDescription,
+                        savedEdit = settingsState.savedEdits[ChatSettingField.UserDescription],
                         placeholder = session.inheritedDescription.ifEmpty { stringResource(R.string.user_persona_description) },
                         alwaysMinimizeLabel = true,
                         minLines = 3,
                         maxLines = 8,
-                        onSave = { text -> ChatUiIntent.SaveUserDescription(text).emit() },
+                        onSave = { edit ->
+                            ChatUiIntent.SaveSetting(
+                                field = ChatSettingField.UserDescription,
+                                edit = edit,
+                            ).emit()
+                        },
                     )
                     AutoSaveTextField(
                         label = stringResource(R.string.creator_notes),
                         value = session.creatorNotes,
+                        savedEdit = settingsState.savedEdits[ChatSettingField.CreatorNotes],
                         placeholder = stringResource(R.string.using_character_default_or_empty),
                         minLines = 3,
                         maxLines = 8,
-                        onSave = { text -> ChatUiIntent.SaveCreatorNotes(text).emit() },
+                        onSave = { edit ->
+                            ChatUiIntent.SaveSetting(
+                                field = ChatSettingField.CreatorNotes,
+                                edit = edit,
+                            ).emit()
+                        },
                     )
                 }
             }
@@ -276,30 +310,40 @@ private fun SessionSwitchRow(
 private fun AutoSaveTextField(
     label: String,
     value: String,
+    savedEdit: ChatSettingEdit?,
     placeholder: String? = null,
     alwaysMinimizeLabel: Boolean = false,
     minLines: Int,
     maxLines: Int,
     singleLine: Boolean = false,
-    onSave: (String) -> Unit,
+    onSave: (ChatSettingEdit) -> Unit,
 ) {
     var draft by remember(label) { mutableStateOf(value) }
     var pendingEdit by remember(label) { mutableStateOf<String?>(null) }
-    val submittedEdits = remember(label) { ArrayDeque<String>() }
+    var observedValue by remember(label) { mutableStateOf(value) }
+    val submittedEdits = remember(label) { ArrayDeque<ChatSettingEdit>() }
     val savedValue by rememberUpdatedState(value)
     val save by rememberUpdatedState(onSave)
 
-    LaunchedEffect(value) {
-        // 较早一次保存的回显不能替换用户随后输入的草稿。
-        val acknowledged = submittedEdits.indexOf(value)
+    LaunchedEffect(value, savedEdit) {
+        // 按标识识别规范化后的回显；回执文本不匹配时仍视为生成或恢复的外部更新。
+        val acknowledged = if (savedEdit != null && savedEdit.value == value) {
+            submittedEdits.indexOfFirst { it.id == savedEdit.id }
+        } else -1
         if (acknowledged >= 0) {
+            val edit = submittedEdits[acknowledged]
             repeat(acknowledged + 1) { submittedEdits.removeFirst() }
-        } else {
+            // 只有最后一次编辑已经确认且没有新输入时，才展示保存后的规范化文本。
+            if (pendingEdit == null && submittedEdits.isEmpty() && draft == edit.value) {
+                draft = value
+            }
+        } else if (value != observedValue) {
             // 生成或恢复的摘要即使在输入框聚焦时也应更新正文。
             submittedEdits.clear()
             pendingEdit = null
             draft = value
         }
+        observedValue = value
     }
 
     LaunchedEffect(pendingEdit) {
@@ -307,8 +351,9 @@ private fun AutoSaveTextField(
         val edit = pendingEdit ?: return@LaunchedEffect
         delay(timeMillis = 450)
         if (edit != savedValue || submittedEdits.isNotEmpty()) {
-            submittedEdits.addLast(edit)
-            save(edit)
+            val submission = ChatSettingEdit(id = UUID.randomUUID().toString(), value = edit)
+            submittedEdits.addLast(submission)
+            save(submission)
         }
         pendingEdit = null
     }

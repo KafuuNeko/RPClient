@@ -25,11 +25,13 @@ internal class GeminiInteractionsStreamDecoder {
 
     /** 解析完整帧并返回本次新可展示的片段；签名和服务端工具步骤不进入正文。 */
     fun accept(event: SseEvent): List<LLMProviderStreamPart> {
+        // 连接结束和步骤结束都不能替代交互终态，防止断流被当作完整回复。
         if (isFinished) return emptyList()
         if (event.data == "[DONE]") throw IOException("Interaction closed before completion.")
         val json =
             parseStreamJsonObject(event.data) ?: throw LLMResponseException("invalid_stream_event")
         val type = json.cleanString("event_type").ifEmpty { event.event }
+        // 按协议事件分发，只有交互终态能够完成这一轮生成。
         return when (type) {
             "step.start" -> start(json, event.data)
             "step.delta" -> delta(json, event.data)
@@ -63,8 +65,10 @@ internal class GeminiInteractionsStreamDecoder {
 
     /** 依据步骤类型读取增量，避免误把工具或思考签名拼入聊天。 */
     private fun delta(json: JsonObject, raw: String): List<LLMProviderStreamPart> {
+        // 增量必须归属仍开放的步骤，不能拼接到已结束或未知步骤中。
         val step = openStep(json)
         val delta = json.objectOrNull("delta") ?: throw LLMResponseException("invalid_step_delta")
+        // 正文与思考摘要分别建模，工具数据和思考签名不进入可展示内容。
         when (step.type) {
             "model_output" -> if (delta.cleanString("type") == "text") append(
                 step,
@@ -84,6 +88,7 @@ internal class GeminiInteractionsStreamDecoder {
                 )
             }
         }
+        // 交错到达的后继步骤继续等待，保持与完整响应相同的展示顺序。
         return drain()
     }
 
@@ -112,6 +117,7 @@ internal class GeminiInteractionsStreamDecoder {
     }
 
     private fun finish(json: JsonObject): List<LLMProviderStreamPart> {
+        // 不完整终态可以保留已收到的正文，但仍须验证步骤闭合和正文有效性。
         val response =
             json.objectOrNull("interaction") ?: throw LLMResponseException("missing_interaction")
         val reason = GeminiInteractionsResponseCodec.finishReason(response)

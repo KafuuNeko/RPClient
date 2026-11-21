@@ -79,11 +79,13 @@ import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.ImageRequestException
 import me.kafuuneko.rpclient.libs.llm.ImageRequestFailure
 import me.kafuuneko.rpclient.libs.llm.LLMEmptyResponseException
+import me.kafuuneko.rpclient.libs.llm.LLMResponseException
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
+import me.kafuuneko.rpclient.libs.llm.model.isOutputIncomplete
 import me.kafuuneko.rpclient.libs.macro.MacroExpansionException
 import me.kafuuneko.rpclient.libs.media.CharacterAvatarLoader
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
@@ -2913,6 +2915,7 @@ class GroupChatViewModel :
                 uiState.copy(dialogState = GroupChatDialogState.SummaryTokenLimit).setup()
                 return
             }
+            if (response.isOutputIncomplete()) throw LLMResponseException("incomplete_summary")
             val summaryContent = response.content.summarySafeContent()
             if (summaryContent.isBlank()) {
                 error(mContext.getString(R.string.summary_failed))

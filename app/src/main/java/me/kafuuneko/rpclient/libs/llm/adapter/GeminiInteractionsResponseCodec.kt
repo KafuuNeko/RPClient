@@ -67,13 +67,12 @@ internal object GeminiInteractionsResponseCodec {
             else -> null
         }
 
-    /** 仅允许可用于普通回复的终态；尚需续接、失败或取消时保留失败语义。 */
+    /** 保留已结束回复的原生完整性状态；尚需续接、失败或取消时保留失败语义。 */
     fun finishReason(response: JsonObject): String {
         response.objectOrNull("error")?.let { throw LLMResponseException(it.cleanString("code")) }
         return when (val status = response.cleanString("status")) {
-            "completed" -> status
-            // v1 没有给出完整结果时不推进摘要覆盖边界，也不把不完整正文记作成功请求。
-            "incomplete" -> throw LLMResponseException("incomplete_interaction")
+            // incomplete 可能由长度限制导致，保留正文但不猜测服务端未给出的具体原因。
+            "completed", "incomplete" -> status
             "requires_action" -> throw LLMResponseException("tool_output_required")
             else -> throw LLMResponseException("invalid_interaction_status")
         }

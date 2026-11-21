@@ -6,6 +6,8 @@ import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
+import me.kafuuneko.rpclient.feature.chat.model.ChatSettingEdit
+import me.kafuuneko.rpclient.feature.chat.model.ChatSettingField
 import me.kafuuneko.rpclient.libs.media.MessageImageState
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.model.ChatWritingState
@@ -28,6 +30,8 @@ sealed class ChatUiState {
         val loadState: ChatLoadState = ChatLoadState.None,
         /** 当前页面展示或编辑的会话数据。 */
         val session: ChatSessionItem,
+        /** 设置页各字段最近一次保存的回执，不参与持久化。 */
+        val settingsState: ChatSettingsState = ChatSettingsState(),
         /** 当前状态或操作关联的角色数据。 */
         val character: ChatCharacterItem,
         /** 单聊消息列表、输入和生成生命周期状态。 */
@@ -55,6 +59,11 @@ sealed class ChatUiState {
         }
     }
 }
+
+/** 设置页按字段保存回执，异步回显与外部正文更新据此区分。 */
+data class ChatSettingsState(
+    val savedEdits: Map<ChatSettingField, ChatSettingEdit> = emptyMap(),
+)
 
 /** 单聊消息列表、输入与生成生命周期子状态。 */
 data class ChatConversationState(

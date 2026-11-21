@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.test.platform.app.InstrumentationRegistry
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
+import me.kafuuneko.rpclient.feature.chat.model.ChatSettingField
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLoadState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
@@ -55,7 +56,11 @@ class ChatSummarySettingsTest {
                     lorebookState = ChatLorebookState(groups = emptyList()),
                     loadState = ChatLoadState.None,
                     showCharacterExamplesSwitch = true,
-                    emit = { if (this is ChatUiIntent.SaveSummary) savedEdits.add(value) },
+                    emit = {
+                        if (this is ChatUiIntent.SaveSetting && field == ChatSettingField.Summary) {
+                            savedEdits.add(edit.value)
+                        }
+                    },
                 )
             }
         }

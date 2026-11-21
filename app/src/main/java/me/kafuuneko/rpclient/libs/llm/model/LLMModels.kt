@@ -326,3 +326,11 @@ enum class LLMReasoningKind {
 fun LLMGenerationResponse.isOutputTokenLimitReached(): Boolean {
     return finishReason?.trim()?.lowercase() in setOf("length", "max_tokens", "max_output_tokens")
 }
+
+/**
+ * 判断正文是否被服务端标为不完整；摘要不能使用此类正文推进记忆覆盖边界。
+ * @return 已达到输出上限或服务端明确返回不完整终态时为 true。
+ */
+fun LLMGenerationResponse.isOutputIncomplete(): Boolean {
+    return isOutputTokenLimitReached() || finishReason?.trim()?.lowercase() == "incomplete"
+}
