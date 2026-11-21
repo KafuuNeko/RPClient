@@ -128,6 +128,7 @@ import me.kafuuneko.rpclient.model.toMessageContentParts
 import me.kafuuneko.rpclient.utils.MessageEditPolicy
 import me.kafuuneko.rpclient.utils.formatTimestamp
 import me.kafuuneko.rpclient.utils.matchesCharacterQuery
+import me.kafuuneko.rpclient.utils.toDefaultChatTitle
 import me.kafuuneko.rpclient.utils.toMessageCopyText
 import me.kafuuneko.rpclient.utils.toggle
 import me.kafuuneko.rpclient.utils.toggleAll
@@ -148,6 +149,7 @@ import org.koin.core.component.inject
  *   - 使用 [GroupChatOutputSanitizer] 清洗大模型可能冒充其他成员发言的多余文本，支持 `trimOtherSpeakers` 截断。
  * - 群聊流式控制与原子持久化：内存更新 UI 状态，收尾时原子写入消息并更新世界书时序快照。
  * - 分段总结（Summary）：自动/手动多角色群聊增量摘要生成与回滚。
+ * - 独立分支：复制选定位置的历史与当前配置，原群聊数据保持不变。
  */
 class GroupChatViewModel :
     CoreViewModelWithEvent<GroupChatUiIntent, GroupChatUiState>(
@@ -2029,6 +2031,59 @@ class GroupChatViewModel :
             message.content.toMessageCopyText(includeThinkBlocks = AppModel.includeThinkInContext)
         if (copyText.isBlank()) return
         GroupChatViewEvent.CopyText(copyText).emit()
+    }
+
+    /**
+     * 从已保存消息创建独立群聊，成功后打开分支并结束当前页面。
+     *
+     * - 回复、摘要和代写共用生成任务，执行期间不允许复制占位内容。
+     * - 创建失败恢复原页面快照，保留输入、图片草稿和历史定位。
+     * @param intent 包含分支末条消息 ID 的用户意图。
+     */
+    @UiIntentObserver(GroupChatUiIntent.BranchFromMessage::class)
+    private suspend fun onBranchFromMessage(intent: GroupChatUiIntent.BranchFromMessage) {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.page != GroupChatPage.Conversation) return
+        if (uiState.dialogState != GroupChatDialogState.None) return
+        if (uiState.conversationState.editingMessageId != null) return
+        if (mImageCoordinator.state.loadState.isBusy) return
+        // 生成任务也包括手动摘要和用户代写，不能只检查气泡的流式状态。
+        if (mGenerationJob?.isCompleted == false) {
+            AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
+            return
+        }
+        if (intent.messageId <= 0L || uiState.conversationState.messages.none { message ->
+                message.id == intent.messageId && !message.isStreaming
+            }) return
+        uiState.copy(dialogState = GroupChatDialogState.Branching).setup()
+        val createTime = System.currentTimeMillis()
+        val branchId = try {
+            withContext(Dispatchers.IO) {
+                mGroupChatRepository.createBranchSession(
+                    sourceSessionId = uiState.sessionId,
+                    throughMessageId = intent.messageId,
+                    title = createTime.toDefaultChatTitle(),
+                    createTime = createTime,
+                )
+            }
+        } catch (error: Exception) {
+            // 已进入文件事务的提交段可能完成；取消继续传播，普通失败由本地化提示承接。
+            currentCoroutineContext().ensureActive()
+            0L
+        }
+        if (branchId == 0L) {
+            uiState.copy(imageState = mImageCoordinator.state).setup()
+            AppViewEvent.PopupToastMessageByResId(R.string.branch_create_failed).tryEmit()
+            return
+        }
+        // 等待宿主处理导航后再结束源页面，忙碌状态阻止重复意图创建多个副本。
+        AppViewEvent.StartActivity(
+            activity = GroupChatActivity::class.java,
+            extras = Bundle().apply {
+                putString(GroupChatActivity.EXTRA_SESSION_ID, branchId.toString())
+            },
+        ).emitAndAwait()
+        GroupChatUiState.finished(uiState).setup()
     }
 
     /**

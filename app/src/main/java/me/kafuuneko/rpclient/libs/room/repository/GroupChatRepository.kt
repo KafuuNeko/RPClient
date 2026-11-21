@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.libs.room.repository
 
 import androidx.room.withTransaction
 import com.google.gson.Gson
+import java.util.UUID
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatOpeningMessage
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
 import me.kafuuneko.rpclient.libs.room.AppDatabase
@@ -657,6 +658,83 @@ class GroupChatRepository(
             }
             sessionId
         }
+    }
+
+    /**
+     * 从消息前缀创建独立群聊，复制当前成员、设置及分支点有效的摘要。
+     *
+     * - 会话、消息、成员关系和附件引用在同一事务中创建，不修改源群聊。
+     * - 世界书运行时重置，批次 ID 与摘要覆盖边界映射到新会话。
+     * @param sourceSessionId 源群聊会话 ID。
+     * @param throughMessageId 包含在分支中的最后一条消息 ID。
+     * @param title 新群聊标题。
+     * @param createTime 新群聊创建时间，也是复制消息的末尾时间。
+     * @return 新会话 ID；源会话或所选消息不存在时返回 0。
+     */
+    suspend fun createBranchSession(
+        sourceSessionId: Long,
+        throughMessageId: Long,
+        title: String,
+        createTime: Long = System.currentTimeMillis(),
+    ): Long = mImages.mutate {
+        // 从持久化历史截取完整前缀，分页窗口和其他会话的消息不能作为复制来源。
+        val sourceSession = mSessionDao.getSessionById(sourceSessionId) ?: return@mutate 0L
+        val sourceMessages = mMessageDao.getMessages(sourceSessionId)
+        val throughIndex = sourceMessages.indexOfFirst { message -> message.id == throughMessageId }
+        if (throughIndex < 0) return@mutate 0L
+        val branchMessages = sourceMessages.take(throughIndex + 1)
+        val sourceMembers = mMemberDao.getMembers(sourceSessionId)
+        val sourceSummary = mSummaryDao.getLatestAtOrBefore(sourceSessionId, throughMessageId)
+        val branchSessionId = mSessionDao.insertOrReplace(
+            data = sourceSession.copy(
+                id = 0L,
+                title = title,
+                userName = mPersonas.resolve(sourceSession).name,
+                createTime = createTime,
+                latestTime = createTime,
+                worldInfoStateJson = "{}",
+            ),
+        )
+        mMemberDao.insertOrReplaceAll(
+            data = sourceMembers.map { member -> member.copy(sessionId = branchSessionId) },
+        )
+        // 新批次保留原分组；末条时间不越过创建时刻，避免新回复插入复制历史中间。
+        val batchIdBySourceId = mutableMapOf<String, String>()
+        val copiedMessages = branchMessages.mapIndexed { index, message ->
+            message.copy(
+                id = 0L,
+                sessionId = branchSessionId,
+                createTime = createTime - branchMessages.lastIndex + index,
+                generationBatchId = message.generationBatchId?.let { batchId ->
+                    batchIdBySourceId.getOrPut(batchId) { UUID.randomUUID().toString() }
+                },
+            )
+        }
+        val copiedIds = mMessageDao.insertOrReplaceAll(copiedMessages)
+        val copiedIdBySourceId = branchMessages.map { message -> message.id }.zip(copiedIds).toMap()
+        mImages.copyInTransaction(
+            mutation = this,
+            type = MessageType.Group,
+            idMap = copiedIdBySourceId,
+            targetSessionId = branchSessionId,
+        )
+        // 零边界保留主动清空语义，非零边界必须真实映射到复制消息。
+        if (sourceSummary != null) {
+            val copiedBoundaryId = if (sourceSummary.coveredMessageId == 0L) 0L else {
+                requireNotNull(copiedIdBySourceId[sourceSummary.coveredMessageId]) {
+                    "Summary boundary is outside the copied group chat history"
+                }
+            }
+            mSummaryDao.insertOrReplace(
+                data = sourceSummary.copy(
+                    id = 0L,
+                    sessionId = branchSessionId,
+                    createTime = createTime,
+                    coveredMessageId = copiedBoundaryId,
+                ),
+            )
+        }
+        branchSessionId
     }
 
     /**

@@ -125,6 +125,11 @@ private fun DialogSwitch(
             description = stringResource(R.string.group_chat_settings),
         )
 
+        GroupChatDialogState.Branching -> LoadingDialog(
+            title = stringResource(R.string.saving),
+            description = stringResource(R.string.branch_from_message),
+        )
+
         GroupChatDialogState.Deleting -> LoadingDialog(
             title = stringResource(R.string.deleting),
             description = state.title,

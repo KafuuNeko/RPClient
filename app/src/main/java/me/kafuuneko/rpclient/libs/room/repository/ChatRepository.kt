@@ -362,7 +362,12 @@ class ChatRepository(
             }
             val copiedIdBySourceId =
                 branchMessages.map { message -> message.id }.zip(insertedMessageIds).toMap()
-            mImages.copyInTransaction(this, copiedIdBySourceId, branchSessionId)
+            mImages.copyInTransaction(
+                mutation = this,
+                type = MessageType.Single,
+                idMap = copiedIdBySourceId,
+                targetSessionId = branchSessionId,
+            )
             // 复制并重映射总结快照边界
             if (sourceSummary != null) {
                 val copiedBoundaryId = sourceSummary.coveredMessageId

@@ -27,7 +27,7 @@ sealed class GroupChatUiState {
      *
      * 设置字段以 Draft 形式保留，只有 SaveSettings 意图才写回数据库；
      * [GroupChatConversationState.generationState] 独立描述模型生成，
-     * [dialogState] 统一表达设置保存、会话删除与手动摘要的进度。
+     * [dialogState] 统一表达设置保存、分支创建、会话删除与手动摘要的进度。
      */
     data class Normal(
         val imageState: MessageImageState = MessageImageState(),
@@ -153,6 +153,9 @@ data class GroupChatSettingsState(
 /** 群聊页面互斥显示的业务对话框。 */
 sealed class GroupChatDialogState {
     data object Saving : GroupChatDialogState()
+
+    /** 正在复制会话前缀，导航完成前保持互斥状态。 */
+    data object Branching : GroupChatDialogState()
 
     data object Deleting : GroupChatDialogState()
 

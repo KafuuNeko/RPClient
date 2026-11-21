@@ -157,6 +157,9 @@ sealed class GroupChatUiIntent {
 
     data class CopyMessage(val messageId: Long) : GroupChatUiIntent()
 
+    /** 复制截至所选消息的历史，创建独立群聊。 */
+    data class BranchFromMessage(val messageId: Long) : GroupChatUiIntent()
+
     data class ToggleThinkBlock(val blockId: String) : GroupChatUiIntent()
 
     data class StartEditMessage(val messageId: Long) : GroupChatUiIntent()

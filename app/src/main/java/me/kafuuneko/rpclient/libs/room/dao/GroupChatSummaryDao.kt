@@ -19,6 +19,38 @@ interface GroupChatSummaryDao : MutableDao<GroupChatSummary> {
     )
     suspend fun getLatest(sessionId: Long): GroupChatSummary?
 
+    /**
+     * 读取指定消息位置仍然有效的最新摘要，包括主动清空的零边界快照。
+     *
+     * @param sessionId 源群聊会话 ID。
+     * @param throughMessageId 包含在分支内的最后一条消息 ID。
+     * @return 覆盖边界位于稳定消息前缀内的最新摘要；不存在时返回 null。
+     */
+    @Query(
+        """
+        SELECT summaries.*
+        FROM group_chat_summaries AS summaries
+        JOIN group_chat_messages AS target
+          ON target.id = :throughMessageId
+         AND target.sessionId = summaries.sessionId
+        LEFT JOIN group_chat_messages AS boundary
+          ON boundary.id = summaries.coveredMessageId
+         AND boundary.sessionId = summaries.sessionId
+        WHERE summaries.sessionId = :sessionId
+          AND (
+              summaries.coveredMessageId = 0
+              OR boundary.createTime < target.createTime
+              OR (boundary.createTime = target.createTime AND boundary.id <= target.id)
+          )
+        ORDER BY summaries.id DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getLatestAtOrBefore(
+        sessionId: Long,
+        throughMessageId: Long,
+    ): GroupChatSummary?
+
     /** 按写入时间取未覆盖目标消息的最新快照，包括用户主动清空的摘要。 */
     @Query(
         """

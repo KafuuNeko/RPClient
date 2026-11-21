@@ -31,6 +31,7 @@ import androidx.compose.material.icons.rounded.Book
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.ForkRight
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Refresh
@@ -106,6 +107,10 @@ internal fun GroupChatNormalPage(
     val generation = conversation.generationState
     val impersonating = generation as? GroupChatGenerationState.Impersonating
     val generating = generation is GroupChatGenerationState.Generating || impersonating != null
+    val canBranch = !generating
+        && state.dialogState == GroupChatDialogState.None
+        && conversation.editingMessageId == null
+        && !state.imageState.loadState.isBusy
     val canContinue = conversation.hasCharacterMessage
     val displayMessages = remember(conversation.messages, impersonating?.preview) {
         impersonating?.preview?.let { preview -> conversation.messages + preview }
@@ -209,6 +214,7 @@ internal fun GroupChatNormalPage(
                         GroupChatMessageBubble(
                             imageState = state.imageState,
                             message = message,
+                            canBranch = canBranch,
                             editing = isEditing,
                             editingDraft = conversation.editingMessageDraft
                                 .takeIf { isEditing }
@@ -552,6 +558,7 @@ private fun EmptyConversation(modifier: Modifier) {
 private fun GroupChatMessageBubble(
     imageState: MessageImageState,
     message: GroupChatMessageItem,
+    canBranch: Boolean,
     editing: Boolean,
     editingDraft: String,
     expandedThinkBlockIds: Set<String>,
@@ -577,6 +584,7 @@ private fun GroupChatMessageBubble(
         actions = {
             GroupChatMessageActions(
                 message = message,
+                canBranch = canBranch,
                 emitIntent = emitIntent,
             )
         },
@@ -622,6 +630,7 @@ private fun GroupChatMessageItem.toConversationMessageItem(): ConversationMessag
 @Composable
 private fun RowScope.GroupChatMessageActions(
     message: GroupChatMessageItem,
+    canBranch: Boolean,
     emitIntent: (GroupChatUiIntent) -> Unit,
 ) {
     // 全部消息支持复制、编辑与删除，角色回复额外开放单条重生成。
@@ -635,6 +644,14 @@ private fun RowScope.GroupChatMessageActions(
         contentDescription = stringResource(R.string.edit),
         onClick = { emitIntent(GroupChatUiIntent.StartEditMessage(message.id)) },
     )
+    // 首条开场白也可分支，流式占位和未落库的代写预览不作为复制入口。
+    if (canBranch && message.id > 0L && !message.isStreaming) {
+        ConversationMessageActionButton(
+            icon = Icons.Rounded.ForkRight,
+            contentDescription = stringResource(R.string.branch_from_message),
+            onClick = { emitIntent(GroupChatUiIntent.BranchFromMessage(message.id)) },
+        )
+    }
     if (message.source == GroupChatMessageSource.Character) {
         ConversationMessageActionButton(
             icon = Icons.Rounded.Refresh,

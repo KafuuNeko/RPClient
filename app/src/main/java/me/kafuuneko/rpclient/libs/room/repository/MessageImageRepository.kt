@@ -80,22 +80,32 @@ class MessageImageRepository(
         }
     }
 
-    /** 按分支消息 ID 映射复制附件，独立 UUID 共享原图 hash，保留原有 position。 */
+    /**
+     * 按同类型分支消息 ID 映射复制附件，独立 UUID 共享原图 hash。
+     * - 两种消息的 ID 空间独立，读取来源和验证目标必须使用相同类型。
+     * - 保留历史附件位置和数量，不重新应用新消息的附件上限。
+     * @param mutation 已持文件锁并开启数据库事务的变更入口。
+     * @param type 源消息与目标消息共同所属的类型。
+     * @param idMap 旧消息 ID 到新消息 ID 的映射。
+     * @param targetSessionId 新消息所属的会话 ID。
+     */
     internal suspend fun copyInTransaction(
         mutation: FileRepository.Mutation,
+        type: MessageType,
         idMap: Map<Long, Long>,
         targetSessionId: Long,
     ) {
         // 分支复制已有关系，保留导入消息的来源；每个附件仍创建独立引用。
         idMap.keys.toList().chunked(BATCH_SIZE).forEach { batch ->
-            val images = mImages.getByMessages(MessageType.Single, batch)
+            val images = mImages.getByMessages(type, batch)
             images.groupBy { messageImageEntity -> messageImageEntity.messageId }
                 .forEach { (sourceId, attachments) ->
                     val targetId = idMap.getValue(sourceId)
-                    validateOwner(MessageKey(MessageType.Single, targetId), targetSessionId)
+                    validateOwner(MessageKey(type, targetId), targetSessionId)
                     mImages.insertAll(
                         images = attachments.map { messageImageEntity ->
                             messageImageEntity.copy(
+                                messageType = type,
                                 messageId = targetId,
                                 imageUuid = mutation.copyReference(messageImageEntity.imageUuid).uuid,
                             )
