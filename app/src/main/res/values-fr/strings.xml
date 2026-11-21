@@ -675,6 +675,8 @@
     <string name="prompt_group_nudge_title">Instruction de groupe</string>
     <string name="prompt_new_group_chat_title">Nouvelle discussion de groupe</string>
     <string name="group_chat_settings">Paramètres du groupe</string>
+    <string name="group_chat_save_settings_title">Enregistrer les modifications ?</string>
+    <string name="group_chat_save_settings_message">Enregistrer les modifications des paramètres du groupe avant de quitter ?</string>
     <string name="group_chat_basic_settings">Détails de la conversation</string>
     <string name="group_chat_scenario">Scénario du groupe</string>
     <string name="group_chat_author_note">Note d’auteur</string>
@@ -937,6 +939,8 @@
     <string name="story_not_found">Cette histoire n’existe plus</string>
     <string name="story_save_failed">Impossible d’enregistrer l’histoire</string>
     <string name="story_settings">Réglages de l’histoire</string>
+    <string name="story_save_settings_title">Enregistrer les modifications ?</string>
+    <string name="story_save_settings_message">Enregistrer les modifications des réglages de l’histoire avant de quitter ?</string>
     <string name="story_title">Titre de l’histoire</string>
     <string name="story_title_required">Saisissez un titre pour le récit</string>
     <string name="story_undo">Annuler la dernière modification</string>

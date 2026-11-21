@@ -777,6 +777,8 @@
     <string name="prompt_group_nudge_title">Empuje de grupo</string>
     <string name="prompt_new_group_chat_title">Nuevo chat grupal</string>
     <string name="group_chat_settings">Ajustes del chat grupal</string>
+    <string name="group_chat_save_settings_title">¿Guardar cambios?</string>
+    <string name="group_chat_save_settings_message">¿Guardar los cambios en los ajustes del chat grupal antes de salir?</string>
     <string name="group_chat_basic_settings">Detalles de la conversación</string>
     <string name="group_chat_scenario">Escenario de grupo</string>
     <string name="group_chat_author_note">Nota del autor</string>
@@ -1001,6 +1003,8 @@
     <string name="story_leave_with_unsaved_draft">El borrador aún no está guardado. Reintente o cópielo antes de salir.</string>
     <string name="story_draft_clip_label">Borrador de historia</string>
     <string name="story_settings">Ajustes de la historia</string>
+    <string name="story_save_settings_title">¿Guardar cambios?</string>
+    <string name="story_save_settings_message">¿Guardar los cambios en los ajustes de la historia antes de salir?</string>
     <string name="story_character_references_count">%1$d referencias de personajes</string>
     <string name="story_lorebook_entries_count">%1$d entradas del libro del mundo</string>
     <string name="story_loading_settings">Cargando ajustes de la historia…</string>

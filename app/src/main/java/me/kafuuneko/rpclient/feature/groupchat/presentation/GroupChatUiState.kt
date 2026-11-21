@@ -6,6 +6,7 @@ import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatAvailableCharacter
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMemberItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMessageItem
+import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatSettingsSnapshot
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
@@ -147,12 +148,17 @@ data class GroupChatSettingsState(
     val enabledLorebookGroups: List<GroupChatLorebookGroupItem> = lorebookGroups.filter { it.enabledCount > 0 },
     /** 设置页可操作的回复来自完整历史，不受当前搜索窗口影响。 */
     val canContinueLatestReply: Boolean = false,
-    val canRegenerateLatestReply: Boolean = false
+    val canRegenerateLatestReply: Boolean = false,
+    /** 表单上次从持久化层同步的基线快照，用于判断返回时是否存在未保存修改。 */
+    val savedSnapshot: GroupChatSettingsSnapshot? = null,
 )
 
 /** 群聊页面互斥显示的业务对话框。 */
 sealed class GroupChatDialogState {
     data object Saving : GroupChatDialogState()
+
+    /** 群聊设置存在未保存修改，等待用户选择保存、放弃或继续编辑。 */
+    data object UnsavedSettingsChanges : GroupChatDialogState()
 
     /** 正在复制会话前缀，导航完成前保持互斥状态。 */
     data object Branching : GroupChatDialogState()

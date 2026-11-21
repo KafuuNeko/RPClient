@@ -5,6 +5,7 @@ import me.kafuuneko.rpclient.feature.storyeditor.model.StoryChapterOutlineItem
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryCharacterOptionItem
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryImportPreview
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryLorebookGroupItem
+import me.kafuuneko.rpclient.feature.storyeditor.model.StorySettingsSnapshot
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryStructureTitleTarget
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryVolumeOutlineItem
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
@@ -210,7 +211,9 @@ sealed class StoryEditorPageState {
         /** 按世界书分组后的条目列表。 */
         val lorebookGroups: List<StoryLorebookGroupItem>,
         /** 当前页面是否正在执行保存操作。 */
-        val isSaving: Boolean = false
+        val isSaving: Boolean = false,
+        /** 表单上次从持久化层同步的基线快照，用于判断返回时是否存在未保存修改。 */
+        val savedSnapshot: StorySettingsSnapshot? = null,
     ) : StoryEditorPageState()
 }
 
@@ -218,6 +221,9 @@ sealed class StoryEditorPageState {
 sealed class StoryEditorDialogState {
     /** 摘要被输出额度截断，等待用户前往全局设置调整。 */
     data object SummaryTokenLimit : StoryEditorDialogState()
+
+    /** 故事设置存在未保存修改，等待用户选择保存、放弃或继续编辑。 */
+    data object UnsavedSettingsChanges : StoryEditorDialogState()
 
     data object None : StoryEditorDialogState()
 

@@ -33,8 +33,10 @@ import me.kafuuneko.rpclient.feature.groupchat.model.PreparedGroupRequest
 import me.kafuuneko.rpclient.feature.groupchat.model.PreparedGroupSummaryRequest
 import me.kafuuneko.rpclient.feature.groupchat.model.ReplyRetryContext
 import me.kafuuneko.rpclient.feature.groupchat.model.filterForQuery
+import me.kafuuneko.rpclient.feature.groupchat.model.hasUnsavedChanges
 import me.kafuuneko.rpclient.feature.groupchat.model.toGroupChatMessageCursor
 import me.kafuuneko.rpclient.feature.groupchat.model.toSpeakerHistory
+import me.kafuuneko.rpclient.feature.groupchat.model.withCurrentAsSavedSnapshot
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatConversationState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatDialogState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatPage
@@ -546,14 +548,16 @@ class GroupChatViewModel :
     /**
      * 处理返回事件。
      *
-     * 加载期间返回会取消首次读取，设置页返回会切回对话页，退出会话前保存已生成内容。
+     * - 加载期间返回会取消首次读取；
+     * - 设置页返回先收起可关闭弹窗，有未保存修改时询问是否保存，无修改则切回对话页；
+     * - 对话页退出会话前停止生成并保存已生成内容。
      */
     @UiIntentObserver(GroupChatUiIntent.Back::class)
     private suspend fun onBack() {
         val uiState = uiStateFlow.value
         if (uiState !is GroupChatUiState.Normal && uiState !is GroupChatUiState.Loading) return
         if (uiState is GroupChatUiState.Normal && uiState.page == GroupChatPage.Settings) {
-            refreshState(page = GroupChatPage.Conversation)
+            requestCloseSettings(uiState = uiState, dismissOpenDialog = true)
             return
         }
         // 等待首次读取或生成任务退出，再发布保留当前画面的结束态。
@@ -1046,16 +1050,70 @@ class GroupChatViewModel :
     }
 
     /**
-     * 关闭群聊设置页面，切回对话主页面。
+     * 关闭群聊设置页面；若存在未保存修改则先弹出保存确认对话框。
      */
     @UiIntentObserver(GroupChatUiIntent.CloseSettings::class)
     private suspend fun onCloseSettings() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.page != GroupChatPage.Settings) return
+        requestCloseSettings(uiState = uiState, dismissOpenDialog = false)
+    }
+
+    /**
+     * 放弃群聊设置页中尚未保存的草稿，并重新加载持久化配置后切回对话主页面。
+     */
+    @UiIntentObserver(GroupChatUiIntent.DiscardSettingsChanges::class)
+    private suspend fun onDiscardSettingsChanges() {
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.page != GroupChatPage.Settings) return
+        if (uiState.dialogState != GroupChatDialogState.UnsavedSettingsChanges) return
+        closeSettingsWithoutSaving(uiState)
+    }
+
+    /**
+     * 统一处理从群聊设置页离开的请求。
+     *
+     * - 阻塞性进度弹窗期间忽略离开请求；
+     * - 允许关闭弹窗时，先收起当前非阻塞弹窗；
+     * - 若表单存在未保存修改则弹出保存确认对话框，否则直接切回对话页。
+     *
+     * @param uiState 当前群聊页面状态
+     * @param dismissOpenDialog 是否在存在非阻塞弹窗时先关闭弹窗
+     */
+    private suspend fun requestCloseSettings(
+        uiState: GroupChatUiState.Normal,
+        dismissOpenDialog: Boolean,
+    ) {
+        if (uiState.dialogState.isBlocking()) return
+        if (uiState.dialogState != GroupChatDialogState.None) {
+            if (dismissOpenDialog) onDismissDialog()
+            return
+        }
+        if (uiState.settingsState.hasUnsavedChanges()) {
+            uiState.copy(dialogState = GroupChatDialogState.UnsavedSettingsChanges).setup()
+            return
+        }
+        closeSettingsWithoutSaving(uiState)
+    }
+
+    /** 丢弃设置草稿并刷新回群聊对话页，保留对话页原有输入草稿与已选发言人。 */
+    private suspend fun closeSettingsWithoutSaving(uiState: GroupChatUiState.Normal) {
         refreshState(
             page = GroupChatPage.Conversation,
             inputDraft = uiState.conversationState.inputDraft,
             selectedSpeakerId = uiState.conversationState.selectedSpeakerId,
+            dialogState = GroupChatDialogState.None,
         )
+    }
+
+    /** 判断当前对话框是否属于不可随意打断的阻塞进度状态。 */
+    private fun GroupChatDialogState.isBlocking(): Boolean = when (this) {
+        GroupChatDialogState.Saving,
+        GroupChatDialogState.Branching,
+        GroupChatDialogState.Deleting,
+        GroupChatDialogState.Summarizing -> true
+
+        else -> false
     }
 
     /**
@@ -1737,6 +1795,7 @@ class GroupChatViewModel :
     private suspend fun onSaveSettings() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (uiState.page != GroupChatPage.Settings) return
+        if (uiState.dialogState.isBlocking()) return
         if (mGenerationJob?.isCompleted == false) return
         if (saveSettingsDraft(uiState)) refreshState(page = GroupChatPage.Conversation)
     }
@@ -2374,6 +2433,9 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.dialogState == GroupChatDialogState.None || uiState.dialogState.isBlocking()) {
+            return
+        }
         mAddMembersSearchJob?.cancel()
         mAddMembersAvatarLoader.clearVisibleCharacters()
         uiState.copy(dialogState = GroupChatDialogState.None).setup()
@@ -3474,7 +3536,7 @@ class GroupChatViewModel :
                 availableCharacters = availableCharacters,
                 lorebookGroups = lorebookGroups,
                 enabledLorebookGroups = lorebookGroups.filter { group -> group.enabledCount > 0 },
-            ),
+            ).withCurrentAsSavedSnapshot(),
             hasPromptInspection = mLastPromptInspection != null,
             hasAvailableProvider = hasAvailableProvider,
             dialogState = dialogState,

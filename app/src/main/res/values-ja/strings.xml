@@ -674,6 +674,8 @@
     <string name="prompt_group_nudge_title">グループ制約プロンプト</string>
     <string name="prompt_new_group_chat_title">新規グループチャット</string>
     <string name="group_chat_settings">グループチャット設定</string>
+    <string name="group_chat_save_settings_title">変更を保存しますか？</string>
+    <string name="group_chat_save_settings_message">グループチャット設定の変更を保存してから戻りますか？</string>
     <string name="group_chat_basic_settings">会話情報</string>
     <string name="group_chat_scenario">グループシナリオ</string>
     <string name="group_chat_author_note">作者メモ</string>
@@ -934,6 +936,8 @@
     <string name="story_not_found">このストーリーは存在しません</string>
     <string name="story_save_failed">ストーリーを保存できませんでした</string>
     <string name="story_settings">ストーリー設定</string>
+    <string name="story_save_settings_title">変更を保存しますか？</string>
+    <string name="story_save_settings_message">ストーリー設定の変更を保存してから戻りますか？</string>
     <string name="story_title">ストーリーのタイトル</string>
     <string name="story_title_required">ストーリーのタイトルを入力してください</string>
     <string name="story_undo">直前の編集を元に戻す</string>

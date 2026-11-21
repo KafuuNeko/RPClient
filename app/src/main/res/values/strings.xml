@@ -796,6 +796,8 @@
     <string name="prompt_group_nudge_title">Group nudge</string>
     <string name="prompt_new_group_chat_title">New group chat</string>
     <string name="group_chat_settings">Group chat settings</string>
+    <string name="group_chat_save_settings_title">Save changes?</string>
+    <string name="group_chat_save_settings_message">Save your changes to group chat settings before leaving?</string>
     <string name="group_chat_basic_settings">Conversation details</string>
     <string name="group_chat_scenario">Group scenario</string>
     <string name="group_chat_author_note">Author’s note</string>
@@ -1019,6 +1021,8 @@
     <string name="story_leave_with_unsaved_draft">The draft is not saved yet. Retry or copy it before leaving.</string>
     <string name="story_draft_clip_label">Story draft</string>
     <string name="story_settings">Story settings</string>
+    <string name="story_save_settings_title">Save changes?</string>
+    <string name="story_save_settings_message">Save your changes to story settings before leaving?</string>
     <string name="story_character_references_count">%1$d character references</string>
     <string name="story_lorebook_entries_count">%1$d lore entries</string>
     <string name="story_loading_settings">Loading story settings…</string>

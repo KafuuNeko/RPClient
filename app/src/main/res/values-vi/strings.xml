@@ -777,6 +777,8 @@ Thất bại: %2$d</string>
     <string name="prompt_group_nudge_title">Prompt nhắc nhở nhóm</string>
     <string name="prompt_new_group_chat_title">Prompt trò chuyện nhóm mới</string>
     <string name="group_chat_settings">Cài đặt trò chuyện nhóm</string>
+    <string name="group_chat_save_settings_title">Lưu thay đổi?</string>
+    <string name="group_chat_save_settings_message">Lưu các thay đổi đối với cài đặt trò chuyện nhóm trước khi rời đi?</string>
     <string name="group_chat_basic_settings">Chi tiết cuộc trò chuyện</string>
     <string name="group_chat_scenario">Ngữ cảnh nhóm</string>
     <string name="group_chat_author_note">Author\'s Note</string>
@@ -1001,6 +1003,8 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="story_leave_with_unsaved_draft">Bản nháp chưa được lưu. Hãy thử lại hoặc sao chép trước khi rời đi.</string>
     <string name="story_draft_clip_label">Bản nháp câu chuyện</string>
     <string name="story_settings">Cài đặt câu chuyện</string>
+    <string name="story_save_settings_title">Lưu thay đổi?</string>
+    <string name="story_save_settings_message">Lưu các thay đổi đối với cài đặt câu chuyện trước khi rời đi?</string>
     <string name="story_character_references_count">%1$d tham chiếu nhân vật</string>
     <string name="story_lorebook_entries_count">%1$d mục sách thế giới</string>
     <string name="story_loading_settings">Đang tải cài đặt câu chuyện…</string>

@@ -778,6 +778,8 @@ Falhas: %2$d</string>
     <string name="prompt_group_nudge_title">Estímulo de grupo</string>
     <string name="prompt_new_group_chat_title">Novo chat em grupo</string>
     <string name="group_chat_settings">Configurações do chat em grupo</string>
+    <string name="group_chat_save_settings_title">Salvar alterações?</string>
+    <string name="group_chat_save_settings_message">Salvar as alterações nas configurações do chat em grupo antes de sair?</string>
     <string name="group_chat_basic_settings">Detalhes da conversa</string>
     <string name="group_chat_scenario">Cenário do grupo</string>
     <string name="group_chat_author_note">Nota do autor</string>
@@ -1003,6 +1005,8 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="story_leave_with_unsaved_draft">O rascunho ainda não foi salvo. Tente novamente ou copie-o antes de sair.</string>
     <string name="story_draft_clip_label">Rascunho da história</string>
     <string name="story_settings">Configurações da história</string>
+    <string name="story_save_settings_title">Salvar alterações?</string>
+    <string name="story_save_settings_message">Salvar as alterações nas configurações da história antes de sair?</string>
     <string name="story_character_references_count">%1$d referências de personagens</string>
     <string name="story_lorebook_entries_count">%1$d entradas de lore</string>
     <string name="story_loading_settings">Carregando configurações da história…</string>

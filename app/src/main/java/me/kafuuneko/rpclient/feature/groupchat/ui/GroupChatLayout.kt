@@ -1,6 +1,9 @@
 package me.kafuuneko.rpclient.feature.groupchat.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Save
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -22,6 +25,8 @@ import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatMessageSource
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.ui.dialog.AddSessionLorebooksDialog
+import me.kafuuneko.rpclient.ui.dialog.AppActionItem
+import me.kafuuneko.rpclient.ui.dialog.AppActionListDialog
 import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.CharacterPickerDialog
@@ -123,6 +128,27 @@ private fun DialogSwitch(
         GroupChatDialogState.Saving -> LoadingDialog(
             title = stringResource(R.string.saving),
             description = stringResource(R.string.group_chat_settings),
+        )
+
+        GroupChatDialogState.UnsavedSettingsChanges -> AppActionListDialog(
+            onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
+            title = stringResource(R.string.group_chat_save_settings_title),
+            subtitle = stringResource(R.string.group_chat_save_settings_message),
+            badgeIcon = Icons.Rounded.Save,
+            dismissText = stringResource(R.string.cancel),
+            actions = listOf(
+                AppActionItem(
+                    icon = Icons.Rounded.Save,
+                    title = stringResource(R.string.save),
+                    onClick = { emitIntent(GroupChatUiIntent.SaveSettings) },
+                ),
+                AppActionItem(
+                    icon = Icons.Rounded.DeleteOutline,
+                    title = stringResource(R.string.discard_changes),
+                    isDestructive = true,
+                    onClick = { emitIntent(GroupChatUiIntent.DiscardSettingsChanges) },
+                ),
+            ),
         )
 
         GroupChatDialogState.Branching -> LoadingDialog(

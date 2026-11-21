@@ -38,11 +38,13 @@ import me.kafuuneko.rpclient.feature.storyeditor.model.StoryTextExportFormat
 import me.kafuuneko.rpclient.feature.storyeditor.model.StoryUndoEntry
 import me.kafuuneko.rpclient.feature.storyeditor.model.editedTextRange
 import me.kafuuneko.rpclient.feature.storyeditor.model.enableLorebook
+import me.kafuuneko.rpclient.feature.storyeditor.model.hasUnsavedChanges
 import me.kafuuneko.rpclient.feature.storyeditor.model.normalizeCharacterOrder
 import me.kafuuneko.rpclient.feature.storyeditor.model.restoreLorebookSelection
 import me.kafuuneko.rpclient.feature.storyeditor.model.toStorageValue
 import me.kafuuneko.rpclient.feature.storyeditor.model.toStoryCharacterActivationMode
 import me.kafuuneko.rpclient.feature.storyeditor.model.toggleLorebook
+import me.kafuuneko.rpclient.feature.storyeditor.model.withCurrentAsSavedSnapshot
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryContinuationInputState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorContentState
 import me.kafuuneko.rpclient.feature.storyeditor.presentation.StoryEditorDialogState
@@ -935,7 +937,11 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     }
 
     /**
-     * 关闭故事设置页，切回正文编辑页。
+     * 关闭故事设置页；若存在未保存修改则先弹出保存确认对话框。
+     *
+     * - 删除弹窗或正在保存期间忽略关闭请求；
+     * - 先取消进行中的摘要任务，若仍存在非阻塞弹窗则先关闭弹窗；
+     * - 若设置表单存在未保存修改则弹出保存确认对话框，否则直接切回正文编辑页。
      */
     @UiIntentObserver(StoryEditorUiIntent.CloseStorySettings::class)
     private suspend fun onCloseStorySettings() {
@@ -943,11 +949,37 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         if (uiState.dialogState is StoryEditorDialogState.DeleteStory) return
         val settings = uiState.pageState as? StoryEditorPageState.Settings
         if (settings?.isSaving == true) return
+        // 离开前先停止尚未完成的摘要生成任务。
         cancelSummaryJob()
-        if (uiState.pageState == StoryEditorPageState.Editor) return
-        getOrNull<StoryEditorUiState.Normal>()
-            ?.copy(pageState = StoryEditorPageState.Editor)
-            ?.setup()
+        val current = getOrNull<StoryEditorUiState.Normal>() ?: return
+        // 存在可关闭的业务弹窗时优先收起弹窗，避免直接丢弃当前页面。
+        if (current.dialogState != StoryEditorDialogState.None) {
+            onDismissDialog()
+            return
+        }
+        if (current.pageState == StoryEditorPageState.Editor) return
+        val currentSettings = current.pageState as? StoryEditorPageState.Settings
+        // 检测到未保存设置修改时改为弹出保存、放弃或取消对话框。
+        if (currentSettings?.hasUnsavedChanges() == true) {
+            current.copy(dialogState = StoryEditorDialogState.UnsavedSettingsChanges).setup()
+            return
+        }
+        current.copy(pageState = StoryEditorPageState.Editor).setup()
+    }
+
+    /**
+     * 放弃故事设置页中尚未保存的草稿并切回正文编辑页。
+     */
+    @UiIntentObserver(StoryEditorUiIntent.DiscardStorySettingsChanges::class)
+    private fun onDiscardStorySettingsChanges() {
+        val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        val settings = uiState.pageState as? StoryEditorPageState.Settings ?: return
+        if (settings.isSaving) return
+        if (uiState.dialogState != StoryEditorDialogState.UnsavedSettingsChanges) return
+        uiState.copy(
+            pageState = StoryEditorPageState.Editor,
+            dialogState = StoryEditorDialogState.None,
+        ).setup()
     }
 
     /**
@@ -1095,12 +1127,15 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
         mStory = mStory?.copy(summary = preview.content, revision = saved)
         val current = getOrNull<StoryEditorUiState.Normal>() ?: return
         val currentSettings = current.pageState as? StoryEditorPageState.Settings ?: return
-        // 更新 UI 设置状态与参考栏红点
+        // 更新 UI 设置状态与参考栏红点，并同步已持久化的摘要基线
         current.copy(
             referenceState = current.referenceState.copy(
                 hasMemory = currentSettings.memory.isNotBlank() || preview.content.isNotBlank(),
             ),
-            pageState = currentSettings.copy(summary = preview.content),
+            pageState = currentSettings.copy(
+                summary = preview.content,
+                savedSnapshot = currentSettings.savedSnapshot?.copy(summary = preview.content),
+            ),
             dialogState = StoryEditorDialogState.None,
         ).setup()
         AppViewEvent.PopupToastMessageByResId(R.string.story_summary_updated).tryEmit()
@@ -1280,9 +1315,14 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     private suspend fun onSaveStorySettings() {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
         val settings = uiState.pageState as? StoryEditorPageState.Settings ?: return
-        if (settings.isSaving || uiState.dialogState != StoryEditorDialogState.None) return
-        // 标记为保存中
-        uiState.copy(pageState = settings.copy(isSaving = true)).setup()
+        val canSave = uiState.dialogState == StoryEditorDialogState.None
+            || uiState.dialogState == StoryEditorDialogState.UnsavedSettingsChanges
+        if (settings.isSaving || !canSave) return
+        // 标记为保存中并收起离开确认弹窗
+        uiState.copy(
+            pageState = settings.copy(isSaving = true),
+            dialogState = StoryEditorDialogState.None,
+        ).setup()
         try {
             // 提交持久化到数据库
             val refreshedStory = withContext(Dispatchers.IO) {
@@ -1663,6 +1703,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
     @UiIntentObserver(StoryEditorUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
         val uiState = getOrNull<StoryEditorUiState.Normal>() ?: return
+        if (uiState.dialogState == StoryEditorDialogState.None) return
         if ((uiState.dialogState as? StoryEditorDialogState.DeleteStory)?.isDeleting == true) return
         val import = uiState.dialogState as? StoryEditorDialogState.ImportPreview
         if (import?.preview?.isSaving == true) return
@@ -2809,7 +2850,7 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
                     },
                 )
             }.restoreLorebookSelection(selectedEntryIds = selectedEntries.keys),
-        )
+        ).withCurrentAsSavedSnapshot()
     }
 
     /**

@@ -82,6 +82,9 @@ sealed class GroupChatUiIntent {
 
     data object CloseSettings : GroupChatUiIntent()
 
+    /** 放弃群聊设置页中尚未保存的草稿并返回会话页。 */
+    data object DiscardSettingsChanges : GroupChatUiIntent()
+
     data class ChangeInputDraft(val value: String) : GroupChatUiIntent()
 
     data class SelectSpeaker(val characterId: Long) : GroupChatUiIntent()

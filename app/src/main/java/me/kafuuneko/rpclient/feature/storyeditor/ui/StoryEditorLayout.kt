@@ -9,10 +9,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -132,6 +134,27 @@ private fun EditorDialogSwitch(
 ) {
     when (val dialogState = state.dialogState) {
         StoryEditorDialogState.None -> Unit
+        StoryEditorDialogState.UnsavedSettingsChanges -> AppActionListDialog(
+            onDismissRequest = { StoryEditorUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.story_save_settings_title),
+            subtitle = stringResource(R.string.story_save_settings_message),
+            badgeIcon = Icons.Rounded.Save,
+            dismissText = stringResource(R.string.cancel),
+            actions = listOf(
+                AppActionItem(
+                    icon = Icons.Rounded.Save,
+                    title = stringResource(R.string.save),
+                    onClick = { StoryEditorUiIntent.SaveStorySettings.emit() },
+                ),
+                AppActionItem(
+                    icon = Icons.Rounded.DeleteOutline,
+                    title = stringResource(R.string.discard_changes),
+                    isDestructive = true,
+                    onClick = { StoryEditorUiIntent.DiscardStorySettingsChanges.emit() },
+                ),
+            ),
+        )
+
         StoryEditorDialogState.SummaryTokenLimit -> AppConfirmDialog(
             onDismissRequest = { StoryEditorUiIntent.DismissDialog.emit() },
             title = stringResource(R.string.summary_token_limit_title),

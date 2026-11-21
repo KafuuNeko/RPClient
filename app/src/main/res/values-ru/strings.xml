@@ -676,6 +676,8 @@
     <string name="prompt_group_nudge_title">Групповая инструкция</string>
     <string name="prompt_new_group_chat_title">Новый групповой чат</string>
     <string name="group_chat_settings">Настройки группового чата</string>
+    <string name="group_chat_save_settings_title">Сохранить изменения?</string>
+    <string name="group_chat_save_settings_message">Сохранить изменения настроек группового чата перед выходом?</string>
     <string name="group_chat_basic_settings">Сведения о беседе</string>
     <string name="group_chat_scenario">Сценарий группы</string>
     <string name="group_chat_author_note">Заметка автора</string>
@@ -892,6 +894,8 @@
     <string name="story_leave_with_unsaved_draft">Черновик ещё не сохранён. Повторите попытку или скопируйте его перед выходом.</string>
     <string name="story_draft_clip_label">Черновик истории</string>
     <string name="story_settings">Настройки истории</string>
+    <string name="story_save_settings_title">Сохранить изменения?</string>
+    <string name="story_save_settings_message">Сохранить изменения настроек истории перед выходом?</string>
     <string name="story_character_references_count">Персонажей: %1$d</string>
     <string name="story_lorebook_entries_count">Записей лорбука: %1$d</string>
     <string name="story_loading_settings">Загрузка настроек истории…</string>

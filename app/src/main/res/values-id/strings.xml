@@ -777,6 +777,8 @@ Gagal: %2$d</string>
     <string name="prompt_group_nudge_title">Dorongan grup</string>
     <string name="prompt_new_group_chat_title">Obrolan grup baru</string>
     <string name="group_chat_settings">Pengaturan obrolan grup</string>
+    <string name="group_chat_save_settings_title">Simpan perubahan?</string>
+    <string name="group_chat_save_settings_message">Simpan perubahan pada pengaturan obrolan grup sebelum keluar?</string>
     <string name="group_chat_basic_settings">Detail percakapan</string>
     <string name="group_chat_scenario">Skenario grup</string>
     <string name="group_chat_author_note">Catatan penulis</string>
@@ -1001,6 +1003,8 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="story_leave_with_unsaved_draft">Draf belum disimpan. Coba lagi atau salin sebelum meninggalkan halaman.</string>
     <string name="story_draft_clip_label">Draf cerita</string>
     <string name="story_settings">Pengaturan cerita</string>
+    <string name="story_save_settings_title">Simpan perubahan?</string>
+    <string name="story_save_settings_message">Simpan perubahan pada pengaturan cerita sebelum keluar?</string>
     <string name="story_character_references_count">%1$d referensi karakter</string>
     <string name="story_lorebook_entries_count">%1$d entri pengetahuan</string>
     <string name="story_loading_settings">Memuat pengaturan cerita…</string>

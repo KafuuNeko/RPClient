@@ -675,6 +675,8 @@
     <string name="prompt_group_nudge_title">Gruppenanweisung</string>
     <string name="prompt_new_group_chat_title">Neuer Gruppenchat</string>
     <string name="group_chat_settings">Gruppenchat-Einstellungen</string>
+    <string name="group_chat_save_settings_title">Änderungen speichern?</string>
+    <string name="group_chat_save_settings_message">Änderungen an den Gruppenchat-Einstellungen vor dem Verlassen speichern?</string>
     <string name="group_chat_basic_settings">Unterhaltungsdetails</string>
     <string name="group_chat_scenario">Gruppenszenario</string>
     <string name="group_chat_author_note">Autorennotiz</string>
@@ -889,6 +891,8 @@
     <string name="story_leave_with_unsaved_draft">Der Entwurf ist noch nicht gespeichert. Speichere erneut oder kopiere ihn vor dem Verlassen.</string>
     <string name="story_draft_clip_label">Geschichtenentwurf</string>
     <string name="story_settings">Geschichtseinstellungen</string>
+    <string name="story_save_settings_title">Änderungen speichern?</string>
+    <string name="story_save_settings_message">Änderungen an den Geschichtseinstellungen vor dem Verlassen speichern?</string>
     <string name="story_character_references_count">%1$d Figurenreferenzen</string>
     <string name="story_lorebook_entries_count">%1$d Weltenbuch-Einträge</string>
     <string name="story_loading_settings">Geschichtseinstellungen werden geladen …</string>

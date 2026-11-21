@@ -79,6 +79,9 @@ sealed class StoryEditorUiIntent {
 
     data object CloseStorySettings : StoryEditorUiIntent()
 
+    /** 放弃故事设置页中尚未保存的草稿并返回正文编辑页。 */
+    data object DiscardStorySettingsChanges : StoryEditorUiIntent()
+
     data class SelectSettingsSection(val section: StorySettingsSection) : StoryEditorUiIntent()
 
     data class ChangeMemory(val value: String) : StoryEditorUiIntent()

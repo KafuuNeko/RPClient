@@ -754,6 +754,8 @@ Non riusciti: %2$d</string>
     <string name="prompt_group_nudge_title">Suggerimento di gruppo</string>
     <string name="prompt_new_group_chat_title">Nuova chat di gruppo</string>
     <string name="group_chat_settings">Impostazioni chat di gruppo</string>
+    <string name="group_chat_save_settings_title">Salvare le modifiche?</string>
+    <string name="group_chat_save_settings_message">Salvare le modifiche alle impostazioni della chat di gruppo prima di uscire?</string>
     <string name="group_chat_basic_settings">Dettagli conversazione</string>
     <string name="group_chat_scenario">Scenario del gruppo</string>
     <string name="group_chat_author_note">Nota dell\'autore</string>
@@ -978,6 +980,8 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="story_leave_with_unsaved_draft">La bozza non è ancora salvata. Riprova o copiala prima di uscire.</string>
     <string name="story_draft_clip_label">Bozza della storia</string>
     <string name="story_settings">Impostazioni della storia</string>
+    <string name="story_save_settings_title">Salvare le modifiche?</string>
+    <string name="story_save_settings_message">Salvare le modifiche alle impostazioni della storia prima di uscire?</string>
     <string name="story_character_references_count">%1$d riferimenti personaggio</string>
     <string name="story_lorebook_entries_count">%1$d voci di lore</string>
     <string name="story_loading_settings">Caricamento impostazioni della storia in corso…</string>

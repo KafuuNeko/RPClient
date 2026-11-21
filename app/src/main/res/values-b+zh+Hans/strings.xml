@@ -763,6 +763,8 @@
     <string name="prompt_group_nudge_title">群聊约束提示词</string>
     <string name="prompt_new_group_chat_title">新群聊提示词</string>
     <string name="group_chat_settings">群聊设置</string>
+    <string name="group_chat_save_settings_title">保存修改？</string>
+    <string name="group_chat_save_settings_message">离开前是否保存对群聊设置的修改？</string>
     <string name="group_chat_basic_settings">会话信息</string>
     <string name="group_chat_scenario">群聊场景</string>
     <string name="group_chat_author_note">作者注释</string>
@@ -1034,6 +1036,8 @@
     <string name="story_not_found">这个故事已不存在</string>
     <string name="story_save_failed">故事保存失败</string>
     <string name="story_settings">故事设置</string>
+    <string name="story_save_settings_title">保存修改？</string>
+    <string name="story_save_settings_message">离开前是否保存对故事设置的修改？</string>
     <string name="story_title">故事标题</string>
     <string name="story_title_required">请输入故事标题</string>
     <string name="story_undo">撤销上次修改</string>

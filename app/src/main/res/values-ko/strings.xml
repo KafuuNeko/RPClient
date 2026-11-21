@@ -673,6 +673,8 @@
     <string name="prompt_group_nudge_title">그룹 제약 프롬프트</string>
     <string name="prompt_new_group_chat_title">새 그룹 채팅</string>
     <string name="group_chat_settings">그룹 채팅 설정</string>
+    <string name="group_chat_save_settings_title">변경 사항을 저장할까요?</string>
+    <string name="group_chat_save_settings_message">나가기 전에 그룹 채팅 설정 변경 사항을 저장할까요?</string>
     <string name="group_chat_basic_settings">대화 정보</string>
     <string name="group_chat_scenario">그룹 시나리오</string>
     <string name="group_chat_author_note">작성자 노트</string>
@@ -933,6 +935,8 @@
     <string name="story_not_found">이 이야기는 더 이상 존재하지 않습니다</string>
     <string name="story_save_failed">이야기를 저장할 수 없습니다</string>
     <string name="story_settings">이야기 설정</string>
+    <string name="story_save_settings_title">변경 사항을 저장할까요?</string>
+    <string name="story_save_settings_message">나가기 전에 이야기 설정 변경 사항을 저장할까요?</string>
     <string name="story_title">이야기 제목</string>
     <string name="story_title_required">이야기 제목을 입력하세요</string>
     <string name="story_undo">마지막 편집 실행 취소</string>
