@@ -796,6 +796,8 @@
     <string name="prompt_group_nudge_title">Group nudge</string>
     <string name="prompt_new_group_chat_title">New group chat</string>
     <string name="group_chat_settings">Group chat settings</string>
+    <string name="chat_save_settings_title">Save changes?</string>
+    <string name="chat_save_settings_message">Save your changes to chat settings before leaving?</string>
     <string name="group_chat_save_settings_title">Save changes?</string>
     <string name="group_chat_save_settings_message">Save your changes to group chat settings before leaving?</string>
     <string name="group_chat_basic_settings">Conversation details</string>

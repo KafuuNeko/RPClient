@@ -28,13 +28,14 @@ import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookEntryData
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageCursor
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageDisplayContext
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
-import me.kafuuneko.rpclient.feature.chat.model.ChatSettingEdit
-import me.kafuuneko.rpclient.feature.chat.model.ChatSettingField
 import me.kafuuneko.rpclient.feature.chat.model.GenerationOutput
 import me.kafuuneko.rpclient.feature.chat.model.LoadedChatMessagePage
 import me.kafuuneko.rpclient.feature.chat.model.PreparedSummaryRequest
 import me.kafuuneko.rpclient.feature.chat.model.GenerationRegexContext
 import me.kafuuneko.rpclient.feature.chat.model.filterForQuery
+import me.kafuuneko.rpclient.feature.chat.model.hasCreatorNotesChange
+import me.kafuuneko.rpclient.feature.chat.model.hasSummaryChange
+import me.kafuuneko.rpclient.feature.chat.model.hasUnsavedChanges
 import me.kafuuneko.rpclient.feature.chat.model.source
 import me.kafuuneko.rpclient.feature.chat.model.toChatMessageCursor
 import me.kafuuneko.rpclient.feature.chat.model.toRegexMessageSource
@@ -54,6 +55,7 @@ import me.kafuuneko.rpclient.feature.chat.utils.toChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.utils.toChatLorebookGroupItems
 import me.kafuuneko.rpclient.feature.chat.utils.toChatMessageItems
 import me.kafuuneko.rpclient.feature.chat.utils.toChatSessionItem
+import me.kafuuneko.rpclient.feature.chat.utils.toChatSettingsState
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.main.MainActivity
 import me.kafuuneko.rpclient.feature.main.model.Route
@@ -118,6 +120,7 @@ import me.kafuuneko.rpclient.model.ChatWritingState
 import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 import me.kafuuneko.rpclient.utils.MessageEditPolicy
 import me.kafuuneko.rpclient.utils.formatTimestamp
+import me.kafuuneko.rpclient.utils.takeIfNotBlank
 import me.kafuuneko.rpclient.utils.toDefaultChatTitle
 import me.kafuuneko.rpclient.utils.toMessageCopyText
 import me.kafuuneko.rpclient.utils.toggle
@@ -362,6 +365,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     @UiIntentObserver(ChatUiIntent.Resume::class)
     private suspend fun onResume() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (mSummaryJob?.isActive == true || uiState.dialogState == ChatDialogState.Saving) return
         val sessionId = mSessionId ?: return
         // 异步从数据库重新加载最新的正常页面状态（保留当前页面的草稿与展开状态）
         val refreshed = withContext(Dispatchers.IO) {
@@ -390,7 +394,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         refreshed.copy(
             // 选择图片的回调可能在读取人设和会话期间完成，发布前取最新附件草稿。
             imageState = mImageCoordinator.state,
-            settingsState = getOrNull<ChatUiState.Normal>()?.settingsState ?: uiState.settingsState,
+            settingsState = if (uiState.page == ChatPage.Settings) {
+                (getOrNull<ChatUiState.Normal>()?.settingsState ?: uiState.settingsState)
+                    .withPersonaOptionsFrom(refreshed.settingsState)
+            } else refreshed.settingsState,
             conversationState = refreshed.conversationState.copy(
                 inputDraft = getOrNull<ChatUiState.Normal>()?.conversationState?.inputDraft
                     ?: refreshed.conversationState.inputDraft,
@@ -543,7 +550,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * 拦截与响应逻辑：
      * - 加载期间取消首次读取，保留加载画面并结束页面。
      * - 若当前正在导出聊天记录，拦截退出并提示正在导出。
-     * - 若当前处于设置页（[ChatPage.Settings]），则切回对话页（[ChatPage.Conversation]）。
+     * - 设置页先关闭非阻塞弹窗，再检查未保存修改；进度弹窗期间禁止离开。
      * - 若正在生成，安全取消生成协程并等待其 NonCancellable 收尾完成后退出页面。
      */
     @UiIntentObserver(ChatUiIntent.Back::class)
@@ -554,8 +561,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             AppViewEvent.PopupToastMessageByResId(R.string.chat_export_in_progress).tryEmit()
             return
         }
+        if (uiState is ChatUiState.Normal && uiState.dialogState.isBlocking()) return
         if (uiState is ChatUiState.Normal && uiState.page == ChatPage.Settings) {
-            uiState.copy(page = ChatPage.Conversation).setup()
+            requestCloseSettings(uiState = uiState, dismissOpenDialog = true)
             return
         }
         // 等待读取和生成任务退出，防止结束态被迟到的结果覆盖。
@@ -772,7 +780,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onImpersonateUser() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
-        if (mGenerationJob?.isCompleted == false || mImageCoordinator.state.loadState.isBusy) return
+        if (mGenerationJob?.isCompleted == false || mSummaryJob?.isActive == true) return
+        if (uiState.dialogState.isBlocking() || mImageCoordinator.state.loadState.isBusy) return
         if (ImpersonationOutput.fromKey(AppModel.impersonationOutput) == ImpersonationOutput.Message) {
             generateUserImpersonation(sessionId)
             return
@@ -803,15 +812,17 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         if (mGenerationJob?.isCompleted == false || mSummaryJob?.isActive == true) return
         if (mImageCoordinator.state.loadState.isBusy) return
         if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
+        if (!saveSettingsBeforeGeneration(uiState)) return
         // 仅固定当前输入快照，生成期间以它为起点拼接累计增量。
         clearReplyRetry()
         mWritingReasoning = ""
         val token = Any()
         mActiveWritingToken = token
-        uiState.copy(
+        val current = getOrNull<ChatUiState.Normal>() ?: return
+        current.copy(
             page = ChatPage.Conversation,
             dialogState = ChatDialogState.None,
-            conversationState = uiState.conversationState.copy(
+            conversationState = current.conversationState.copy(
                 generationState = ChatGenerationState.Requesting,
                 writingState = ChatWritingState(),
             ),
@@ -1300,7 +1311,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     @UiIntentObserver(ChatUiIntent.OpenChatSettings::class)
     private fun onOpenChatSettings() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        uiState.copy(page = ChatPage.Settings).setup()
+        if (uiState.page != ChatPage.Conversation) return
+        if (mGenerationJob?.isCompleted == false || mSummaryJob?.isActive == true) return
+        if (uiState.dialogState.isBlocking()) return
+        uiState.copy(
+            page = ChatPage.Settings,
+            settingsState = uiState.session.toChatSettingsState(
+                inheritedCreatorNotes = uiState.character.creatorNotes,
+            ),
+        ).setup()
     }
 
     /**
@@ -1318,12 +1337,59 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     /**
-     * 关闭设置页面，切回对话主页面（[ChatPage.Conversation]）。
+     * 请求关闭设置页面，有未保存修改时先询问保存、放弃或取消。
      */
     @UiIntentObserver(ChatUiIntent.CloseChatSettings::class)
-    private fun onCloseChatSettings() {
+    private suspend fun onCloseChatSettings() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        uiState.copy(page = ChatPage.Conversation).setup()
+        if (uiState.page != ChatPage.Settings) return
+        requestCloseSettings(uiState = uiState, dismissOpenDialog = false)
+    }
+
+    /** 放弃表单草稿，保留世界书与摘要等已即时持久化的操作结果。 */
+    @UiIntentObserver(ChatUiIntent.DiscardSettingsChanges::class)
+    private suspend fun onDiscardSettingsChanges() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.page != ChatPage.Settings) return
+        if (uiState.dialogState != ChatDialogState.UnsavedSettingsChanges) return
+        closeSettingsWithoutSaving(uiState)
+    }
+
+    /**
+     * 统一处理设置页离开请求，先保护阻塞操作，再关闭弹窗或提示未保存修改。
+     * @param uiState 当前单聊页面状态。
+     * @param dismissOpenDialog 是否先关闭可取消的弹窗。
+     */
+    private suspend fun requestCloseSettings(
+        uiState: ChatUiState.Normal,
+        dismissOpenDialog: Boolean,
+    ) {
+        if (uiState.dialogState.isBlocking()) return
+        if (uiState.dialogState != ChatDialogState.None) {
+            if (dismissOpenDialog) onDismissDialog()
+            return
+        }
+        if (uiState.settingsState.hasUnsavedChanges()) {
+            uiState.copy(dialogState = ChatDialogState.UnsavedSettingsChanges).setup()
+            return
+        }
+        closeSettingsWithoutSaving(uiState)
+    }
+
+    /** 重新加载已保存设置后切回对话，保留聊天输入草稿。 */
+    private suspend fun closeSettingsWithoutSaving(uiState: ChatUiState.Normal) {
+        refreshUiState(
+            sessionId = uiState.session.id,
+            page = ChatPage.Conversation,
+            dialogState = ChatDialogState.None,
+            preserveSettingsDraft = false,
+        )
+    }
+
+    /** 保存、导出与摘要进度只能由任务本身收尾或专用取消操作关闭。 */
+    private fun ChatDialogState.isBlocking(): Boolean = when (this) {
+        ChatDialogState.Saving, ChatDialogState.Exporting, ChatDialogState.Summarizing -> true
+        else -> false
     }
 
     /**
@@ -1346,6 +1412,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 .tryEmit()
             return
         }
+        if (uiState.dialogState.isBlocking()) return
+        if (uiState.page == ChatPage.Settings && !saveSettingsDraft(uiState)) return
         // 格式化默认文件名并调起系统导出器
         val timestamp = System.currentTimeMillis().formatTimestamp("yyyyMMdd_HHmmss")
         ChatViewEvent.OpenChatExporter(fileName = "chat_$timestamp.jsonl").tryEmit()
@@ -1403,7 +1471,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.SummarizeNow::class)
     private suspend fun onSummarizeNow() {
-        if (!isStateOf<ChatUiState.Normal>()) return
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.dialogState.isBlocking()) return
         val sessionId = mSessionId ?: return
         if (mGenerationJob?.isCompleted == false) {
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_summarizing)
@@ -1419,16 +1488,17 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.RestorePreviousSummary::class)
     private suspend fun onRestorePreviousSummary() {
-        if (!isStateOf<ChatUiState.Normal>()) return
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
         if (mGenerationJob?.isCompleted == false || mSummaryJob?.isActive == true) return
+        if (uiState.dialogState.isBlocking()) return
         val restored = withContext(Dispatchers.IO) {
             mChatRepository.restorePreviousSummary(sessionId)
         }
         AppViewEvent.PopupToastMessageByResId(
             message = if (restored) R.string.summary_restored else R.string.no_previous_summary,
         ).tryEmit()
-        if (restored) refreshUiState(sessionId = sessionId)
+        if (restored) refreshSummaryState(sessionId)
     }
 
     /**
@@ -1437,31 +1507,22 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @param intent 包含是否暂停标志的意图
      */
     @UiIntentObserver(ChatUiIntent.ToggleAutoSummaryPaused::class)
-    private suspend fun onToggleAutoSummaryPaused(
+    private fun onToggleAutoSummaryPaused(
         intent: ChatUiIntent.ToggleAutoSummaryPaused,
     ) {
-        if (!isStateOf<ChatUiState.Normal>()) return
-        val sessionId = mSessionId ?: return
-        withContext(Dispatchers.IO) {
-            mChatRepository.updateAutoSummaryPaused(sessionId, intent.paused)
-        }
-        refreshUiState(sessionId = sessionId, page = ChatPage.Settings)
+        updateSettingsState { copy(autoSummaryPaused = intent.paused) }
     }
 
     /**
-     * 保存当前会话的角色卡示例对话开关，并刷新设置快照。
+     * 暂存当前会话的角色卡示例对话开关。
      *
      * @param intent 包含开关目标值的用户意图。
      */
     @UiIntentObserver(ChatUiIntent.ToggleIncludeCharacterExamples::class)
-    private suspend fun onToggleIncludeCharacterExamples(
+    private fun onToggleIncludeCharacterExamples(
         intent: ChatUiIntent.ToggleIncludeCharacterExamples,
     ) {
-        val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        withContext(Dispatchers.IO) {
-            mChatRepository.updateIncludeCharacterExamples(uiState.session.id, intent.enabled)
-        }
-        refreshUiState(sessionId = uiState.session.id, page = ChatPage.Settings)
+        updateSettingsState { copy(includeCharacterExamples = intent.enabled) }
     }
 
     /**
@@ -1579,59 +1640,119 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     @UiIntentObserver(ChatUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.dialogState.isBlocking()) return
         uiState.copy(dialogState = ChatDialogState.None).setup()
     }
 
+    /** 暂存会话标题。 */
+    @UiIntentObserver(ChatUiIntent.ChangeTitle::class)
+    private fun onChangeTitle(intent: ChatUiIntent.ChangeTitle) {
+        updateSettingsState { copy(titleDraft = intent.value) }
+    }
+
+    /** 暂存摘要正文，生成与恢复操作成功后会重新同步该字段。 */
+    @UiIntentObserver(ChatUiIntent.ChangeSummary::class)
+    private fun onChangeSummary(intent: ChatUiIntent.ChangeSummary) {
+        updateSettingsState { copy(summaryDraft = intent.value) }
+    }
+
+    /** 暂存会话用户备注。 */
+    @UiIntentObserver(ChatUiIntent.ChangeUserNote::class)
+    private fun onChangeUserNote(intent: ChatUiIntent.ChangeUserNote) {
+        updateSettingsState { copy(userNoteDraft = intent.value) }
+    }
+
+    /** 暂存名称覆盖，空字符串在保存时恢复继承。 */
+    @UiIntentObserver(ChatUiIntent.ChangeUserName::class)
+    private fun onChangeUserName(intent: ChatUiIntent.ChangeUserName) {
+        updateSettingsState { copy(userNameDraft = intent.value) }
+    }
+
+    /** 暂存人设描述覆盖，保留用户输入的空白。 */
+    @UiIntentObserver(ChatUiIntent.ChangeUserDescription::class)
+    private fun onChangeUserDescription(intent: ChatUiIntent.ChangeUserDescription) {
+        updateSettingsState { copy(userDescriptionDraft = intent.value) }
+    }
+
+    /** 暂存作者备注正文，保存时按加载基线决定是否改写覆盖值。 */
+    @UiIntentObserver(ChatUiIntent.ChangeCreatorNotes::class)
+    private fun onChangeCreatorNotes(intent: ChatUiIntent.ChangeCreatorNotes) {
+        updateSettingsState { copy(creatorNotesDraft = intent.value) }
+    }
+
+    /** 显式保存全部表单字段，成功后返回对话页，失败时保留草稿。 */
+    @UiIntentObserver(ChatUiIntent.SaveSettings::class)
+    private suspend fun onSaveSettings() {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.page != ChatPage.Settings || uiState.dialogState.isBlocking()) return
+        if (mGenerationJob?.isCompleted == false || mSummaryJob?.isActive == true) return
+        saveSettingsDraft(uiState, page = ChatPage.Conversation)
+    }
+
     /**
-     * 保存用户编辑的设置字段，并在同一状态快照中发布保存回执。
-     *
-     * 保留各字段原有的空白、默认值和继承规则，回执不依赖输入原文与入库文本相等。
-     * @param intent 字段、用户原文和本次编辑的唯一标识。
+     * 原子提交设置与手工修改的摘要，刷新已保存基线后才继续后续操作。
+     * @param state 发起保存时的页面与草稿。
+     * @param page 保存成功后展示的页面；导出时继续停留在设置页。
+     * @return 保存与刷新均成功时返回 true。
      */
-    @UiIntentObserver(ChatUiIntent.SaveSetting::class)
-    private suspend fun onSaveSetting(intent: ChatUiIntent.SaveSetting) {
-        if (!isStateOf<ChatUiState.Normal>()) return
-        val sessionId = mSessionId ?: return
-        val value = intent.edit.value
-        // 规范化和持久化留在业务层，输入框只负责草稿与回执的时序。
-        withContext(Dispatchers.IO) {
-            when (intent.field) {
-                ChatSettingField.Title -> mChatRepository.updateSessionTitle(
-                    id = sessionId,
-                    title = value.trim().ifBlank { mContext.getString(R.string.untitled_chat) },
-                )
-
-                ChatSettingField.Summary -> mChatRepository.updateCurrentSummary(
-                    sessionId = sessionId,
-                    content = value,
-                )
-
-                ChatSettingField.UserNote -> mChatRepository.updateSessionUserNote(
-                    id = sessionId,
-                    userNote = value,
-                )
-
-                ChatSettingField.UserName -> mChatRepository.updateSessionUserName(
-                    id = sessionId,
-                    userName = value.ifEmpty { null },
-                )
-
-                ChatSettingField.UserDescription -> mChatRepository.updateSessionUserDescription(
-                    id = sessionId,
-                    userDescription = value.takeIf(String::isNotEmpty),
-                )
-
-                ChatSettingField.CreatorNotes -> mChatRepository.updateSessionCreatorNotes(
-                    id = sessionId,
-                    creatorNotes = value,
-                )
+    private suspend fun saveSettingsDraft(
+        state: ChatUiState.Normal,
+        page: ChatPage = state.page,
+    ): Boolean {
+        val settings = state.settingsState
+        state.copy(dialogState = ChatDialogState.Saving).setup()
+        return try {
+            // 只将表单字段应用到最新会话，未编辑的摘要与作者备注保留数据库现值。
+            withContext(Dispatchers.IO) {
+                mChatRepository.saveSettings(
+                    sessionId = state.session.id,
+                    summary = settings.summaryDraft.trim().takeIf { settings.hasSummaryChange() },
+                ) { session ->
+                    session.copy(
+                        title = settings.titleDraft.trim().ifBlank { session.title },
+                        userNote = settings.userNoteDraft.trim(),
+                        userPersonaId = settings.persona.selectedId,
+                        userName = settings.userNameDraft.ifEmpty { null },
+                        userDescription = settings.userDescriptionDraft.ifEmpty { null },
+                        creatorNotes = if (settings.hasCreatorNotesChange()) {
+                            settings.creatorNotesDraft.takeIfNotBlank()
+                        } else session.creatorNotes,
+                        includeCharacterExamples = settings.includeCharacterExamples,
+                        autoSummaryPaused = settings.autoSummaryPaused,
+                    )
+                }
+            }
+            // 导出不离开设置页，也必须重建已保存基线，避免返回时再次询问保存。
+            refreshUiState(
+                sessionId = state.session.id,
+                page = page,
+                dialogState = ChatDialogState.Saving,
+                preserveSettingsDraft = false,
+            )
+            true
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            AppViewEvent.PopupToastMessageByResId(R.string.story_save_failed_short).tryEmit()
+            false
+        } finally {
+            getOrNull<ChatUiState.Normal>()?.let { current ->
+                if (current.dialogState == ChatDialogState.Saving) {
+                    current.copy(dialogState = ChatDialogState.None).setup()
+                }
             }
         }
-        // 回执与加载后的实际文本一起发布，避免先回填旧值再确认保存。
-        refreshUiState(
-            sessionId = sessionId,
-            savedSettingEdits = mapOf(intent.field to intent.edit.id),
-        )
+    }
+
+    /** 从设置页发起生成前先提交表单，校验失败的快捷动作不会调用此入口。 */
+    private suspend fun saveSettingsBeforeGeneration(state: ChatUiState.Normal): Boolean =
+        state.page != ChatPage.Settings || saveSettingsDraft(state, page = ChatPage.Conversation)
+
+    /** 仅在设置页且没有阻塞操作时更新草稿，不触发数据库访问。 */
+    private fun updateSettingsState(transform: ChatSettingsState.() -> ChatSettingsState) {
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.page != ChatPage.Settings || uiState.dialogState.isBlocking()) return
+        uiState.copy(settingsState = uiState.settingsState.transform()).setup()
     }
 
     /**
@@ -1686,10 +1807,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.SelectPersona::class)
     private suspend fun onSelectPersona(intent: ChatUiIntent.SelectPersona) {
-        if (!isStateOf<ChatUiState.Normal>()) return
-        val id = mSessionId ?: return
-        mChatRepository.selectPersona(id, intent.id)
-        refreshUiState(sessionId = id)
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.page != ChatPage.Settings || uiState.dialogState.isBlocking()) return
+        val inherited = withContext(Dispatchers.IO) { mPersonas.chatPersona(intent.id) }
+        updateSettingsState {
+            copy(
+                persona = persona.copy(selectedId = intent.id),
+                inheritedDescription = inherited.description,
+            )
+        }
     }
 
     /**
@@ -1910,13 +2036,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     private suspend fun regenerateLastAssistantMessage(sessionId: Long) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        uiState.copy(page = ChatPage.Conversation).setup()
-        if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
+        if (uiState.dialogState.isBlocking() || mSummaryJob?.isActive == true) return
         // 并发拦截：若已有生成任务在运行则拒绝
         if (mGenerationJob?.isCompleted == false) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
+        if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
         // 校验历史记录：只允许重生成最后一条角色回复，避免破坏中间历史
         val (latestAssistantMessage, messageCount) = withContext(Dispatchers.IO) {
             mChatRepository.getLatestMessageBySessionId(sessionId) to
@@ -1932,6 +2058,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 .tryEmit()
             return
         }
+        // 前置条件全部满足后才保存设置并离开表单。
+        if (!saveSettingsBeforeGeneration(uiState)) return
         // 启动重生成协程任务
         clearReplyRetry()
         mGenerationJob = viewModelScope.launch {
@@ -2001,13 +2129,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         templates: PromptTemplateSnapshot? = null
     ) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        uiState.copy(page = ChatPage.Conversation).setup()
-        if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
+        if (uiState.dialogState.isBlocking() || mSummaryJob?.isActive == true) return
         // 并发拦截
         if (mGenerationJob?.isCompleted == false) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
+        if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
         // 检查最后一条消息及其来源
         val latestMessage = withContext(Dispatchers.IO) {
             mChatRepository.getLatestMessageBySessionId(sessionId)
@@ -2018,6 +2146,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             return
         }
         val isLastUser = latestMessage.source == ChatMessage.Source.User
+        if (!saveSettingsBeforeGeneration(uiState)) return
         // 启动续写任务
         clearReplyRetry()
         mGenerationJob = viewModelScope.launch {
@@ -2084,13 +2213,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     private suspend fun generateUserImpersonation(sessionId: Long) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        uiState.copy(page = ChatPage.Conversation).setup()
-        if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
+        if (uiState.dialogState.isBlocking() || mSummaryJob?.isActive == true) return
         // 并发拦截
         if (mGenerationJob?.isCompleted == false) {
             AppViewEvent.PopupToastMessageByResId(R.string.generation_already_running).tryEmit()
             return
         }
+        if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
+        if (!saveSettingsBeforeGeneration(uiState)) return
         // 启动模仿用户生成任务
         clearReplyRetry()
         mGenerationJob = viewModelScope.launch {
@@ -2329,6 +2459,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         return mSummaryJobMutex.withLock {
             // 取消并等待上一个可能正在执行的总结任务
             mSummaryJob?.cancelAndJoin()
+            // 准备摘要的数据库读取也属于阻塞操作，避免此时离开设置或启动其他动作。
+            getOrNull<ChatUiState.Normal>()?.let { current ->
+                current.copy(dialogState = ChatDialogState.Summarizing).setup()
+            }
             // 启动新的总结协程任务
             viewModelScope.launch {
                 try {
@@ -2338,12 +2472,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     withContext(NonCancellable) {
                         val currentState = getOrNull<ChatUiState.Normal>()
                         if (currentState != null && currentState.dialogState is ChatDialogState.Summarizing) {
-                            refreshUiState(
-                                sessionId = sessionId,
-                                inputDraft = currentState.conversationState.inputDraft,
-                                expandedThinkBlockIds = currentState.conversationState.expandedThinkBlockIds,
-                                dialogState = ChatDialogState.None,
-                            )
+                            currentState.copy(dialogState = ChatDialogState.None).setup()
                         }
                     }
                 }
@@ -2457,10 +2586,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 return
             }
 
-            // 设置 UI 为总结中弹窗状态
-            val uiState = getOrNull<ChatUiState.Normal>() ?: return
-            uiState.copy(dialogState = ChatDialogState.Summarizing).setup()
-
             // 在后台计算线程按需扩展候选窗口并构建最终摘要请求
             val prepared = buildSummaryRequest(
                 templates = promptTemplates,
@@ -2497,15 +2622,19 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
 
             currentCoroutineContext().ensureActive()
 
-            // 持久化新摘要与覆盖边界消息 ID
-            withContext(Dispatchers.IO) {
-                mChatRepository.saveSummary(
-                    sessionId = sessionId,
-                    content = summaryContent,
-                    coveredMessageId = prepared.coveredMessageId,
-                    summaryIdToUpdate = prepared.summaryIdToUpdate,
-                    expectedSnapshot = prepared.inputSnapshot,
-                )
+            // 提交开始后统一完成落库与基线同步，避免取消恰好落在事务提交后造成正文回显过期。
+            withContext(NonCancellable) {
+                withContext(Dispatchers.IO) {
+                    mChatRepository.saveSummary(
+                        sessionId = sessionId,
+                        content = summaryContent,
+                        coveredMessageId = prepared.coveredMessageId,
+                        summaryIdToUpdate = prepared.summaryIdToUpdate,
+                        expectedSnapshot = prepared.inputSnapshot,
+                    )
+                }
+                // 其他未保存的设置草稿和基线保持原样。
+                refreshSummaryState(sessionId)
             }
             if (manual) AppViewEvent.PopupToastMessageByResId(R.string.summary_updated).tryEmit()
         }.onFailure { throwable ->
@@ -2519,6 +2648,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             val imageFailure = cause is GenerationFailure.Image
             if (!manual && imageFailure) {
                 mChatRepository.updateAutoSummaryPaused(id = sessionId, paused = true)
+                getOrNull<ChatUiState.Normal>()?.let { current ->
+                    current.copy(session = current.session.copy(autoSummaryPaused = true)).setup()
+                }
                 AppViewEvent.PopupToastMessageByResId(R.string.image_summary_paused).tryEmit()
             }
             val failure = throwable.toGenerationFailurePresentation(
@@ -2532,6 +2664,29 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 AppViewEvent.PopupToastMessage(failure.message).tryEmit()
             }
         }
+    }
+
+    /**
+     * 读取摘要的最新持久化结果，只更新摘要草稿、基线与重做能力。
+     * @param sessionId 当前单聊会话 ID。
+     */
+    private suspend fun refreshSummaryState(sessionId: Long) {
+        val data = withContext(Dispatchers.IO) {
+            mChatRepository.getChatPageData(sessionId = sessionId, pageSize = 1)
+        }
+        val current = getOrNull<ChatUiState.Normal>() ?: return
+        // 摘要操作不能将标题、人设或其他开关草稿视为已保存。
+        current.copy(
+            session = current.session.copy(
+                summarize = data.summary,
+                canResummarize = data.canResummarize,
+            ),
+            settingsState = current.settingsState.copy(
+                summaryDraft = data.summary,
+                savedSummary = data.summary,
+                canResummarize = data.canResummarize,
+            ),
+        ).setup()
     }
 
     /**
@@ -2917,20 +3072,22 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         val hasAvailableProvider =
             mProviderSelectionResolver.getCharacterProviderOrNull(character) != null
+        val sessionItem = session.toChatSessionItem(
+            summary = pageData.summary,
+            canResummarize = pageData.canResummarize,
+            creatorNotes = effectiveCreatorNotes,
+            selection = mPersonas.chatSelection(session.userPersonaId),
+            inheritedDescription = mPersonas.chatPersona(session.userPersonaId).description,
+            messageCount = messagePage.totalMessageCount,
+            enabledIds = enabledIds,
+        )
         // 组装并返回 Normal UI 状态
         return ChatUiState.Normal(
             imageState = mImageCoordinator.state,
             page = page,
             loadState = loadState,
-            session = session.toChatSessionItem(
-                summary = pageData.summary,
-                canResummarize = pageData.canResummarize,
-                creatorNotes = effectiveCreatorNotes,
-                selection = mPersonas.chatSelection(session.userPersonaId),
-                inheritedDescription = mPersonas.chatPersona(session.userPersonaId).description,
-                messageCount = messagePage.totalMessageCount,
-                enabledIds = enabledIds,
-            ),
+            session = sessionItem,
+            settingsState = sessionItem.toChatSettingsState(inheritedCreatorNotes = character.creatorNotes),
             character = character.toChatCharacterItem(
                 userName = persona.name,
                 avatarImage = avatarImage,
@@ -3053,7 +3210,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             ?.conversationState?.messages?.size
             ?.coerceAtLeast(MESSAGE_PAGE_SIZE)
             ?: MESSAGE_PAGE_SIZE,
-        savedSettingEdits: Map<ChatSettingField, String> = emptyMap(),
+        preserveSettingsDraft: Boolean = page == ChatPage.Settings,
     ) {
         // 主动发送或继续生成后展示最新输出，搜索历史窗口只用于阅读。
         if (generationState is ChatGenerationState.Requesting || generationState is ChatGenerationState.Streaming) mSearchAnchorId =
@@ -3072,26 +3229,36 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 messageLimit = messageLimit,
             )
         } ?: return
-        val currentState = getOrNull<ChatUiState.Normal>()
-        val currentConversation = currentState?.conversationState
-        // 回执同时记录规范化后的文本，后续生成或恢复摘要不会冒充这次保存。
-        val settingsState = currentState?.settingsState ?: ChatSettingsState()
+        val currentState = getOrNull<ChatUiState.Normal>() ?: return
+        val currentConversation = currentState.conversationState
+        // 即时世界书操作或后台恢复只刷新持久化数据，保留原表单草稿及其脏检测基线。
+        val settingsState = if (preserveSettingsDraft) {
+            currentState.settingsState.withPersonaOptionsFrom(nextState.settingsState)
+        } else nextState.settingsState
         nextState.copy(
             imageState = mImageCoordinator.state,
-            settingsState = settingsState.copy(
-                savedEdits = settingsState.savedEdits + savedSettingEdits.mapValues { (field, id) ->
-                    ChatSettingEdit(id = id, value = field.valueIn(nextState.session))
-                },
+            settingsState = settingsState,
+            dialogState = nextState.dialogState.resolveExportDialogState(
+                isExportActive = mChatExportJob?.isActive == true,
             ),
             conversationState = nextState.conversationState.copy(
-                writingState = currentConversation?.writingState,
-                inputDraft = if (mActiveWritingToken != null) currentConversation?.inputDraft.orEmpty()
+                writingState = currentConversation.writingState,
+                inputDraft = if (mActiveWritingToken != null) currentConversation.inputDraft
                 else nextState.conversationState.inputDraft,
-                generationState = if (mActiveWritingToken != null) currentConversation?.generationState
-                    ?: nextState.conversationState.generationState else nextState.conversationState.generationState,
+                generationState = if (mActiveWritingToken != null) currentConversation.generationState
+                else nextState.conversationState.generationState,
             )
         ).setup()
     }
+
+    /** 更新人设选择器候选项，保留表单的选择、继承预览及原持久化基线。 */
+    private fun ChatSettingsState.withPersonaOptionsFrom(loaded: ChatSettingsState): ChatSettingsState =
+        copy(
+            persona = persona.copy(
+                options = loaded.persona.options,
+                followDefaultName = loaded.persona.followDefaultName,
+            ),
+        )
 
     /**
      * 持久化当前会话启用的世界书条目 ID 列表。

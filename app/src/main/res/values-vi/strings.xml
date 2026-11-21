@@ -777,6 +777,8 @@ Thất bại: %2$d</string>
     <string name="prompt_group_nudge_title">Prompt nhắc nhở nhóm</string>
     <string name="prompt_new_group_chat_title">Prompt trò chuyện nhóm mới</string>
     <string name="group_chat_settings">Cài đặt trò chuyện nhóm</string>
+    <string name="chat_save_settings_title">Lưu thay đổi?</string>
+    <string name="chat_save_settings_message">Lưu các thay đổi đối với cài đặt trò chuyện trước khi rời đi?</string>
     <string name="group_chat_save_settings_title">Lưu thay đổi?</string>
     <string name="group_chat_save_settings_message">Lưu các thay đổi đối với cài đặt trò chuyện nhóm trước khi rời đi?</string>
     <string name="group_chat_basic_settings">Chi tiết cuộc trò chuyện</string>

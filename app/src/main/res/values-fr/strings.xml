@@ -675,6 +675,8 @@
     <string name="prompt_group_nudge_title">Instruction de groupe</string>
     <string name="prompt_new_group_chat_title">Nouvelle discussion de groupe</string>
     <string name="group_chat_settings">Paramètres du groupe</string>
+    <string name="chat_save_settings_title">Enregistrer les modifications ?</string>
+    <string name="chat_save_settings_message">Enregistrer les modifications des paramètres de la conversation avant de quitter ?</string>
     <string name="group_chat_save_settings_title">Enregistrer les modifications ?</string>
     <string name="group_chat_save_settings_message">Enregistrer les modifications des paramètres du groupe avant de quitter ?</string>
     <string name="group_chat_basic_settings">Détails de la conversation</string>

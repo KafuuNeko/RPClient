@@ -1,8 +1,6 @@
 package me.kafuuneko.rpclient.feature.chat.presentation
 
 import android.net.Uri
-import me.kafuuneko.rpclient.feature.chat.model.ChatSettingEdit
-import me.kafuuneko.rpclient.feature.chat.model.ChatSettingField
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
 
 /** 单聊页面可接收的全部用户意图和生命周期事件。 */
@@ -109,8 +107,21 @@ sealed class ChatUiIntent {
 
     data object DismissDialog : ChatUiIntent()
 
-    /** 保存用户编辑的设置文本，回显时携带同一编辑标识。 */
-    data class SaveSetting(val field: ChatSettingField, val edit: ChatSettingEdit) : ChatUiIntent()
+    data class ChangeTitle(val value: String) : ChatUiIntent()
+
+    data class ChangeSummary(val value: String) : ChatUiIntent()
+
+    data class ChangeUserNote(val value: String) : ChatUiIntent()
+
+    data class ChangeUserName(val value: String) : ChatUiIntent()
+
+    data class ChangeUserDescription(val value: String) : ChatUiIntent()
+
+    data class ChangeCreatorNotes(val value: String) : ChatUiIntent()
+
+    data object SaveSettings : ChatUiIntent()
+
+    data object DiscardSettingsChanges : ChatUiIntent()
 
     data class CopyMessage(val messageId: String) : ChatUiIntent()
 

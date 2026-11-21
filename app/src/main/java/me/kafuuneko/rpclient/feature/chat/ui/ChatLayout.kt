@@ -1,6 +1,9 @@
 package me.kafuuneko.rpclient.feature.chat.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Save
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -24,6 +27,8 @@ import me.kafuuneko.rpclient.libs.appearance.RenderedPageBackground
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.model.MessageContentPart
 import me.kafuuneko.rpclient.ui.dialog.AddSessionLorebooksDialog
+import me.kafuuneko.rpclient.ui.dialog.AppActionItem
+import me.kafuuneko.rpclient.ui.dialog.AppActionListDialog
 import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
@@ -78,8 +83,7 @@ fun ChatLayout(
                     when (uiState.page) {
                         ChatPage.Conversation -> ChatNormalPage(uiState, emit)
                         ChatPage.Settings -> ChatSettingsPage(
-                            session = uiState.session,
-                            settingsState = uiState.settingsState,
+                            state = uiState.settingsState,
                             lorebookState = uiState.lorebookState,
                             loadState = uiState.loadState,
                             showCharacterExamplesSwitch = uiState.showCharacterExamplesSwitch,
@@ -148,6 +152,32 @@ private fun DialogSwitch(
         ChatDialogState.Exporting -> LoadingDialog(
             title = stringResource(R.string.exporting_chat),
             description = stringResource(R.string.export_chat_desc),
+        )
+
+        ChatDialogState.Saving -> LoadingDialog(
+            title = stringResource(R.string.saving),
+            description = stringResource(R.string.chat_settings),
+        )
+
+        ChatDialogState.UnsavedSettingsChanges -> AppActionListDialog(
+            onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
+            title = stringResource(R.string.chat_save_settings_title),
+            subtitle = stringResource(R.string.chat_save_settings_message),
+            badgeIcon = Icons.Rounded.Save,
+            dismissText = stringResource(R.string.cancel),
+            actions = listOf(
+                AppActionItem(
+                    icon = Icons.Rounded.Save,
+                    title = stringResource(R.string.save),
+                    onClick = { ChatUiIntent.SaveSettings.emit() },
+                ),
+                AppActionItem(
+                    icon = Icons.Rounded.DeleteOutline,
+                    title = stringResource(R.string.discard_changes),
+                    isDestructive = true,
+                    onClick = { ChatUiIntent.DiscardSettingsChanges.emit() },
+                ),
+            ),
         )
 
         ChatDialogState.Summarizing -> LoadingDialog(

@@ -12,10 +12,9 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.platform.app.InstrumentationRegistry
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
-import me.kafuuneko.rpclient.feature.chat.model.ChatSettingField
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLoadState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatSettingsState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.ui.ChatSettingsPage
 import me.kafuuneko.rpclient.ui.theme.AppTheme
@@ -24,41 +23,29 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
-/** 覆盖单聊设置页曾将聚焦的空草稿自动写回的问题。 */
+/** 确保外部摘要回填不会被聚焦输入框当作用户编辑重新提交。 */
 class ChatSummarySettingsTest {
     @get:Rule
     val rule = createComposeRule()
 
-    /** 摘要回填能更新聚焦的输入框，只有用户实际清空正文才发送保存事件。 */
+    /** 摘要回填能更新聚焦的输入框，只有用户实际清空正文才发送草稿变更。 */
     @Test
-    fun generatedSummaryReplacesFocusedDraftWithoutSavingIt() {
+    fun generatedSummaryReplacesFocusedDraftWithoutSubmittingAnEdit() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val summaryLabel = context.getString(R.string.current_summary)
-        val session = mutableStateOf(
-            ChatSessionItem(
-                id = 1L,
-                title = "Chat",
-                summarize = "",
-                userNote = "",
-                userName = "",
-                userDescription = "",
-                creatorNotes = "",
-                autoSummaryPaused = true,
-                messageCount = 20,
-                enabledLorebookEntryIds = emptySet(),
-            )
-        )
-        val savedEdits = mutableListOf<String>()
+        val settings = mutableStateOf(ChatSettingsState(titleDraft = "Chat"))
+        val summaryChanges = mutableListOf<String>()
         rule.setContent {
             AppTheme(dynamicColor = false) {
                 ChatSettingsPage(
-                    session = session.value,
+                    state = settings.value,
                     lorebookState = ChatLorebookState(groups = emptyList()),
                     loadState = ChatLoadState.None,
                     showCharacterExamplesSwitch = true,
                     emit = {
-                        if (this is ChatUiIntent.SaveSetting && field == ChatSettingField.Summary) {
-                            savedEdits.add(edit.value)
+                        if (this is ChatUiIntent.ChangeSummary) {
+                            summaryChanges.add(value)
+                            settings.value = settings.value.copy(summaryDraft = value)
                         }
                     },
                 )
@@ -69,17 +56,18 @@ class ChatSummarySettingsTest {
         rule.onNode(hasScrollToIndexAction()).performScrollToNode(field)
         rule.onNode(field).performClick().assertIsFocused()
         rule.runOnIdle {
-            session.value =
-                session.value.copy(summarize = "Generated memory", canResummarize = true)
+            settings.value = settings.value.copy(
+                summaryDraft = "Generated memory",
+                savedSummary = "Generated memory",
+                canResummarize = true,
+            )
         }
-        rule.mainClock.advanceTimeBy(600L)
         rule.onNode(field).assertIsFocused().assertTextContains("Generated memory")
         rule.onNode(hasText(context.getString(R.string.resummarize))).assertExists()
-        rule.runOnIdle { assertTrue(savedEdits.isEmpty()) }
+        rule.runOnIdle { assertTrue(summaryChanges.isEmpty()) }
 
-        // 显式清空仍是可持久化的用户操作。
+        // 清空立即更新受控草稿，等待显式保存。
         rule.onNode(field).performTextReplacement("")
-        rule.mainClock.advanceTimeBy(600L)
-        rule.runOnIdle { assertEquals(listOf(""), savedEdits) }
+        rule.runOnIdle { assertEquals(listOf(""), summaryChanges) }
     }
 }

@@ -763,6 +763,8 @@
     <string name="prompt_group_nudge_title">群聊约束提示词</string>
     <string name="prompt_new_group_chat_title">新群聊提示词</string>
     <string name="group_chat_settings">群聊设置</string>
+    <string name="chat_save_settings_title">保存修改？</string>
+    <string name="chat_save_settings_message">离开前是否保存对单聊设置的修改？</string>
     <string name="group_chat_save_settings_title">保存修改？</string>
     <string name="group_chat_save_settings_message">离开前是否保存对群聊设置的修改？</string>
     <string name="group_chat_basic_settings">会话信息</string>

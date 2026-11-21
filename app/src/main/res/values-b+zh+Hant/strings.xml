@@ -688,6 +688,8 @@
     <string name="prompt_group_nudge_title">群聊約束提示詞</string>
     <string name="prompt_new_group_chat_title">新群聊提示詞</string>
     <string name="group_chat_settings">群聊設定</string>
+    <string name="chat_save_settings_title">儲存變更？</string>
+    <string name="chat_save_settings_message">離開前是否儲存對單聊設定的變更？</string>
     <string name="group_chat_save_settings_title">儲存變更？</string>
     <string name="group_chat_save_settings_message">離開前是否儲存對群聊設定的變更？</string>
     <string name="group_chat_basic_settings">會話資訊</string>

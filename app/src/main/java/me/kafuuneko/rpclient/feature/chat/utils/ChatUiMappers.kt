@@ -8,6 +8,8 @@ import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
 import me.kafuuneko.rpclient.feature.chat.model.MessageRole
+import me.kafuuneko.rpclient.feature.chat.model.withCurrentAsSavedSnapshot
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatSettingsState
 import me.kafuuneko.rpclient.libs.prompt.macro.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.room.entity.Character
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
@@ -45,6 +47,30 @@ fun ChatSession.toChatSessionItem(
         enabledLorebookEntryIds = enabledIds,
         includeCharacterExamples = includeCharacterExamples,
     )
+}
+
+/**
+ * 从持久化会话展示值建立设置草稿，另行保留作者备注的角色默认值以保护继承语义。
+ * @param inheritedCreatorNotes 角色卡当前提供的默认备注。
+ * @return 记录加载基线的设置表单。
+ */
+internal fun ChatSessionItem.toChatSettingsState(inheritedCreatorNotes: String): ChatSettingsState {
+    // 作者备注继续显示有效正文，但保存其他字段时不将继承正文写入覆盖列。
+    return ChatSettingsState(
+        titleDraft = title,
+        summaryDraft = summarize,
+        savedSummary = summarize,
+        userNoteDraft = userNote,
+        persona = persona,
+        userNameDraft = userName,
+        userDescriptionDraft = userDescription,
+        inheritedDescription = inheritedDescription,
+        creatorNotesDraft = creatorNotes,
+        inheritedCreatorNotes = inheritedCreatorNotes,
+        autoSummaryPaused = autoSummaryPaused,
+        includeCharacterExamples = includeCharacterExamples,
+        canResummarize = canResummarize,
+    ).withCurrentAsSavedSnapshot()
 }
 
 /** 将角色实体转换为聊天页展示模型。 */

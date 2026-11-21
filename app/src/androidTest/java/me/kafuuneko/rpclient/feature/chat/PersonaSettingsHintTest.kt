@@ -8,9 +8,9 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.performScrollToNode
-import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLoadState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
+import me.kafuuneko.rpclient.feature.chat.presentation.ChatSettingsState
 import me.kafuuneko.rpclient.feature.chat.ui.ChatSettingsPage
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatSettingsState
 import me.kafuuneko.rpclient.feature.groupchat.ui.GroupChatSettingsPage
@@ -27,21 +27,12 @@ class PersonaSettingsHintTest {
     private val mSelection = PersonaSelection(selectedId = -1L, followDefaultName = "Alice")
     private val mDescription = "An archivist"
 
-    /** 单聊自动保存输入框初次渲染时即显示默认人设内容。 */
+    /** 单聊设置草稿初次渲染时即显示默认人设内容。 */
     @Test
     fun singleChatShowsInheritedHintsBeforeFocus() = checkHints {
         ChatSettingsPage(
-            session = ChatSessionItem(
-                id = 1,
-                title = "Chat",
-                summarize = "",
-                userNote = "",
-                userName = "",
-                userDescription = "",
-                creatorNotes = "",
-                autoSummaryPaused = false,
-                messageCount = 0,
-                enabledLorebookEntryIds = emptySet(),
+            state = ChatSettingsState(
+                titleDraft = "Chat",
                 persona = mSelection,
                 inheritedDescription = mDescription,
             ),

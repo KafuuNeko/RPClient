@@ -118,6 +118,8 @@ internal fun ChatNormalPage(
             streamEnabled = state.streamEnabled,
             hasPromptInspection = state.hasPromptInspection,
             hasAvailableProvider = state.hasAvailableProvider,
+            settingsEnabled = !conversation.generationState.isGenerating() &&
+                state.dialogState != ChatDialogState.Summarizing,
             sessionLoreDialogVisible = state.dialogState is ChatDialogState.SessionLorebook,
             onBack = { ChatUiIntent.Back.emit() },
             emit = emit,
@@ -199,6 +201,7 @@ private fun CustomChatTopBar(
     streamEnabled: Boolean,
     hasPromptInspection: Boolean,
     hasAvailableProvider: Boolean = true,
+    settingsEnabled: Boolean,
     sessionLoreDialogVisible: Boolean,
     onBack: () -> Unit,
     emit: ChatUiIntent.() -> Unit,
@@ -303,13 +306,14 @@ private fun CustomChatTopBar(
             }
             IconButton(
                 onClick = { ChatUiIntent.OpenChatSettings.emit() },
+                enabled = settingsEnabled,
                 modifier = Modifier.size(36.dp),
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Tune,
                     contentDescription = stringResource(R.string.generation_params),
                     modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (settingsEnabled) 0.72f else 0.3f),
                 )
             }
         }

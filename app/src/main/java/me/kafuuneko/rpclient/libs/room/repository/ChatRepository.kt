@@ -398,6 +398,26 @@ class ChatRepository(
     }
 
     /**
+     * 在同一事务中提交设置表单与有变化的摘要，保留表单范围外的最新会话字段。
+     * @param sessionId 单聊会话 ID。
+     * @param summary 用户修改后的摘要；null 表示保留数据库中的最新摘要。
+     * @param edit 将表单字段应用到事务内读取的最新会话。
+     */
+    suspend fun saveSettings(
+        sessionId: Long,
+        summary: String?,
+        edit: (ChatSession) -> ChatSession,
+    ) = mAppDatabase.withTransaction {
+        val session =
+            checkNotNull(mChatSessionDao.getSessionById(sessionId)) { "Chat does not exist" }
+        val edited = edit(session)
+        if (edited != session) updateSession(edited)
+        if (summary != null && summary != mChatMessageDao.getLatestSummaryBySessionId(sessionId)?.content.orEmpty()) {
+            updateCurrentSummary(sessionId = sessionId, content = summary)
+        }
+    }
+
+    /**
      * 修改会话标题。
      *
      * @param id 会话 id。

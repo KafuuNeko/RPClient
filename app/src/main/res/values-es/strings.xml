@@ -777,6 +777,8 @@
     <string name="prompt_group_nudge_title">Empuje de grupo</string>
     <string name="prompt_new_group_chat_title">Nuevo chat grupal</string>
     <string name="group_chat_settings">Ajustes del chat grupal</string>
+    <string name="chat_save_settings_title">¿Guardar cambios?</string>
+    <string name="chat_save_settings_message">¿Guardar los cambios en los ajustes del chat antes de salir?</string>
     <string name="group_chat_save_settings_title">¿Guardar cambios?</string>
     <string name="group_chat_save_settings_message">¿Guardar los cambios en los ajustes del chat grupal antes de salir?</string>
     <string name="group_chat_basic_settings">Detalles de la conversación</string>

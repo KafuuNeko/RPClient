@@ -777,6 +777,8 @@ Gagal: %2$d</string>
     <string name="prompt_group_nudge_title">Dorongan grup</string>
     <string name="prompt_new_group_chat_title">Obrolan grup baru</string>
     <string name="group_chat_settings">Pengaturan obrolan grup</string>
+    <string name="chat_save_settings_title">Simpan perubahan?</string>
+    <string name="chat_save_settings_message">Simpan perubahan pada pengaturan obrolan sebelum keluar?</string>
     <string name="group_chat_save_settings_title">Simpan perubahan?</string>
     <string name="group_chat_save_settings_message">Simpan perubahan pada pengaturan obrolan grup sebelum keluar?</string>
     <string name="group_chat_basic_settings">Detail percakapan</string>

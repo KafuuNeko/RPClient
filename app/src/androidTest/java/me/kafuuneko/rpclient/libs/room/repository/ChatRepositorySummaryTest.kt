@@ -76,6 +76,44 @@ class ChatRepositorySummaryTest {
         database.close()
     }
 
+    /** 保存其他设置不能回写旧摘要，也不能覆盖后来更新的会话运行时字段。 */
+    @Test
+    fun saveSettingsPreservesUneditedSummaryAndLatestSessionFields() = runBlocking {
+        val first = repository.createMessage(
+            sessionId = sessionId,
+            source = ChatMessage.Source.User,
+            content = "first message",
+            createTime = 2L,
+        )
+        repository.saveSummary(sessionId, "old memory", first)
+        val latest = repository.createMessage(
+            sessionId = sessionId,
+            source = ChatMessage.Source.Char,
+            content = "latest reply",
+            createTime = 3L,
+        )
+        val summaryId = repository.saveSummary(sessionId, "generated memory", latest)
+        // 模拟表单打开之后，生成流程和世界书操作分别更新了会话字段。
+        repository.updateSessionWorldInfoState(sessionId, "{\"turn\":2}")
+        repository.updateSessionLorebookEntryIds(sessionId, listOf(7L, 8L))
+        val before = requireNotNull(repository.getSessionById(sessionId))
+        val summaryBefore = repository.getLatestSummary(sessionId)
+
+        repository.saveSettings(sessionId = sessionId, summary = null) { session ->
+            session.copy(title = "Renamed chat", userNote = "Saved note")
+        }
+        val after = requireNotNull(repository.getSessionById(sessionId))
+        assertEquals(before.copy(title = "Renamed chat", userNote = "Saved note"), after)
+        assertEquals(null, after.creatorNotes)
+        assertEquals(summaryBefore, repository.getLatestSummary(sessionId))
+
+        // 相同摘要也不能追加快照或改变覆盖边界，上一版记忆仍可直接恢复。
+        repository.saveSettings(sessionId = sessionId, summary = "generated memory") { it }
+        assertEquals(summaryId, repository.getLatestSummary(sessionId)?.id)
+        assertTrue(repository.restorePreviousSummary(sessionId))
+        assertEquals("old memory", repository.getLatestSummary(sessionId)?.content)
+    }
+
     @Test
     fun rawAndClassicReadDifferentWindowsAndAdvanceOnlyAfterSaving() = runBlocking {
         val ids = (1..6).map { index ->

@@ -676,6 +676,8 @@
     <string name="prompt_group_nudge_title">Групповая инструкция</string>
     <string name="prompt_new_group_chat_title">Новый групповой чат</string>
     <string name="group_chat_settings">Настройки группового чата</string>
+    <string name="chat_save_settings_title">Сохранить изменения?</string>
+    <string name="chat_save_settings_message">Сохранить изменения настроек чата перед выходом?</string>
     <string name="group_chat_save_settings_title">Сохранить изменения?</string>
     <string name="group_chat_save_settings_message">Сохранить изменения настроек группового чата перед выходом?</string>
     <string name="group_chat_basic_settings">Сведения о беседе</string>

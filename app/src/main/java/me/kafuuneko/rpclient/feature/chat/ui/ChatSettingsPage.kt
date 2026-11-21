@@ -21,28 +21,21 @@ import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
-import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
-import me.kafuuneko.rpclient.feature.chat.model.ChatSettingEdit
-import me.kafuuneko.rpclient.feature.chat.model.ChatSettingField
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLoadState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatSettingsState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.PageButton as Button
 import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
 import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
@@ -53,28 +46,25 @@ import me.kafuuneko.rpclient.ui.widgets.SettingsActionRow
 import me.kafuuneko.rpclient.ui.widgets.SettingsSection
 import me.kafuuneko.rpclient.ui.widgets.UserPersonaPicker
 import me.kafuuneko.rpclient.ui.widgets.pageCanvasColor
-import java.util.UUID
 
 /**
- * 渲染单聊设置页，按字段保存回执保护较新的输入草稿。
+ * 渲染单聊设置草稿，文本、选择和开关统一由保存按钮提交。
  *
- * @param session 当前会话配置
+ * @param state 当前设置草稿
  * @param lorebookState 会话世界书状态
  * @param loadState 当前加载状态
  * @param showCharacterExamplesSwitch 是否展示角色卡示例对话开关
  * @param emit 原有单聊意图发送入口
- * @param settingsState 各字段最近一次保存的回执
  */
 @Composable
 internal fun ChatSettingsPage(
-    session: ChatSessionItem,
+    state: ChatSettingsState,
     lorebookState: ChatLorebookState,
     loadState: ChatLoadState,
     showCharacterExamplesSwitch: Boolean,
     emit: ChatUiIntent.() -> Unit,
-    settingsState: ChatSettingsState = ChatSettingsState(),
 ) {
-    // 会话与世界书独立渲染，文本保存通过带编辑标识的意图提交。
+    // 草稿由 ViewModel 持有，列表项移出视口或页面恢复都不会丢失输入。
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -83,6 +73,11 @@ internal fun ChatSettingsPage(
         AppTopBar(
             title = stringResource(R.string.chat_settings),
             onBack = { ChatUiIntent.CloseChatSettings.emit() },
+            actions = {
+                TextButton(onClick = { ChatUiIntent.SaveSettings.emit() }) {
+                    Text(stringResource(R.string.save))
+                }
+            },
         )
         RpLazyColumn(
             modifier = Modifier
@@ -130,42 +125,38 @@ internal fun ChatSettingsPage(
                     if (showCharacterExamplesSwitch) {
                         SessionSwitchRow(
                             title = stringResource(R.string.chat_include_character_examples),
-                            checked = session.includeCharacterExamples,
+                            checked = state.includeCharacterExamples,
                             enabled = loadState == ChatLoadState.None,
                             onCheckedChange = { enabled ->
                                 ChatUiIntent.ToggleIncludeCharacterExamples(enabled).emit()
                             },
                         )
                     }
-                    AutoSaveTextField(
-                        label = stringResource(R.string.title),
-                        value = session.title,
-                        savedEdit = settingsState.savedEdits[ChatSettingField.Title],
+                    RpScrollableOutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.title)) },
+                        value = state.titleDraft,
                         minLines = 1,
                         maxLines = 1,
                         singleLine = true,
-                        onSave = { edit ->
-                            ChatUiIntent.SaveSetting(field = ChatSettingField.Title, edit = edit)
-                                .emit()
-                        },
+                        onValueChange = { ChatUiIntent.ChangeTitle(it).emit() },
+                        shape = RoundedCornerShape(12.dp),
                     )
-                    AutoSaveTextField(
-                        label = stringResource(R.string.current_summary),
-                        value = session.summarize,
-                        savedEdit = settingsState.savedEdits[ChatSettingField.Summary],
-                        placeholder = stringResource(R.string.no_summary_yet),
+                    RpScrollableOutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.current_summary)) },
+                        value = state.summaryDraft,
+                        placeholder = { Text(stringResource(R.string.no_summary_yet)) },
                         minLines = 3,
                         maxLines = 8,
-                        onSave = { edit ->
-                            ChatUiIntent.SaveSetting(field = ChatSettingField.Summary, edit = edit)
-                                .emit()
-                        },
+                        onValueChange = { ChatUiIntent.ChangeSummary(it).emit() },
+                        shape = RoundedCornerShape(12.dp),
                     )
                     // 摘要操作紧随正文，与群聊保持一致，便于查看内容后直接处理。
                     SettingsActionRow(
                         icon = Icons.Rounded.AutoAwesome,
                         title = stringResource(
-                            if (session.canResummarize) R.string.resummarize else R.string.summarize_now
+                            if (state.canResummarize) R.string.resummarize else R.string.summarize_now
                         ),
                         onClick = { ChatUiIntent.SummarizeNow.emit() },
                     )
@@ -176,68 +167,56 @@ internal fun ChatSettingsPage(
                     )
                     SessionSwitchRow(
                         title = stringResource(R.string.pause_auto_summary),
-                        checked = session.autoSummaryPaused,
+                        checked = state.autoSummaryPaused,
                         onCheckedChange = { enabled ->
                             ChatUiIntent.ToggleAutoSummaryPaused(enabled).emit()
                         },
                     )
-                    AutoSaveTextField(
-                        label = stringResource(R.string.user_note),
-                        value = session.userNote,
-                        savedEdit = settingsState.savedEdits[ChatSettingField.UserNote],
-                        placeholder = stringResource(R.string.empty),
+                    RpScrollableOutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.user_note)) },
+                        value = state.userNoteDraft,
+                        placeholder = { Text(stringResource(R.string.empty)) },
                         minLines = 3,
                         maxLines = 8,
-                        onSave = { edit ->
-                            ChatUiIntent.SaveSetting(field = ChatSettingField.UserNote, edit = edit)
-                                .emit()
-                        },
+                        onValueChange = { ChatUiIntent.ChangeUserNote(it).emit() },
+                        shape = RoundedCornerShape(12.dp),
                     )
                     UserPersonaPicker(
-                        state = session.persona,
+                        state = state.persona,
                         onSelect = { ChatUiIntent.SelectPersona(it).emit() })
-                    AutoSaveTextField(
-                        placeholder = session.persona.selectedName.orEmpty(),
+                    RpScrollableOutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text(state.persona.selectedName.orEmpty()) },
                         alwaysMinimizeLabel = true,
-                        label = stringResource(R.string.user_display_name),
-                        value = session.userName,
-                        savedEdit = settingsState.savedEdits[ChatSettingField.UserName],
+                        label = { Text(stringResource(R.string.user_display_name)) },
+                        value = state.userNameDraft,
                         minLines = 1,
                         maxLines = 1,
                         singleLine = true,
-                        onSave = { edit ->
-                            ChatUiIntent.SaveSetting(field = ChatSettingField.UserName, edit = edit)
-                                .emit()
-                        },
+                        onValueChange = { ChatUiIntent.ChangeUserName(it).emit() },
+                        shape = RoundedCornerShape(12.dp),
                     )
-                    AutoSaveTextField(
-                        label = stringResource(R.string.user_persona_description),
-                        value = session.userDescription,
-                        savedEdit = settingsState.savedEdits[ChatSettingField.UserDescription],
-                        placeholder = session.inheritedDescription.ifEmpty { stringResource(R.string.user_persona_description) },
+                    RpScrollableOutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.user_persona_description)) },
+                        value = state.userDescriptionDraft,
+                        placeholder = { Text(state.inheritedDescription.ifEmpty { stringResource(R.string.user_persona_description) }) },
                         alwaysMinimizeLabel = true,
                         minLines = 3,
                         maxLines = 8,
-                        onSave = { edit ->
-                            ChatUiIntent.SaveSetting(
-                                field = ChatSettingField.UserDescription,
-                                edit = edit,
-                            ).emit()
-                        },
+                        onValueChange = { ChatUiIntent.ChangeUserDescription(it).emit() },
+                        shape = RoundedCornerShape(12.dp),
                     )
-                    AutoSaveTextField(
-                        label = stringResource(R.string.creator_notes),
-                        value = session.creatorNotes,
-                        savedEdit = settingsState.savedEdits[ChatSettingField.CreatorNotes],
-                        placeholder = stringResource(R.string.using_character_default_or_empty),
+                    RpScrollableOutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.creator_notes)) },
+                        value = state.creatorNotesDraft,
+                        placeholder = { Text(stringResource(R.string.using_character_default_or_empty)) },
                         minLines = 3,
                         maxLines = 8,
-                        onSave = { edit ->
-                            ChatUiIntent.SaveSetting(
-                                field = ChatSettingField.CreatorNotes,
-                                edit = edit,
-                            ).emit()
-                        },
+                        onValueChange = { ChatUiIntent.ChangeCreatorNotes(it).emit() },
+                        shape = RoundedCornerShape(12.dp),
                     )
                 }
             }
@@ -257,6 +236,14 @@ internal fun ChatSettingsPage(
                         ChatUiIntent.ToggleSessionLoreEntry(entryId).emit()
                     },
                 )
+            }
+            item {
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { ChatUiIntent.SaveSettings.emit() },
+                ) {
+                    Text(stringResource(R.string.save))
+                }
             }
         }
     }
@@ -303,77 +290,4 @@ private fun SessionSwitchRow(
         )
         Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     }
-}
-
-/** 自动保存用户编辑，外部加载的正文直接同步到输入框。 */
-@Composable
-private fun AutoSaveTextField(
-    label: String,
-    value: String,
-    savedEdit: ChatSettingEdit?,
-    placeholder: String? = null,
-    alwaysMinimizeLabel: Boolean = false,
-    minLines: Int,
-    maxLines: Int,
-    singleLine: Boolean = false,
-    onSave: (ChatSettingEdit) -> Unit,
-) {
-    var draft by remember(label) { mutableStateOf(value) }
-    var pendingEdit by remember(label) { mutableStateOf<String?>(null) }
-    var observedValue by remember(label) { mutableStateOf(value) }
-    val submittedEdits = remember(label) { ArrayDeque<ChatSettingEdit>() }
-    val savedValue by rememberUpdatedState(value)
-    val save by rememberUpdatedState(onSave)
-
-    LaunchedEffect(value, savedEdit) {
-        // 按标识识别规范化后的回显；回执文本不匹配时仍视为生成或恢复的外部更新。
-        val acknowledged = if (savedEdit != null && savedEdit.value == value) {
-            submittedEdits.indexOfFirst { it.id == savedEdit.id }
-        } else -1
-        if (acknowledged >= 0) {
-            val edit = submittedEdits[acknowledged]
-            repeat(acknowledged + 1) { submittedEdits.removeFirst() }
-            // 只有最后一次编辑已经确认且没有新输入时，才展示保存后的规范化文本。
-            if (pendingEdit == null && submittedEdits.isEmpty() && draft == edit.value) {
-                draft = value
-            }
-        } else if (value != observedValue) {
-            // 生成或恢复的摘要即使在输入框聚焦时也应更新正文。
-            submittedEdits.clear()
-            pendingEdit = null
-            draft = value
-        }
-        observedValue = value
-    }
-
-    LaunchedEffect(pendingEdit) {
-        // 只有输入回调提交的修改能够触发防抖保存。
-        val edit = pendingEdit ?: return@LaunchedEffect
-        delay(timeMillis = 450)
-        if (edit != savedValue || submittedEdits.isNotEmpty()) {
-            val submission = ChatSettingEdit(id = UUID.randomUUID().toString(), value = edit)
-            submittedEdits.addLast(submission)
-            save(submission)
-        }
-        pendingEdit = null
-    }
-    val placeholderContent: (@Composable () -> Unit)? = placeholder?.let { placeholderText ->
-        { Text(placeholderText) }
-    }
-
-    RpScrollableOutlinedTextField(
-        modifier = Modifier.fillMaxWidth(),
-        value = draft,
-        onValueChange = { edit ->
-            draft = edit
-            pendingEdit = edit
-        },
-        label = { Text(label) },
-        placeholder = placeholderContent,
-        alwaysMinimizeLabel = alwaysMinimizeLabel,
-        minLines = minLines,
-        maxLines = maxLines,
-        singleLine = singleLine,
-        shape = RoundedCornerShape(12.dp),
-    )
 }

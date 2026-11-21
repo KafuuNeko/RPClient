@@ -6,10 +6,10 @@ import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
-import me.kafuuneko.rpclient.feature.chat.model.ChatSettingEdit
-import me.kafuuneko.rpclient.feature.chat.model.ChatSettingField
+import me.kafuuneko.rpclient.feature.chat.model.ChatSettingsSnapshot
 import me.kafuuneko.rpclient.libs.media.MessageImageState
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
+import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 import me.kafuuneko.rpclient.model.ChatWritingState
 import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 
@@ -30,7 +30,7 @@ sealed class ChatUiState {
         val loadState: ChatLoadState = ChatLoadState.None,
         /** 当前页面展示或编辑的会话数据。 */
         val session: ChatSessionItem,
-        /** 设置页各字段最近一次保存的回执，不参与持久化。 */
+        /** 设置页尚未保存的表单草稿与持久化基线。 */
         val settingsState: ChatSettingsState = ChatSettingsState(),
         /** 当前状态或操作关联的角色数据。 */
         val character: ChatCharacterItem,
@@ -60,9 +60,22 @@ sealed class ChatUiState {
     }
 }
 
-/** 设置页按字段保存回执，异步回显与外部正文更新据此区分。 */
+/** 单聊设置表单草稿，世界书与手动摘要仍独立即时持久化。 */
 data class ChatSettingsState(
-    val savedEdits: Map<ChatSettingField, ChatSettingEdit> = emptyMap(),
+    val titleDraft: String = "",
+    val summaryDraft: String = "",
+    val savedSummary: String = "",
+    val userNoteDraft: String = "",
+    val persona: PersonaSelection = PersonaSelection(),
+    val userNameDraft: String = "",
+    val userDescriptionDraft: String = "",
+    val inheritedDescription: String = "",
+    val creatorNotesDraft: String = "",
+    val inheritedCreatorNotes: String = "",
+    val includeCharacterExamples: Boolean = true,
+    val autoSummaryPaused: Boolean = false,
+    val canResummarize: Boolean = false,
+    val savedSnapshot: ChatSettingsSnapshot? = null,
 )
 
 /** 单聊消息列表、输入与生成生命周期子状态。 */
@@ -152,6 +165,10 @@ sealed class ChatDialogState {
     ) : ChatDialogState()
 
     data object Exporting : ChatDialogState()
+
+    data object Saving : ChatDialogState()
+
+    data object UnsavedSettingsChanges : ChatDialogState()
 
     data object Summarizing : ChatDialogState()
 
