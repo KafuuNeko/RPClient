@@ -125,6 +125,7 @@
     <string name="summary_role_assistant">Assistant</string>
     <string name="pause_auto_summary">Suspendre le résumé automatique pour ce chat</string>
     <string name="restore_previous_summary">Restaurer le résumé précédent</string>
+    <string name="summary_draft_conflict">La conversation ou le résumé enregistré a changé. Le brouillon n’a pas été enregistré. Copiez-le avant de rouvrir les paramètres.</string>
     <string name="unknown_character">Personnage inconnu</string>
     <string name="no_messages_yet">Aucun message pour l\'instant</string>
     <string name="debug_mode">Mode débogage</string>

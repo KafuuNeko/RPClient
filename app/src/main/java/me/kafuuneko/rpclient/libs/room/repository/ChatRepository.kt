@@ -13,6 +13,12 @@ import me.kafuuneko.rpclient.libs.room.model.MessageKey
 import me.kafuuneko.rpclient.libs.room.model.MessageType
 import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
 import me.kafuuneko.rpclient.libs.room.model.SummaryInputSnapshot
+import me.kafuuneko.rpclient.libs.room.model.SummaryDraftCommit
+import me.kafuuneko.rpclient.libs.room.model.SummaryDraftConflictException
+import me.kafuuneko.rpclient.libs.room.model.SummaryDraftContext
+import me.kafuuneko.rpclient.libs.room.model.SummaryDraftVersion
+import me.kafuuneko.rpclient.libs.room.model.SummaryVersion
+import me.kafuuneko.rpclient.libs.room.model.toSummaryVersion
 import me.kafuuneko.rpclient.utils.takeIfNotBlank
 
 /**
@@ -33,14 +39,16 @@ data class ChatSummaryContext(
  *
  * @property existingSummary 本次请求继承的上一条总结内容。
  * @property messages 本次实际需要重新总结或增量总结的普通消息。
- * @property summaryToUpdate 用户主动重新总结时需要原地更新的最新快照。
+ * @property summaryToUpdate 重新总结时限制重做覆盖范围的当前快照；手动草稿不直接写回。
+ * @property draftBase 本次生成继承的内存记忆与依赖，自动摘要不使用。
  * @property hasMoreCandidateMessages 当前窗口之后是否还有可继续扩展的候选消息。
  */
 data class ChatSummaryGenerationContext(
     val existingSummary: String,
     val messages: List<ChatMessage>,
     val summaryToUpdate: ChatMessage?,
-    val hasMoreCandidateMessages: Boolean = false
+    val hasMoreCandidateMessages: Boolean = false,
+    val draftBase: SummaryDraftVersion? = null,
 )
 
 /**
@@ -86,7 +94,9 @@ data class ChatPageData(
     val page: ChatMessagePage,
     val hasCharacterMessage: Boolean,
     val summary: String,
-    val canResummarize: Boolean
+    val canResummarize: Boolean,
+    val summaryVersion: SummaryVersion,
+    val latestMessageId: Long,
 )
 
 /**
@@ -400,22 +410,79 @@ class ChatRepository(
     /**
      * 在同一事务中提交设置表单与有变化的摘要，保留表单范围外的最新会话字段。
      * @param sessionId 单聊会话 ID。
-     * @param summary 用户修改后的摘要；null 表示保留数据库中的最新摘要。
+     * @param summary 当前选中的摘要草稿及并发基线；null 表示保留数据库中的最新摘要。
      * @param edit 将表单字段应用到事务内读取的最新会话。
      */
     suspend fun saveSettings(
         sessionId: Long,
-        summary: String?,
+        summary: SummaryDraftCommit?,
         edit: (ChatSession) -> ChatSession,
     ) = mAppDatabase.withTransaction {
         val session =
             checkNotNull(mChatSessionDao.getSessionById(sessionId)) { "Chat does not exist" }
         val edited = edit(session)
         if (edited != session) updateSession(edited)
-        if (summary != null && summary != mChatMessageDao.getLatestSummaryBySessionId(sessionId)?.content.orEmpty()) {
-            updateCurrentSummary(sessionId = sessionId, content = summary)
-        }
+        if (summary != null) saveSummaryDraft(sessionId, summary)
     }
+
+    /**
+     * 只读校验当前草稿及生成依赖，生成完成与显式保存时复用同一规则。
+     * @param sessionId 单聊会话 ID。
+     * @param draft 当前记忆、已保存基线及生成依赖。
+     * @throws SummaryDraftConflictException 已保存摘要或生成输入发生变化。
+     */
+    suspend fun validateSummaryDraft(sessionId: Long, draft: SummaryDraftCommit) =
+        mAppDatabase.withTransaction {
+            val latest = mChatMessageDao.getLatestSummaryBySessionId(sessionId).toSummaryVersion()
+            if (latest != draft.baseline) throw SummaryDraftConflictException()
+            // 来源摘要与原始图文都需仍然有效，增量草稿不能绕过前一轮输入校验。
+            for (source in draft.sources) {
+                val stored = source.id?.let { mChatMessageDao.getMessageById(it) }
+                if (stored?.sessionId != sessionId || stored.source != ChatMessage.Source.Summary ||
+                    stored.toSummaryVersion() != source
+                ) throw SummaryDraftConflictException()
+            }
+            draft.inputSnapshot?.let { expected ->
+                val current = getSummaryInputSnapshot(
+                    sessionId = sessionId,
+                    messageIds = expected.messages.map { it.key.messageId },
+                )
+                if (current != expected) throw SummaryDraftConflictException()
+            }
+        }
+
+    /** 在设置事务内校验并追加选中的记忆，旧摘要继续保留。 */
+    private suspend fun saveSummaryDraft(sessionId: Long, draft: SummaryDraftCommit) {
+        validateSummaryDraft(sessionId, draft)
+        val latest = mChatMessageDao.getLatestSummaryBySessionId(sessionId).toSummaryVersion()
+        if (latest.hasSameMemory(draft.summary)) return
+        val boundary = draft.summary.normalizedBoundary()
+        if (boundary != 0L) {
+            val message = mChatMessageDao.getMessageById(boundary)
+            require(message?.sessionId == sessionId && message.source != ChatMessage.Source.Summary) {
+                "Summary boundary must reference a regular message in the same session"
+            }
+        }
+        // 手写、生成、清空和恢复统一追加版本，不因保存而销毁先前的已保存摘要。
+        mChatMessageDao.insertOrReplace(
+            data = ChatMessage(
+                sessionId = sessionId,
+                createTime = System.currentTimeMillis(),
+                source = ChatMessage.Source.Summary,
+                content = draft.summary.content.trim(),
+                coveredMessageId = boundary,
+            )
+        )
+    }
+
+    /**
+     * 只读取上一份已保存摘要，设置页恢复草稿时不改变数据库。
+     * @param sessionId 单聊会话 ID。
+     * @param beforeSummaryId 当前历史游标，只读取此快照之前的摘要。
+     * @return 上一份摘要，不存在时返回 null。
+     */
+    suspend fun getPreviousSummary(sessionId: Long, beforeSummaryId: Long): SummaryVersion? =
+        mChatMessageDao.getPreviousSummaryBeforeId(sessionId, beforeSummaryId)?.toSummaryVersion()
 
     /**
      * 修改会话标题。
@@ -704,6 +771,8 @@ class ChatRepository(
                 hasCharacterMessage = mChatMessageDao.hasCharacterMessageBySessionId(sessionId),
                 summary = summary?.content.orEmpty(),
                 canResummarize = summary.coversLatestMessage(latestMessageId),
+                summaryVersion = summary.toSummaryVersion(),
+                latestMessageId = latestMessageId ?: 0L,
             )
         }
     }
@@ -868,12 +937,13 @@ class ChatRepository(
      * 获取生成总结所需的消息范围。
      *
      * - 手动摘要可以覆盖最后一条普通消息，自动摘要保留末条原文。
-     * - 手动重做时读取更早的摘要作为输入，并将结果写回当前快照。
+     * - 手动重做时读取更早的草稿或已保存摘要作为输入，覆盖位置保持不变。
      *
      * @param sessionId 会话 ID。
      * @param manual 是否由用户主动触发。
      * @param maxCandidateMessages 本轮最多读取的可摘要消息数；0 表示读取完整范围。
      * @param mode Raw 读取连续增量前缀，Classic 读取近期窗口。
+     * @param draft 手动生成使用的当前记忆与先前草稿；为空时使用数据库中的摘要。
      * @return 总结基础内容、候选窗口和可能需要覆盖的总结快照。
      */
     suspend fun getSummaryGenerationContext(
@@ -881,18 +951,31 @@ class ChatRepository(
         manual: Boolean,
         maxCandidateMessages: Int = 0,
         mode: SummaryMode = SummaryMode.Raw,
+        draft: SummaryDraftContext? = null,
     ): ChatSummaryGenerationContext {
         require(maxCandidateMessages >= 0) { "maxCandidateMessages must not be negative" }
         return mAppDatabase.withTransaction {
             // 手动重做复用较早快照作为基础，避免模型再次总结当前快照。
-            val latestSummary = mChatMessageDao.getLatestSummaryBySessionId(sessionId)
+            val persistedSummary = mChatMessageDao.getLatestSummaryBySessionId(sessionId)
+            if (draft != null && persistedSummary.toSummaryVersion() != draft.baseline) {
+                throw SummaryDraftConflictException()
+            }
+            val latestSummary =
+                draft?.current?.summary?.toSummaryMessage(sessionId) ?: persistedSummary
             val summaryToUpdate = if (manual) {
                 val latestMessageId = mChatMessageDao.getLatestMessageBySessionId(sessionId)?.id
                 latestSummary.takeIf { it.coversLatestMessage(latestMessageId) }
             } else null
             val replayBoundary = summaryToUpdate?.coveredMessageId
-            val baseSummary = if (replayBoundary == null) latestSummary else {
-                mChatMessageDao.getPreviousSummaryBeforeBoundary(sessionId, replayBoundary)
+            val draftBase = draft?.let { loadSummaryDraftBase(sessionId, it, replayBoundary) }
+            val baseSummary = when {
+                draftBase != null -> draftBase.summary.toSummaryMessage(sessionId)
+                replayBoundary != null -> mChatMessageDao.getPreviousSummaryBeforeBoundary(
+                    sessionId = sessionId,
+                    coveredMessageId = replayBoundary,
+                )
+
+                else -> latestSummary
             }
             val coveredMessageId = baseSummary?.coveredMessageId ?: 0L
             val existingSummary = baseSummary?.content.orEmpty()
@@ -913,6 +996,7 @@ class ChatRepository(
                     existingSummary = existingSummary,
                     messages = if (manual || canAdvance) recent else emptyList(),
                     summaryToUpdate = summaryToUpdate,
+                    draftBase = draftBase,
                 )
             }
 
@@ -935,13 +1019,43 @@ class ChatRepository(
                 messages = if (hasMore) candidates.take(maxCandidateMessages) else candidates,
                 summaryToUpdate = summaryToUpdate,
                 hasMoreCandidateMessages = hasMore,
+                draftBase = draftBase,
             )
         }
+    }
+
+    /** 优先使用当前编辑历史中的基础稿，恢复旧稿后只读取其之前的持久化摘要。 */
+    private suspend fun loadSummaryDraftBase(
+        sessionId: Long,
+        draft: SummaryDraftContext,
+        replayBoundary: Long?,
+    ): SummaryDraftVersion {
+        // 当前草稿能直接续写时无需回查；只有重做完整范围时才回退基础记忆。
+        if (replayBoundary == null) return draft.current
+        val previous =
+            draft.previous.lastOrNull { it.summary.normalizedBoundary() < replayBoundary }
+        if (previous != null) return previous
+        val persisted = mChatMessageDao.getPreviousSummaryBeforeBoundary(
+            sessionId = sessionId,
+            coveredMessageId = replayBoundary,
+            beforeSummaryId = draft.current.historyCursor ?: Long.MAX_VALUE,
+        )
+        return SummaryDraftVersion(persisted.toSummaryVersion())
     }
 
     /** 单聊按钮状态与请求选材共享同一末尾判断。 */
     private fun ChatMessage?.coversLatestMessage(latestMessageId: Long?): Boolean =
         latestMessageId != null && this != null && coveredMessageId == latestMessageId && content.isNotBlank()
+
+    /** 将手动摘要的内存版本投影为选材用快照，不写入消息表。 */
+    private fun SummaryVersion.toSummaryMessage(sessionId: Long): ChatMessage = ChatMessage(
+        id = id ?: 0L,
+        sessionId = sessionId,
+        createTime = 0L,
+        source = ChatMessage.Source.Summary,
+        content = content,
+        coveredMessageId = normalizedBoundary(),
+    )
 
     /**
      * 根据消息 id 获取消息详情。

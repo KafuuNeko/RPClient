@@ -125,6 +125,7 @@
     <string name="summary_role_assistant">Trợ lý</string>
     <string name="pause_auto_summary">Tạm dừng tự động tóm tắt cho trò chuyện này</string>
     <string name="restore_previous_summary">Khôi phục bản tóm tắt trước</string>
+    <string name="summary_draft_conflict">Cuộc trò chuyện hoặc bản tóm tắt đã lưu đã thay đổi. Bản nháp chưa được lưu. Hãy sao chép bản nháp trước khi mở lại cài đặt.</string>
     <string name="unknown_character">Nhân vật không xác định</string>
     <string name="no_messages_yet">Chưa có tin nhắn nào</string>
     <string name="debug_mode">Chế độ gỡ lỗi</string>

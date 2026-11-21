@@ -8,6 +8,10 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatSummary
 /** 群聊摘要快照及覆盖边界的数据库访问接口。 */
 @Dao
 interface GroupChatSummaryDao : MutableDao<GroupChatSummary> {
+    /** 读取指定摘要，供草稿保存时校验生成依赖。 */
+    @Query("SELECT * FROM group_chat_summaries WHERE id = :id")
+    suspend fun getById(id: Long): GroupChatSummary?
+
     /** 读取会话最新摘要快照。 */
     @Query(
         """
@@ -51,11 +55,18 @@ interface GroupChatSummaryDao : MutableDao<GroupChatSummary> {
         throughMessageId: Long,
     ): GroupChatSummary?
 
-    /** 按写入时间取未覆盖目标消息的最新快照，包括用户主动清空的摘要。 */
+    /**
+     * 按写入顺序读取覆盖位置更早的快照，包括用户主动清空的摘要。
+     * @param sessionId 群聊会话 ID。
+     * @param coveredMessageId 当前摘要的覆盖位置，候选位置必须严格早于此值。
+     * @param beforeSummaryId 只读取此快照之前的历史，默认不限制快照顺序。
+     * @return 可作为重新摘要基础的快照，不存在时返回 null。
+     */
     @Query(
         """
         SELECT * FROM group_chat_summaries
         WHERE sessionId = :sessionId AND coveredMessageId < :coveredMessageId
+          AND id < :beforeSummaryId
         ORDER BY id DESC
         LIMIT 1
         """
@@ -63,6 +74,7 @@ interface GroupChatSummaryDao : MutableDao<GroupChatSummary> {
     suspend fun getPrevious(
         sessionId: Long,
         coveredMessageId: Long,
+        beforeSummaryId: Long = Long.MAX_VALUE,
     ): GroupChatSummary?
 
     /** 按快照写入顺序读取上一份摘要。 */

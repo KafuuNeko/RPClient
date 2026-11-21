@@ -12,6 +12,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 import me.kafuuneko.rpclient.model.ChatWritingState
 import me.kafuuneko.rpclient.model.MessageHistoryLoadState
+import me.kafuuneko.rpclient.model.SummaryEditorState
 
 /** 单聊页面状态树，覆盖会话加载、聊天、设置、编辑和对话框状态。 */
 sealed class ChatUiState {
@@ -60,11 +61,10 @@ sealed class ChatUiState {
     }
 }
 
-/** 单聊设置表单草稿，世界书与手动摘要仍独立即时持久化。 */
+/** 单聊设置表单草稿；摘要编辑历史随表单一起保存或放弃，世界书即时持久化。 */
 data class ChatSettingsState(
     val titleDraft: String = "",
-    val summaryDraft: String = "",
-    val savedSummary: String = "",
+    val summary: SummaryEditorState = SummaryEditorState(),
     val userNoteDraft: String = "",
     val persona: PersonaSelection = PersonaSelection(),
     val userNameDraft: String = "",
@@ -74,9 +74,11 @@ data class ChatSettingsState(
     val inheritedCreatorNotes: String = "",
     val includeCharacterExamples: Boolean = true,
     val autoSummaryPaused: Boolean = false,
-    val canResummarize: Boolean = false,
     val savedSnapshot: ChatSettingsSnapshot? = null,
-)
+) {
+    val summaryDraft: String get() = summary.text
+    val canResummarize: Boolean get() = summary.canResummarize
+}
 
 /** 单聊消息列表、输入与生成生命周期子状态。 */
 data class ChatConversationState(

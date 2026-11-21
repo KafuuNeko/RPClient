@@ -4,6 +4,9 @@ import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatSettingsSta
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
 import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
+import me.kafuuneko.rpclient.libs.room.model.SummaryVersion
+import me.kafuuneko.rpclient.libs.room.model.SummaryInputSnapshot
+import me.kafuuneko.rpclient.model.SummaryEditorState
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -67,21 +70,30 @@ class GroupChatSettingsSnapshotTest {
         assertTrue(base.copy(autoSummaryPaused = true).hasUnsavedChanges())
     }
 
-    /** 手动摘要已同步落库时不误报未保存，仅手工改动摘要正文时提示保存。 */
+    /** 手动摘要需显式保存，忽略正文首尾空白但不能忽略覆盖位置变化。 */
     @Test
     fun summaryComparisonTracksSavedSummary() {
         val base = sampleSettingsState()
 
-        // 立即摘要会同步刷新草稿与已保存摘要。
+        // 即使正文相同，覆盖位置推进也会改变后续上下文。
         val afterManualSummary = base.copy(
-            summaryDraft = "Fresh generated summary",
-            savedSummary = "Fresh generated summary",
+            summary = base.summary.generated(
+                content = "Existing summary",
+                coveredMessageId = 10L,
+                inputSnapshot = SummaryInputSnapshot(emptyList(), "baseline"),
+                sources = emptyList(),
+            )
         )
-        assertFalse(afterManualSummary.hasUnsavedChanges())
+        assertTrue(afterManualSummary.hasUnsavedChanges())
 
         // 仅首尾空白差异不视为实质修改，正文改变时触发提示。
-        assertFalse(base.copy(summaryDraft = "  Existing summary  ").hasUnsavedChanges())
-        assertTrue(base.copy(summaryDraft = "Edited summary").hasUnsavedChanges())
+        assertFalse(
+            base.copy(summary = base.summary.copy(text = "  Existing summary  "))
+                .hasUnsavedChanges()
+        )
+        assertTrue(
+            base.copy(summary = base.summary.copy(text = "Edited summary")).hasUnsavedChanges()
+        )
     }
 
     /** 仅成员或世界书等即时持久化列表变化，不应触发设置表单保存提示。 */
@@ -116,8 +128,12 @@ class GroupChatSettingsSnapshotTest {
             userNoteDraft = "Keep tension",
             userNameDraft = "",
             userDescriptionDraft = "Captain",
-            summaryDraft = "Existing summary",
-            savedSummary = "Existing summary",
+            summary = SummaryEditorState(
+                saved = SummaryVersion(
+                    content = "Existing summary",
+                    coveredMessageId = 5L
+                )
+            ),
             autoSummaryPaused = false,
             systemPromptDraft = "System",
             groupNudgePromptDraft = "Nudge",

@@ -126,6 +126,7 @@
     <string name="summary_role_assistant">アシスタント</string>
     <string name="pause_auto_summary">このチャットの自動要約を一時停止</string>
     <string name="restore_previous_summary">前の要約を復元</string>
+    <string name="summary_draft_conflict">会話または保存済みの要約が変更されました。下書きは保存されていません。設定を開き直す前に下書きをコピーしてください。</string>
     <string name="unknown_character">不明なキャラクター</string>
     <string name="no_messages_yet">メッセージはまだありません</string>
     <string name="debug_mode">デバッグモード</string>

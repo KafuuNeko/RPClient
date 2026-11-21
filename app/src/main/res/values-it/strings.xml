@@ -123,6 +123,7 @@
     <string name="summary_role_assistant">Assistant</string>
     <string name="pause_auto_summary">Sospendi riassunto automatico per questa chat</string>
     <string name="restore_previous_summary">Ripristina riassunto precedente</string>
+    <string name="summary_draft_conflict">La conversazione o il riassunto salvato è cambiato. La bozza non è stata salvata. Copiala prima di riaprire le impostazioni.</string>
     <string name="unknown_character">Personaggio sconosciuto</string>
     <string name="no_messages_yet">Ancora nessun messaggio</string>
     <string name="debug_mode">Modalità debug</string>

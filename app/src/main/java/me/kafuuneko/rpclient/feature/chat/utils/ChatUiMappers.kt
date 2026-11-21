@@ -17,6 +17,7 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 import me.kafuuneko.rpclient.model.toMessageContentParts
+import me.kafuuneko.rpclient.model.SummaryEditorState
 import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
 import me.kafuuneko.rpclient.utils.formatTimestamp
 
@@ -52,14 +53,17 @@ fun ChatSession.toChatSessionItem(
 /**
  * 从持久化会话展示值建立设置草稿，另行保留作者备注的角色默认值以保护继承语义。
  * @param inheritedCreatorNotes 角色卡当前提供的默认备注。
+ * @param summary 与持久化摘要同步的编辑基线及覆盖位置。
  * @return 记录加载基线的设置表单。
  */
-internal fun ChatSessionItem.toChatSettingsState(inheritedCreatorNotes: String): ChatSettingsState {
+internal fun ChatSessionItem.toChatSettingsState(
+    inheritedCreatorNotes: String,
+    summary: SummaryEditorState,
+): ChatSettingsState {
     // 作者备注继续显示有效正文，但保存其他字段时不将继承正文写入覆盖列。
     return ChatSettingsState(
         titleDraft = title,
-        summaryDraft = summarize,
-        savedSummary = summarize,
+        summary = summary,
         userNoteDraft = userNote,
         persona = persona,
         userNameDraft = userName,
@@ -69,7 +73,6 @@ internal fun ChatSessionItem.toChatSettingsState(inheritedCreatorNotes: String):
         inheritedCreatorNotes = inheritedCreatorNotes,
         autoSummaryPaused = autoSummaryPaused,
         includeCharacterExamples = includeCharacterExamples,
-        canResummarize = canResummarize,
     ).withCurrentAsSavedSnapshot()
 }
 

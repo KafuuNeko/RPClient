@@ -34,7 +34,6 @@ import me.kafuuneko.rpclient.feature.chat.model.PreparedSummaryRequest
 import me.kafuuneko.rpclient.feature.chat.model.GenerationRegexContext
 import me.kafuuneko.rpclient.feature.chat.model.filterForQuery
 import me.kafuuneko.rpclient.feature.chat.model.hasCreatorNotesChange
-import me.kafuuneko.rpclient.feature.chat.model.hasSummaryChange
 import me.kafuuneko.rpclient.feature.chat.model.hasUnsavedChanges
 import me.kafuuneko.rpclient.feature.chat.model.source
 import me.kafuuneko.rpclient.feature.chat.model.toChatMessageCursor
@@ -102,10 +101,14 @@ import me.kafuuneko.rpclient.libs.regex.RegexMessageSource
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
+import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.toConfig
 import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
+import me.kafuuneko.rpclient.libs.room.model.SummaryDraftContext
+import me.kafuuneko.rpclient.libs.room.model.SummaryDraftConflictException
+import me.kafuuneko.rpclient.libs.room.model.withDependency
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatPromptHistoryContext
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
@@ -118,6 +121,7 @@ import me.kafuuneko.rpclient.libs.room.entity.UserPersona
 import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.model.ChatWritingState
 import me.kafuuneko.rpclient.model.MessageHistoryLoadState
+import me.kafuuneko.rpclient.model.SummaryEditorState
 import me.kafuuneko.rpclient.utils.MessageEditPolicy
 import me.kafuuneko.rpclient.utils.formatTimestamp
 import me.kafuuneko.rpclient.utils.takeIfNotBlank
@@ -1318,6 +1322,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             page = ChatPage.Settings,
             settingsState = uiState.session.toChatSettingsState(
                 inheritedCreatorNotes = uiState.character.creatorNotes,
+                summary = uiState.settingsState.summary,
             ),
         ).setup()
     }
@@ -1346,7 +1351,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         requestCloseSettings(uiState = uiState, dismissOpenDialog = false)
     }
 
-    /** 放弃表单草稿，保留世界书与摘要等已即时持久化的操作结果。 */
+    /** 放弃表单及摘要草稿，保留已即时持久化的世界书操作。 */
     @UiIntentObserver(ChatUiIntent.DiscardSettingsChanges::class)
     private suspend fun onDiscardSettingsChanges() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
@@ -1472,6 +1477,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     @UiIntentObserver(ChatUiIntent.SummarizeNow::class)
     private suspend fun onSummarizeNow() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.page != ChatPage.Settings) return
         if (uiState.dialogState.isBlocking()) return
         val sessionId = mSessionId ?: return
         if (mGenerationJob?.isCompleted == false) {
@@ -1484,21 +1490,26 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     /**
-     * 恢复/回滚至上一版历史摘要。
+     * 先撤销本次摘要编辑与生成版本，再只读恢复更早的已保存摘要。
      */
     @UiIntentObserver(ChatUiIntent.RestorePreviousSummary::class)
     private suspend fun onRestorePreviousSummary() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val sessionId = mSessionId ?: return
+        if (uiState.page != ChatPage.Settings) return
         if (mGenerationJob?.isCompleted == false || mSummaryJob?.isActive == true) return
         if (uiState.dialogState.isBlocking()) return
-        val restored = withContext(Dispatchers.IO) {
-            mChatRepository.restorePreviousSummary(sessionId)
+        val editor = uiState.settingsState.summary
+        // 连续输入只撤销到本轮编辑前的正文，不按每次击键回退。
+        val restored = editor.restoreLocal() ?: editor.current.historyCursor?.let { cursor ->
+            withContext(Dispatchers.IO) {
+                mChatRepository.getPreviousSummary(sessionId, cursor)
+            }?.let(editor::restorePersisted)
         }
+        if (restored != null) updateSettingsState { copy(summary = restored) }
         AppViewEvent.PopupToastMessageByResId(
-            message = if (restored) R.string.summary_restored else R.string.no_previous_summary,
+            message = if (restored != null) R.string.summary_restored else R.string.no_previous_summary,
         ).tryEmit()
-        if (restored) refreshSummaryState(sessionId)
     }
 
     /**
@@ -1650,10 +1661,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         updateSettingsState { copy(titleDraft = intent.value) }
     }
 
-    /** 暂存摘要正文，生成与恢复操作成功后会重新同步该字段。 */
+    /** 暂存本轮摘要编辑，保留编辑前版本以支持整轮撤销。 */
     @UiIntentObserver(ChatUiIntent.ChangeSummary::class)
     private fun onChangeSummary(intent: ChatUiIntent.ChangeSummary) {
-        updateSettingsState { copy(summaryDraft = intent.value) }
+        updateSettingsState { copy(summary = summary.copy(text = intent.value)) }
     }
 
     /** 暂存会话用户备注。 */
@@ -1690,7 +1701,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     /**
-     * 原子提交设置与手工修改的摘要，刷新已保存基线后才继续后续操作。
+     * 原子提交设置与选中的摘要草稿，刷新已保存基线后才继续后续操作。
      * @param state 发起保存时的页面与草稿。
      * @param page 保存成功后展示的页面；导出时继续停留在设置页。
      * @return 保存与刷新均成功时返回 true。
@@ -1706,20 +1717,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             withContext(Dispatchers.IO) {
                 mChatRepository.saveSettings(
                     sessionId = state.session.id,
-                    summary = settings.summaryDraft.trim().takeIf { settings.hasSummaryChange() },
+                    summary = settings.summary.toCommit(),
                 ) { session ->
-                    session.copy(
-                        title = settings.titleDraft.trim().ifBlank { session.title },
-                        userNote = settings.userNoteDraft.trim(),
-                        userPersonaId = settings.persona.selectedId,
-                        userName = settings.userNameDraft.ifEmpty { null },
-                        userDescription = settings.userDescriptionDraft.ifEmpty { null },
-                        creatorNotes = if (settings.hasCreatorNotesChange()) {
-                            settings.creatorNotesDraft.takeIfNotBlank()
-                        } else session.creatorNotes,
-                        includeCharacterExamples = settings.includeCharacterExamples,
-                        autoSummaryPaused = settings.autoSummaryPaused,
-                    )
+                    settings.applyToSession(session)
                 }
             }
             // 导出不离开设置页，也必须重建已保存基线，避免返回时再次询问保存。
@@ -1732,6 +1732,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             true
         } catch (error: CancellationException) {
             throw error
+        } catch (_: SummaryDraftConflictException) {
+            AppViewEvent.PopupToastMessageByResId(R.string.summary_draft_conflict).tryEmit()
+            false
         } catch (_: Exception) {
             AppViewEvent.PopupToastMessageByResId(R.string.story_save_failed_short).tryEmit()
             false
@@ -1747,6 +1750,18 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     /** 从设置页发起生成前先提交表单，校验失败的快捷动作不会调用此入口。 */
     private suspend fun saveSettingsBeforeGeneration(state: ChatUiState.Normal): Boolean =
         state.page != ChatPage.Settings || saveSettingsDraft(state, page = ChatPage.Conversation)
+
+    /** 将同一份表单用于保存和手动摘要预览，保留未编辑作者备注的继承语义。 */
+    private fun ChatSettingsState.applyToSession(session: ChatSession): ChatSession = session.copy(
+        title = titleDraft.trim().ifBlank { session.title },
+        userNote = userNoteDraft.trim(),
+        userPersonaId = persona.selectedId,
+        userName = userNameDraft.ifEmpty { null },
+        userDescription = userDescriptionDraft.ifEmpty { null },
+        creatorNotes = if (hasCreatorNotesChange()) creatorNotesDraft.takeIfNotBlank() else session.creatorNotes,
+        includeCharacterExamples = includeCharacterExamples,
+        autoSummaryPaused = autoSummaryPaused,
+    )
 
     /** 仅在设置页且没有阻塞操作时更新草稿，不触发数据库访问。 */
     private fun updateSettingsState(transform: ChatSettingsState.() -> ChatSettingsState) {
@@ -2524,7 +2539,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * - 读取待总结的消息切片（手动触发时允许重新覆盖最新摘要）。
      * - Raw 使用 [SummaryPromptBuilder] 选择连续前缀，Classic 复用普通聊天上下文。
      * - 调用模型生成摘要正文并进行安全字符清洗（[summarySafeContent]）。
-     * - 将新摘要及其实际覆盖的消息边界 ID（coveredMessageId）保存至数据库。
+     * - 手动结果连同覆盖边界进入草稿历史；自动结果直接保存至数据库。
      *
      * @param sessionId 会话 ID
      * @param manual 是否由用户主动触发。
@@ -2538,11 +2553,18 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         persona: UserPersona? = null,
     ) {
         runCatching {
+            val settings = if (manual) {
+                val current = getOrNull<ChatUiState.Normal>() ?: return
+                if (current.page != ChatPage.Settings) return
+                current.settingsState
+            } else null
+            val draft = settings?.summary?.toGenerationContext()
             val promptTemplates = templates ?: mPromptPresets.getActiveSnapshot()
             val summaryMode = SummaryMode.fromPersistedValue(AppModel.summaryMode)
             // 异步组装不会随候选窗口变化的会话、角色和模型配置
             val data = withContext(Dispatchers.IO) {
-                val session = mChatRepository.getSessionById(sessionId) ?: return@withContext null
+                val persisted = mChatRepository.getSessionById(sessionId) ?: return@withContext null
+                val session = settings?.applyToSession(persisted) ?: persisted
                 val character = mCharacterRepository.getCharacterById(session.characterId)
                     ?: return@withContext null
                 val provider = mProviderSelectionResolver.requireSummaryProvider()
@@ -2578,6 +2600,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     manual = manual,
                     maxCandidateMessages = initialWindowSize,
                     mode = summaryMode,
+                    draft = draft,
                 )
             }
             if (initialContext.messages.isEmpty()) {
@@ -2596,6 +2619,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 initialWindowSize = initialWindowSize,
                 maximumCandidates = maximumCandidates,
                 mode = summaryMode,
+                draft = draft,
             ) ?: return
 
             currentCoroutineContext().ensureActive()
@@ -2622,8 +2646,27 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
 
             currentCoroutineContext().ensureActive()
 
-            // 提交开始后统一完成落库与基线同步，避免取消恰好落在事务提交后造成正文回显过期。
-            withContext(NonCancellable) {
+            if (manual && settings != null) {
+                // 手动结果只进入版本栈，保存前再次校验，期间不会改变当前生效的记忆。
+                val editor = settings.summary.generated(
+                    content = summaryContent,
+                    coveredMessageId = prepared.coveredMessageId,
+                    inputSnapshot = prepared.inputSnapshot,
+                    sources = prepared.sourceSummaries,
+                )
+                editor.toCommit()?.let { commit ->
+                    withContext(Dispatchers.IO) {
+                        mChatRepository.validateSummaryDraft(
+                            sessionId = sessionId,
+                            draft = commit,
+                        )
+                    }
+                }
+                currentCoroutineContext().ensureActive()
+                val current = getOrNull<ChatUiState.Normal>() ?: return
+                current.copy(settingsState = current.settingsState.copy(summary = editor)).setup()
+            } else withContext(NonCancellable) {
+                // 自动摘要仍直接提交；提交与基线同步统一收尾，避免取消留下过期回显。
                 withContext(Dispatchers.IO) {
                     mChatRepository.saveSummary(
                         sessionId = sessionId,
@@ -2638,6 +2681,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             }
             if (manual) AppViewEvent.PopupToastMessageByResId(R.string.summary_updated).tryEmit()
         }.onFailure { throwable ->
+            if (throwable is SummaryDraftConflictException) {
+                AppViewEvent.PopupToastMessageByResId(R.string.summary_draft_conflict).tryEmit()
+                return@onFailure
+            }
             val cause = classifyGenerationFailure(throwable)
             // Repository 会先拦截空正文，因此额度提示还必须覆盖异常路径。
             if (cause is GenerationFailure.EmptyResponse && cause.outputTokenLimitReached) {
@@ -2667,7 +2714,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     /**
-     * 读取摘要的最新持久化结果，只更新摘要草稿、基线与重做能力。
+     * 同步自动摘要的最新持久化结果，设置入口在自动任务期间不可用。
      * @param sessionId 当前单聊会话 ID。
      */
     private suspend fun refreshSummaryState(sessionId: Long) {
@@ -2682,9 +2729,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 canResummarize = data.canResummarize,
             ),
             settingsState = current.settingsState.copy(
-                summaryDraft = data.summary,
-                savedSummary = data.summary,
-                canResummarize = data.canResummarize,
+                summary = SummaryEditorState(
+                    saved = data.summaryVersion,
+                    latestMessageId = data.latestMessageId,
+                )
             ),
         ).setup()
     }
@@ -2702,6 +2750,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @param maximumCandidates Raw 可以扩展到的最终上限。
      * @param templates 本轮预设快照。
      * @param mode 本轮固定的历史选择策略。
+     * @param draft 手动操作使用的当前草稿和历史版本；自动摘要为空。
      * @return 可提交的摘要请求，没有稳定候选时返回 null。
      */
     private suspend fun buildSummaryRequest(
@@ -2713,6 +2762,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         maximumCandidates: Int,
         templates: PromptTemplateSnapshot,
         mode: SummaryMode,
+        draft: SummaryDraftContext? = null,
     ): PreparedSummaryRequest? {
         if (mode == SummaryMode.Classic) {
             return buildClassicSummaryRequest(
@@ -2722,6 +2772,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 windowSize = initialWindowSize,
                 templates = templates,
                 manual = manual,
+                draft = draft,
             )
         }
         var windowSize = initialWindowSize
@@ -2735,6 +2786,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     sessionId = sessionId,
                     manual = manual,
                     maxCandidateMessages = windowSize,
+                    draft = draft,
                 ) == context
             ) {
                 "Summary input changed, retry"
@@ -2770,7 +2822,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     request = built.request,
                     coveredMessageId = coveredMessageId,
                     summaryIdToUpdate = context.summaryToUpdate?.id,
-                    inputSnapshot = inputSnapshot,
+                    inputSnapshot = inputSnapshot.withDependency(context.draftBase?.inputSnapshot),
+                    sourceSummaries = context.draftBase?.sources.orEmpty(),
                 )
             }
             // 下一窗口仍从同一摘要边界读取，最终结果不依赖中间探测请求
@@ -2780,6 +2833,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     sessionId = sessionId,
                     manual = manual,
                     maxCandidateMessages = windowSize,
+                    draft = draft,
                 )
             }
             check(
@@ -2802,6 +2856,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @param windowSize 查询使用的近期窗口大小。
      * @param templates 本轮预设快照。
      * @param manual 是否允许覆盖末条消息或重做当前摘要。
+     * @param draft 手动操作使用的当前草稿和历史版本。
      * @return 可以提交的摘要请求；未找到可覆盖的消息时返回 null。
      */
     private suspend fun buildClassicSummaryRequest(
@@ -2811,6 +2866,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         windowSize: Int,
         templates: PromptTemplateSnapshot,
         manual: Boolean,
+        draft: SummaryDraftContext? = null,
     ): PreparedSummaryRequest? {
         val boundaryIndex =
             if (manual) context.messages.lastIndex else context.messages.lastIndex - 1
@@ -2824,6 +2880,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 manual = manual,
                 maxCandidateMessages = windowSize,
                 mode = SummaryMode.Classic,
+                draft = draft,
             ) == context
         ) { "Summary input changed, retry" }
         val historyLimit =
@@ -2840,6 +2897,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             historyOverride = history,
             providerOverride = data.provider.copy(maxTokens = AppModel.summaryResponseTokens),
             personaOverride = data.persona,
+            sessionOverride = data.session,
             summaryInstruction = classicSummaryInstruction(
                 templates.summarizePrompt,
                 AppModel.summaryWordsLimit
@@ -2849,7 +2907,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             request = built.request,
             coveredMessageId = boundary,
             summaryIdToUpdate = context.summaryToUpdate?.id,
-            inputSnapshot = snapshot,
+            inputSnapshot = snapshot.withDependency(context.draftBase?.inputSnapshot),
+            sourceSummaries = context.draftBase?.sources.orEmpty(),
         )
     }
 
@@ -2870,6 +2929,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @param userWritingDraft 扮演用户时参考的草稿。
      * @param personaOverride 发送或摘要开始时捕获的有效身份，省略时在构建前读取。
      * @param keepLatestMessage 续写或回复待回答消息时保留末条原文。
+     * @param sessionOverride 手动摘要预览使用的表单配置；普通回复读取数据库。
      * @return 构建完成的生成请求数据包装对象
      */
     private suspend fun buildGenerationRequest(
@@ -2883,11 +2943,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         summaryInstruction: String? = null,
         personaOverride: UserPersona? = null,
         keepLatestMessage: Boolean = false,
+        sessionOverride: ChatSession? = null,
     ): BuiltGenerationRequest {
         val promptTemplates = templates ?: mPromptPresets.getActiveSnapshot()
         // 加载会话实体与角色人设数据
-        val session = mChatRepository.getSessionById(sessionId)
-            ?: error(mContext.getString(R.string.session_not_found))
+        val session = sessionOverride ?: mChatRepository.getSessionById(sessionId)
+        ?: error(mContext.getString(R.string.session_not_found))
         val character = mCharacterRepository.getCharacterById(session.characterId)
             ?: error(mContext.getString(R.string.character_not_found))
         val persona = personaOverride ?: mPersonas.resolve(session)
@@ -3087,7 +3148,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             page = page,
             loadState = loadState,
             session = sessionItem,
-            settingsState = sessionItem.toChatSettingsState(inheritedCreatorNotes = character.creatorNotes),
+            settingsState = sessionItem.toChatSettingsState(
+                inheritedCreatorNotes = character.creatorNotes,
+                summary = SummaryEditorState(
+                    saved = pageData.summaryVersion,
+                    latestMessageId = pageData.latestMessageId
+                ),
+            ),
             character = character.toChatCharacterItem(
                 userName = persona.name,
                 avatarImage = avatarImage,

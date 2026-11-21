@@ -10,6 +10,9 @@ import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.withTestPersonas
+import me.kafuuneko.rpclient.libs.room.model.toSummaryVersion
+import me.kafuuneko.rpclient.libs.room.model.withDependency
+import me.kafuuneko.rpclient.model.SummaryEditorState
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -58,6 +61,139 @@ class GroupChatRepositorySummaryTest {
     @After
     fun tearDown() {
         database.close()
+    }
+
+    /** 群聊使用相同草稿栈，增量与重做不入库，恢复和清空在设置事务内提交正确边界。 */
+    @Test
+    fun draftHistoryAndRestoreOnlyPersistTheSelectedMemoryOnSave() = runBlocking {
+        val ids = (1..6).map { index ->
+            repository.createMessage(
+                sessionId,
+                GroupChatMessage.Source.User,
+                "message-$index",
+                null,
+                "User",
+                createTime = index.toLong()
+            )
+        }
+        repository.saveSummary(sessionId, "A", ids[1])
+        val baseline = repository.getGroupChatData(sessionId)?.summary.toSummaryVersion()
+        var editor = SummaryEditorState(saved = baseline, latestMessageId = ids.last())
+        // 当前表单的配置与草稿摘要共同参与请求，不提前改变数据库。
+        val first = requireNotNull(
+            repository.getGroupChatSummaryData(
+                sessionId,
+                maxCandidateMessages = 2,
+                manual = true,
+                draft = editor.toGenerationContext(),
+                editSession = { it.copy(userName = "Draft user", scenario = "Draft scene") },
+            )
+        )
+        assertEquals("Draft user", first.data.persona.name)
+        assertEquals("Draft scene", first.data.session.scenario)
+        assertEquals("A", first.data.summary?.content)
+        assertEquals(ids.subList(2, 4), first.data.messages.map { it.id })
+        val firstInput =
+            repository.getSummaryInputSnapshot(sessionId, first.data.messages.map { it.id })
+        editor = editor.generated("B", ids[3], firstInput, first.draftBase?.sources.orEmpty())
+        val second = requireNotNull(
+            repository.getGroupChatSummaryData(
+                sessionId,
+                manual = true,
+                draft = editor.toGenerationContext()
+            )
+        )
+        assertEquals("B", second.data.summary?.content)
+        assertEquals(ids.takeLast(2), second.data.messages.map { it.id })
+        val secondInput =
+            repository.getSummaryInputSnapshot(sessionId, second.data.messages.map { it.id })
+                .withDependency(second.draftBase?.inputSnapshot)
+        editor = editor.generated("C", ids.last(), secondInput, second.draftBase?.sources.orEmpty())
+        for (mode in SummaryMode.entries) {
+            val rerun = requireNotNull(
+                repository.getGroupChatSummaryData(
+                    sessionId,
+                    manual = true,
+                    mode = mode,
+                    draft = editor.toGenerationContext()
+                )
+            )
+            assertEquals("B", rerun.data.summary?.content)
+            assertEquals(ids.last(), rerun.summaryToUpdate?.coveredMessageId)
+            assertEquals(ids.last(), rerun.data.messages.last().id)
+        }
+        assertEquals(baseline, repository.getGroupChatData(sessionId)?.summary.toSummaryVersion())
+        assertEquals("Alice", repository.getSessionById(sessionId)?.userName)
+        editor = requireNotNull(editor.copy(text = "D").restoreLocal())
+        repository.saveSettings(sessionId, editor.toCommit()) { it.copy(title = "Saved group") }
+        val saved = repository.getGroupChatData(sessionId)?.summary.toSummaryVersion()
+        assertEquals("C", saved.content)
+        assertEquals(ids.last(), saved.coveredMessageId)
+        assertEquals(baseline, repository.getPreviousSummary(sessionId, requireNotNull(saved.id)))
+        // 恢复先只读；提交后旧稿仍保留，清空后全部消息重新进入上下文。
+        val restored = SummaryEditorState(saved = saved).restorePersisted(baseline)
+        assertEquals(saved, repository.getGroupChatData(sessionId)?.summary.toSummaryVersion())
+        repository.saveSettings(sessionId, restored.toCommit()) { it }
+        val restoredSaved = repository.getGroupChatData(sessionId)?.summary.toSummaryVersion()
+        assertEquals(ids[1], restoredSaved.coveredMessageId)
+        assertEquals(
+            "C",
+            repository.getPreviousSummary(sessionId, requireNotNull(restoredSaved.id))?.content
+        )
+        repository.saveSettings(
+            sessionId,
+            SummaryEditorState(saved = restoredSaved).copy(text = "").toCommit()
+        ) { it }
+        assertEquals(ids, repository.getMessagesAfterLatestSummary(sessionId).map { it.id })
+    }
+
+    /** 群聊后续草稿仍依赖前轮消息，外部修改使保存失败并回滚所有设置。 */
+    @Test
+    fun settingsSaveRejectsChangedEarlierInputAndExternalSummary() = runBlocking {
+        val ids = (1..4).map { index ->
+            repository.createMessage(
+                sessionId,
+                GroupChatMessage.Source.User,
+                "message-$index",
+                null,
+                "User",
+                createTime = index.toLong()
+            )
+        }
+        repository.saveSummary(sessionId, "A", ids.first())
+        val saved = repository.getGroupChatData(sessionId)?.summary.toSummaryVersion()
+        val firstInput = repository.getSummaryInputSnapshot(sessionId, listOf(ids[1]))
+        val secondInput =
+            repository.getSummaryInputSnapshot(sessionId, listOf(ids[2])).withDependency(firstInput)
+        val editor =
+            SummaryEditorState(saved = saved).generated("C", ids[2], secondInput, listOf(saved))
+        // 修改未被已保存摘要覆盖的原文，保留同一摘要基线以验证跨轮依赖校验。
+        repository.updateMessageContent(ids[1], "edited earlier input")
+        val result = runCatching {
+            repository.saveSettings(
+                sessionId,
+                editor.toCommit()
+            ) { it.copy(title = "Must roll back") }
+        }
+        assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+        assertEquals("Test group", repository.getSessionById(sessionId)?.title)
+        assertEquals(saved, repository.getGroupChatData(sessionId)?.summary.toSummaryVersion())
+        repository.saveSummary(sessionId, "External", ids.last())
+        val stale = SummaryEditorState(saved = saved).copy(text = "Stale edit")
+        assertTrue(runCatching {
+            repository.getGroupChatSummaryData(
+                sessionId,
+                manual = true,
+                draft = stale.toGenerationContext()
+            )
+        }.isFailure)
+        assertTrue(runCatching {
+            repository.saveSettings(
+                sessionId,
+                stale.toCommit()
+            ) { it }
+        }.isFailure)
+        assertEquals("External", repository.getGroupChatData(sessionId)?.summary?.content)
     }
 
     /** 重生成使用替换前的历史，失败或旧请求迟到时不能覆盖用户已编辑的回复。 */

@@ -125,6 +125,7 @@
     <string name="summary_role_assistant">助手</string>
     <string name="pause_auto_summary">暫停此聊天的自動摘要</string>
     <string name="restore_previous_summary">還原上一版摘要</string>
+    <string name="summary_draft_conflict">對話或已儲存摘要已變更，目前草稿尚未儲存。請先複製草稿，再重新開啟設定。</string>
     <string name="unknown_character">未知角色</string>
     <string name="no_messages_yet">暫無訊息</string>
     <string name="debug_mode">偵錯模式</string>

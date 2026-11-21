@@ -33,7 +33,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.koin.core.context.GlobalContext
 
-/** 在真实单聊中验证恢复、即时摘要、显式保存和放弃操作之间的数据边界。 */
+/** 在真实单聊中验证后台恢复、摘要草稿、显式保存和放弃操作之间的数据边界。 */
 class ChatSettingsPersistenceTest {
     @get:Rule
     val rule = createEmptyComposeRule()
@@ -103,6 +103,9 @@ class ChatSettingsPersistenceTest {
             field(R.string.current_summary).assertTextContains("Previous memory")
             field(R.string.title).assertTextContains("Draft title")
             assertEquals("Original title", runBlocking { mChats.getSessionById(mSessionId)?.title })
+            assertEquals(
+                "Current memory",
+                runBlocking { mChats.getLatestSummary(mSessionId)?.content })
 
             // 取消离开继续编辑，随后保存才写入标题并回到对话。
             requestLeave()

@@ -2,11 +2,14 @@ package me.kafuuneko.rpclient.feature.chat.model
 
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatSettingsState
 import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
+import me.kafuuneko.rpclient.libs.room.model.SummaryVersion
+import me.kafuuneko.rpclient.libs.room.model.SummaryInputSnapshot
+import me.kafuuneko.rpclient.model.SummaryEditorState
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** 验证单聊脏检测与保存归一化、作者备注继承和即时摘要操作的边界一致。 */
+/** 验证单聊脏检测与保存归一化、作者备注继承和摘要草稿的边界一致。 */
 class ChatSettingsSnapshotTest {
     /** 未编辑或改回原值时无需提示离开确认。 */
     @Test
@@ -27,7 +30,9 @@ class ChatSettingsSnapshotTest {
         assertFalse(base.copy(titleDraft = "  Chat  ").hasUnsavedChanges())
         assertFalse(base.copy(titleDraft = "   ").hasUnsavedChanges())
         assertFalse(base.copy(userNoteDraft = "  Keep tension  ").hasUnsavedChanges())
-        assertFalse(base.copy(summaryDraft = "  Existing memory  ").hasUnsavedChanges())
+        assertFalse(
+            base.copy(summary = base.summary.copy(text = "  Existing memory  ")).hasUnsavedChanges()
+        )
         assertTrue(base.copy(userNoteDraft = "Changed note").hasUnsavedChanges())
         assertTrue(base.copy(userNameDraft = " ").hasUnsavedChanges())
         assertTrue(base.copy(userDescriptionDraft = " ").hasUnsavedChanges())
@@ -66,25 +71,37 @@ class ChatSettingsSnapshotTest {
         )
     }
 
-    /** 生成或恢复摘要只替换摘要基线，不能将其余未保存修改标记为已保存。 */
+    /** 手动摘要保持原保存基线，回到原记忆后摘要变为干净但其他修改仍需保存。 */
     @Test
     fun persistedSummaryUpdatesKeepOtherDraftsDirty() {
         val base = sampleSettings()
         val afterSummary = base.copy(
-            summaryDraft = "Generated memory",
-            savedSummary = "Generated memory",
-            canResummarize = true,
+            summary = base.summary.generated(
+                content = "Generated memory",
+                coveredMessageId = 10L,
+                inputSnapshot = SummaryInputSnapshot(emptyList(), "baseline"),
+                sources = emptyList(),
+            )
         )
-        assertFalse(afterSummary.hasUnsavedChanges())
+        assertTrue(afterSummary.hasUnsavedChanges())
         assertTrue(afterSummary.copy(userNoteDraft = "Unsaved note").hasUnsavedChanges())
-        assertTrue(afterSummary.copy(summaryDraft = "Edited memory").hasSummaryChange())
-        assertTrue(afterSummary.copy(summaryDraft = "").hasUnsavedChanges())
+        assertFalse(
+            afterSummary.copy(summary = requireNotNull(afterSummary.summary.restoreLocal()))
+                .hasSummaryChange()
+        )
+        assertTrue(
+            afterSummary.copy(summary = afterSummary.summary.copy(text = "")).hasUnsavedChanges()
+        )
     }
 
     private fun sampleSettings(): ChatSettingsState = ChatSettingsState(
         titleDraft = "Chat",
-        summaryDraft = "Existing memory",
-        savedSummary = "Existing memory",
+        summary = SummaryEditorState(
+            saved = SummaryVersion(
+                content = "Existing memory",
+                coveredMessageId = 5L
+            )
+        ),
         userNoteDraft = "Keep tension",
         persona = PersonaSelection(selectedId = 1L),
         creatorNotesDraft = "Character notes",

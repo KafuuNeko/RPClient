@@ -125,6 +125,7 @@
     <string name="summary_role_assistant">Assistant</string>
     <string name="pause_auto_summary">Jeda ringkasan otomatis untuk obrolan ini</string>
     <string name="restore_previous_summary">Pulihkan ringkasan sebelumnya</string>
+    <string name="summary_draft_conflict">Percakapan atau ringkasan tersimpan telah berubah. Draf belum disimpan. Salin draf sebelum membuka kembali pengaturan.</string>
     <string name="unknown_character">Karakter tidak dikenal</string>
     <string name="no_messages_yet">Belum ada pesan</string>
     <string name="debug_mode">Mode Debug</string>

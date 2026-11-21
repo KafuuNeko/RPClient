@@ -14,6 +14,7 @@ import me.kafuuneko.rpclient.libs.media.MessageImageState
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 import me.kafuuneko.rpclient.model.MessageHistoryLoadState
+import me.kafuuneko.rpclient.model.SummaryEditorState
 
 /** 群聊页面状态树，统一承载会话、成员、消息、设置草稿和生成状态。 */
 sealed class GroupChatUiState {
@@ -26,7 +27,7 @@ sealed class GroupChatUiState {
     /**
      * 群聊页面稳定状态。
      *
-     * 设置字段以 Draft 形式保留，只有 SaveSettings 意图才写回数据库；
+     * 设置字段以 Draft 形式保留，在保存或执行重生成、续写、代写动作前统一提交；
      * [GroupChatConversationState.generationState] 独立描述模型生成，
      * [dialogState] 统一表达设置保存、分支创建、会话删除与手动摘要的进度。
      */
@@ -125,11 +126,7 @@ data class GroupChatSettingsState(
     val userDescriptionDraft: String = "",
     val inheritedDescription: String = "",
     /** 群聊摘要的未保存草稿。 */
-    val summaryDraft: String = "",
-    /** 表单上次同步到的摘要正文，用来判断用户是否实际编辑。 */
-    val savedSummary: String = "",
-    /** 当前摘要是否已覆盖群聊最新消息。 */
-    val canResummarize: Boolean = false,
+    val summary: SummaryEditorState = SummaryEditorState(),
     /** 当前会话的自动摘要是否暂停。 */
     val autoSummaryPaused: Boolean = false,
     /** 群聊系统提示词的未保存草稿。 */
@@ -151,7 +148,10 @@ data class GroupChatSettingsState(
     val canRegenerateLatestReply: Boolean = false,
     /** 表单上次从持久化层同步的基线快照，用于判断返回时是否存在未保存修改。 */
     val savedSnapshot: GroupChatSettingsSnapshot? = null,
-)
+) {
+    val summaryDraft: String get() = summary.text
+    val canResummarize: Boolean get() = summary.canResummarize
+}
 
 /** 群聊页面互斥显示的业务对话框。 */
 sealed class GroupChatDialogState {

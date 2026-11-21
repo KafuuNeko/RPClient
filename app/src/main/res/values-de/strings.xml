@@ -126,6 +126,7 @@
     <string name="summary_role_assistant">Assistent</string>
     <string name="pause_auto_summary">Automatische Zusammenfassung für diesen Chat pausieren</string>
     <string name="restore_previous_summary">Vorherige Zusammenfassung wiederherstellen</string>
+    <string name="summary_draft_conflict">Der Chat oder die gespeicherte Zusammenfassung wurde geändert. Der Entwurf wurde nicht gespeichert. Kopiere ihn, bevor du die Einstellungen erneut öffnest.</string>
     <string name="unknown_character">Unbekannter Charakter</string>
     <string name="no_messages_yet">Noch keine Nachrichten</string>
     <string name="debug_mode">Debug-Modus</string>

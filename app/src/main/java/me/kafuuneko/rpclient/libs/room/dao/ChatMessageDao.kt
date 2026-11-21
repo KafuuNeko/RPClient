@@ -290,6 +290,7 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
      *
      * @param sessionId 会话 id。
      * @param coveredMessageId 当前总结的覆盖边界。
+     * @param beforeSummaryId 只读取此快照之前的历史，默认不限制快照顺序。
      * @return 可作为重新总结基础的上一条总结；不存在时返回 null。
      */
     @Query(
@@ -298,6 +299,7 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
         WHERE sessionId = :sessionId
           AND source = 'Summary'
           AND coveredMessageId < :coveredMessageId
+          AND id < :beforeSummaryId
         ORDER BY id DESC
         LIMIT 1
         """
@@ -305,6 +307,7 @@ interface ChatMessageDao : MutableDao<ChatMessage> {
     suspend fun getPreviousSummaryBeforeBoundary(
         sessionId: Long,
         coveredMessageId: Long,
+        beforeSummaryId: Long = Long.MAX_VALUE,
     ): ChatMessage?
 
     /** 按快照写入顺序读取上一份总结，供“恢复上一版”使用。 */

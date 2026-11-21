@@ -138,6 +138,7 @@
     <string name="summary_role_assistant">Assistant</string>
     <string name="pause_auto_summary">Pause auto summary for this chat</string>
     <string name="restore_previous_summary">Restore previous summary</string>
+    <string name="summary_draft_conflict">The conversation or saved summary changed. Your draft was not saved. Copy it before reopening settings.</string>
     <string name="unknown_character">Unknown character</string>
     <string name="no_messages_yet">No messages yet</string>
     <string name="debug_mode">Debug Mode</string>

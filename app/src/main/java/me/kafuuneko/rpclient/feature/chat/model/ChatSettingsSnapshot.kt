@@ -5,7 +5,7 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatSettingsState
 /**
  * 单聊设置显式保存字段的基线，不包含即时持久化的世界书配置。
  *
- * 摘要独立比对 savedSummary，生成或恢复摘要后无需重置其他字段的基线。
+ * 摘要独立比较正文与覆盖位置，生成或恢复草稿不会重置其他字段的基线。
  */
 data class ChatSettingsSnapshot(
     val title: String,
@@ -59,9 +59,9 @@ internal fun ChatSettingsState.hasCreatorNotesChange(): Boolean {
         baseline.creatorNotes.ifBlank { inheritedCreatorNotes }
 }
 
-/** 判断摘要正文是否发生实质变化，忽略保存时会裁剪的首尾空白。 */
+/** 判断摘要正文或覆盖位置是否变化，正文忽略保存时会裁剪的首尾空白。 */
 internal fun ChatSettingsState.hasSummaryChange(): Boolean =
-    summaryDraft.trim() != savedSummary.trim()
+    summary.hasChanges
 
 /**
  * 按落库规则判断设置草稿是否需要保存，名称与人设描述保留原始空白。

@@ -125,6 +125,7 @@
     <string name="summary_role_assistant">Asistente</string>
     <string name="pause_auto_summary">Pausar resumen automático en este chat</string>
     <string name="restore_previous_summary">Restaurar resumen anterior</string>
+    <string name="summary_draft_conflict">La conversación o el resumen guardado cambió. El borrador no se guardó. Cópialo antes de volver a abrir los ajustes.</string>
     <string name="unknown_character">Personaje desconocido</string>
     <string name="no_messages_yet">No hay mensajes todavía</string>
     <string name="debug_mode">Modo depuración</string>

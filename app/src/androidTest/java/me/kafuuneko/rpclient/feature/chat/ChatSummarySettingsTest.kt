@@ -17,6 +17,7 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatSettingsState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.ui.ChatSettingsPage
+import me.kafuuneko.rpclient.libs.room.model.SummaryInputSnapshot
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -45,21 +46,25 @@ class ChatSummarySettingsTest {
                     emit = {
                         if (this is ChatUiIntent.ChangeSummary) {
                             summaryChanges.add(value)
-                            settings.value = settings.value.copy(summaryDraft = value)
+                            settings.value =
+                                settings.value.copy(summary = settings.value.summary.copy(text = value))
                         }
                     },
                 )
             }
         }
-        // 保持空输入框聚焦并模拟摘要入库后的外部刷新。
+        // 保持空输入框聚焦并模拟手动生成完整草稿后的回填。
         val field = hasSetTextAction() and hasText(summaryLabel)
         rule.onNode(hasScrollToIndexAction()).performScrollToNode(field)
         rule.onNode(field).performClick().assertIsFocused()
         rule.runOnIdle {
             settings.value = settings.value.copy(
-                summaryDraft = "Generated memory",
-                savedSummary = "Generated memory",
-                canResummarize = true,
+                summary = settings.value.summary.copy(latestMessageId = 5L).generated(
+                    content = "Generated memory",
+                    coveredMessageId = 5L,
+                    inputSnapshot = SummaryInputSnapshot(emptyList(), "baseline"),
+                    sources = emptyList(),
+                )
             )
         }
         rule.onNode(field).assertIsFocused().assertTextContains("Generated memory")

@@ -8,7 +8,7 @@ import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
  * 群聊设置表单的持久化字段快照，用于与当前草稿比对是否存在未保存修改。
  *
  * - 仅包含点击保存后写入会话的表单字段，不包含成员与世界书等即时持久化的配置。
- * - 摘要字段另以草稿与已保存摘要比对，确保手动摘要更新后不会误判为未保存。
+ * - 摘要独立比较正文与覆盖位置，手动生成和恢复同样参与未保存检测。
  */
 data class GroupChatSettingsSnapshot(
     val title: String,
@@ -94,7 +94,7 @@ internal fun GroupChatSettingsState.withCurrentAsSavedSnapshot(): GroupChatSetti
  * 判断群聊设置草稿相对已持久化快照是否存在未保存修改。
  *
  * - 表单字段按保存落库规则归一化后与基线快照比对。
- * - 摘要字段直接比对当前草稿与已保存摘要，避免立即摘要刷新后误判为未保存。
+ * - 摘要字段同时比较正文与覆盖位置，回到加载时的记忆后不再提示保存。
  *
  * @return 存在会被保存写入的实质差异时返回 true
  */
@@ -104,11 +104,5 @@ internal fun GroupChatSettingsState.hasUnsavedChanges(): Boolean {
         toSettingsSnapshot().toComparableSnapshot(fallbackTitle = baseline.title)
     val baselineComparable = baseline.toComparableSnapshot(fallbackTitle = baseline.title)
     if (currentComparable != baselineComparable) return true
-    return hasUnsavedSummaryChange(draft = summaryDraft, saved = savedSummary)
-}
-
-/** 判断摘要草稿相对已保存摘要是否存在有效内容变化。 */
-private fun hasUnsavedSummaryChange(draft: String, saved: String): Boolean {
-    if (draft == saved) return false
-    return draft.trim() != saved.trim()
+    return summary.hasChanges
 }

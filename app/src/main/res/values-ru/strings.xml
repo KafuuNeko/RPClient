@@ -125,6 +125,7 @@
     <string name="summary_role_assistant">Ассистент</string>
     <string name="pause_auto_summary">Приостановить авто-сводку для этого чата</string>
     <string name="restore_previous_summary">Восстановить предыдущую сводку</string>
+    <string name="summary_draft_conflict">Переписка или сохранённая сводка изменилась. Черновик не сохранён. Скопируйте его перед повторным открытием настроек.</string>
     <string name="unknown_character">Неизвестный персонаж</string>
     <string name="no_messages_yet">Сообщений пока нет</string>
     <string name="debug_mode">Режим отладки</string>
