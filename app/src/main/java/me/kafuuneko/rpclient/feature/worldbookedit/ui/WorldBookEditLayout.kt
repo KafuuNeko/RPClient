@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -256,7 +257,15 @@ private fun BasicPanel(
             ) {
                 Text(
                     text = form.name.ifBlank { stringResource(R.string.world_book_title) },
+                    modifier = Modifier.basicMarquee(
+                        iterations = Int.MAX_VALUE,
+                        initialDelayMillis = 1_200,
+                        repeatDelayMillis = 1_500,
+                        velocity = 30.dp,
+                    ),
                     style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    softWrap = false,
                 )
                 Text(
                     text = stringResource(
