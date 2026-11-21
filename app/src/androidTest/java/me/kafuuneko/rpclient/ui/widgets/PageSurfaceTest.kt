@@ -25,22 +25,27 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlin.math.abs
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
+import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatSessionItem
+import me.kafuuneko.rpclient.feature.chat.model.MessageRole
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatConversationState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiState
 import me.kafuuneko.rpclient.feature.chat.ui.ChatLayout
+import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMessageItem
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatConversationState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatSettingsState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
@@ -57,6 +62,8 @@ import me.kafuuneko.rpclient.libs.appearance.PageBackground
 import me.kafuuneko.rpclient.libs.appearance.PageSurfaceKind
 import me.kafuuneko.rpclient.libs.appearance.RenderedPageBackground
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
+import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatMessageSource
+import me.kafuuneko.rpclient.model.MessageContentPart
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -222,25 +229,153 @@ class PageSurfaceTest {
         }
     }
 
+    /** 单聊与群聊共用消息气泡几何，点击气泡后悬浮操作栏必须渲染在气泡外部下方且尺寸一致。 */
+    @Test
+    fun conversationMessageBubblesShareGeometryAndExternalActionBar() {
+        val group = mutableStateOf(false)
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val sampleText = "A shared message body used to verify single and group bubble geometry."
+        val sampleTime = "21:04"
+        mCompose.setContent {
+            AppTheme(dynamicColor = false) {
+                val background = RenderedPageBackground(
+                    settings = PageBackground(
+                        page = if (group.value) BackgroundPage.Group else BackgroundPage.Chat,
+                        bubbleOpacity = 0.6f,
+                    ),
+                )
+                if (group.value) {
+                    GroupChatLayout(
+                        uiState = groupPageState(
+                            messages = listOf(
+                                GroupChatMessageItem(
+                                    id = 1L,
+                                    source = GroupChatMessageSource.Character,
+                                    speakerName = "Alice",
+                                    content = sampleText,
+                                    parts = listOf(MessageContentPart.Text(sampleText)),
+                                    time = sampleTime,
+                                ),
+                            ),
+                        ),
+                        background = background,
+                    )
+                } else {
+                    ChatLayout(
+                        uiState = chatPageState(
+                            draft = "",
+                            messages = listOf(
+                                ChatMessageUiModel(
+                                    id = "1",
+                                    role = MessageRole.Assistant,
+                                    speaker = "Alice",
+                                    content = sampleText,
+                                    parts = listOf(MessageContentPart.Text(sampleText)),
+                                    time = sampleTime,
+                                    tokenCount = 12,
+                                ),
+                            ),
+                        ),
+                        background = background,
+                        emit = {},
+                    )
+                }
+            }
+        }
+        var singleBubble: Rect? = null
+        var singleCopy: Rect? = null
+        var singleActionGap: Float? = null
+        var singleButtonStep: Float? = null
+        // 分别渲染单聊与群聊的同款消息并展开操作栏，核对气泡宽度、外置位置和按钮排布一致。
+        for (isGroup in listOf(false, true)) {
+            mCompose.runOnIdle { group.value = isGroup }
+            mCompose.waitForIdle()
+            val bubbleNode =
+                mCompose.onNode(hasClickAction() and hasText(sampleTime, substring = true))
+            val bubbleBounds = bubbleNode.fetchSemanticsNode().boundsInRoot
+            val timeBounds = mCompose.onNode(hasText(sampleTime), useUnmergedTree = true)
+                .fetchSemanticsNode().boundsInRoot
+            assertTrue(
+                "Header timestamp must stay inside bubble for group=$isGroup",
+                timeBounds.top >= bubbleBounds.top && timeBounds.bottom <= bubbleBounds.bottom,
+            )
+            bubbleNode.performClick()
+            mCompose.waitForIdle()
+            val copyBounds = mCompose.onNodeWithContentDescription(context.getString(R.string.copy))
+                .fetchSemanticsNode().boundsInRoot
+            val editBounds = mCompose.onNodeWithContentDescription(context.getString(R.string.edit))
+                .fetchSemanticsNode().boundsInRoot
+            assertTrue(
+                "Action bar must render outside below bubble for group=$isGroup",
+                copyBounds.top > bubbleBounds.bottom,
+            )
+            val actionGap = copyBounds.top - bubbleBounds.bottom
+            val buttonStep = editBounds.left - copyBounds.left
+            if (isGroup) {
+                val expectedBubble = requireNotNull(singleBubble)
+                val expectedCopy = requireNotNull(singleCopy)
+                assertTrue(
+                    "Bubble horizontal bounds must match: single=$expectedBubble, group=$bubbleBounds",
+                    abs(expectedBubble.left - bubbleBounds.left) <= 1f
+                        && abs(expectedBubble.width - bubbleBounds.width) <= 1f,
+                )
+                assertTrue(
+                    "Action button size and left edge must match: single=$expectedCopy, group=$copyBounds",
+                    abs(expectedCopy.left - copyBounds.left) <= 1f
+                        && abs(expectedCopy.width - copyBounds.width) <= 1f
+                        && abs(expectedCopy.height - copyBounds.height) <= 1f,
+                )
+                assertTrue(
+                    "Action bar vertical offset must match: single=$singleActionGap, group=$actionGap",
+                    abs(requireNotNull(singleActionGap) - actionGap) <= 1f,
+                )
+                assertTrue(
+                    "Action button spacing must match: single=$singleButtonStep, group=$buttonStep",
+                    abs(requireNotNull(singleButtonStep) - buttonStep) <= 1f,
+                )
+            } else {
+                singleBubble = bubbleBounds
+                singleCopy = copyBounds
+                singleActionGap = actionGap
+                singleButtonStep = buttonStep
+            }
+        }
+    }
+
     /** 提供不依赖数据库和网络的群聊输入区状态。 */
-    private fun groupPageState(draft: String = ""): GroupChatUiState.Normal =
+    private fun groupPageState(
+        draft: String = "",
+        messages: List<GroupChatMessageItem> = emptyList(),
+    ): GroupChatUiState.Normal =
         GroupChatUiState.Normal(
             sessionId = 1L,
             title = "Group",
             members = emptyList(),
             activeActivationStrategy = GroupChatActivationStrategy.Manual,
             conversationState = GroupChatConversationState(
-                messages = emptyList(), hasCharacterMessage = false,
-                selectedSpeakerId = null, inputDraft = draft
+                messages = messages,
+                hasCharacterMessage = messages.any { it.source == GroupChatMessageSource.Character },
+                selectedSpeakerId = null,
+                inputDraft = draft,
             ),
             settingsState = GroupChatSettingsState(activationStrategy = GroupChatActivationStrategy.Manual),
         )
 
     /** 与群聊使用相同草稿，保留单聊本身的快捷操作和会话入口。 */
-    private fun chatPageState(draft: String): ChatUiState.Normal = ChatUiState.Normal(
+    private fun chatPageState(
+        draft: String,
+        messages: List<ChatMessageUiModel> = emptyList(),
+    ): ChatUiState.Normal = ChatUiState.Normal(
         session = ChatSessionItem(
-            id = 1L, title = "Chat", summarize = "", userNote = "", userName = "User",
-            userDescription = "", creatorNotes = "", autoSummaryPaused = false, messageCount = 0,
+            id = 1L,
+            title = "Chat",
+            summarize = "",
+            userNote = "",
+            userName = "User",
+            userDescription = "",
+            creatorNotes = "",
+            autoSummaryPaused = false,
+            messageCount = messages.size,
             enabledLorebookEntryIds = emptySet()
         ),
         character = ChatCharacterItem(
@@ -256,9 +391,9 @@ class PageSurfaceTest {
             accentColor = Color.Blue
         ),
         conversationState = ChatConversationState(
-            messages = emptyList(),
-            hasAssistantMessage = false,
-            inputDraft = draft
+            messages = messages,
+            hasAssistantMessage = messages.any { it.role == MessageRole.Assistant },
+            inputDraft = draft,
         ),
         lorebookState = ChatLorebookState(groups = emptyList()),
         streamEnabled = true,

@@ -1,26 +1,18 @@
 package me.kafuuneko.rpclient.feature.groupchat.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -28,8 +20,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,36 +33,22 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -80,10 +56,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.launch
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMemberItem
@@ -97,27 +69,26 @@ import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatMessageSource
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.media.MessageImageState
 import me.kafuuneko.rpclient.model.ChatWritingState
-import me.kafuuneko.rpclient.model.MessageContentPart
-import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 import me.kafuuneko.rpclient.ui.dialog.MessageImageViewerDialog
 import me.kafuuneko.rpclient.ui.message.ChatWritingPanel
 import me.kafuuneko.rpclient.ui.message.ConversationComposer
+import me.kafuuneko.rpclient.ui.message.ConversationMessageActionButton
+import me.kafuuneko.rpclient.ui.message.ConversationMessageAvatar
+import me.kafuuneko.rpclient.ui.message.ConversationMessageBubble
+import me.kafuuneko.rpclient.ui.message.ConversationMessageItem
+import me.kafuuneko.rpclient.ui.message.ConversationMessageList
+import me.kafuuneko.rpclient.ui.message.ConversationMessageRole
 import me.kafuuneko.rpclient.ui.message.ConversationQuickAction
-import me.kafuuneko.rpclient.ui.message.MessageImageEditButton
-import me.kafuuneko.rpclient.ui.message.MessageImageGallery
+import me.kafuuneko.rpclient.ui.theme.NarratorAvatarColor
 import me.kafuuneko.rpclient.ui.theme.getMacaronColor
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.LocalPageBubbleOpacity
 import me.kafuuneko.rpclient.ui.widgets.LocalPageTopBarOpacity
-import me.kafuuneko.rpclient.ui.widgets.MarkdownMessageText
 import me.kafuuneko.rpclient.ui.widgets.NoProviderBanner
 import me.kafuuneko.rpclient.ui.widgets.PageSurface
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
-import me.kafuuneko.rpclient.ui.widgets.RpScrollableOutlinedTextField
-import me.kafuuneko.rpclient.ui.widgets.draggableLazyListScrollIndicator
 import me.kafuuneko.rpclient.ui.widgets.pageSurfaceBlur
-import me.kafuuneko.rpclient.ui.widgets.pageUserBubbleContentColor
 
 /**
  * 渲染群聊会话主页，保留成员、消息列表与输入区的状态归属。
@@ -130,18 +101,26 @@ internal fun GroupChatNormalPage(
     state: GroupChatUiState.Normal,
     emitIntent: (GroupChatUiIntent) -> Unit,
 ) {
+    val conversation = state.conversationState
     // 生成状态继续决定输入区与续写操作的可用性。
-    val generation = state.conversationState.generationState
+    val generation = conversation.generationState
     val impersonating = generation as? GroupChatGenerationState.Impersonating
     val generating = generation is GroupChatGenerationState.Generating || impersonating != null
-    val canContinue = state.conversationState.hasCharacterMessage
+    val canContinue = conversation.hasCharacterMessage
+    val displayMessages = remember(conversation.messages, impersonating?.preview) {
+        impersonating?.preview?.let { preview -> conversation.messages + preview }
+            ?: conversation.messages
+    }
+
+    // 顶栏、成员轨、共享消息列表与输入区各自消费对应安全区，Scaffold 本身不重复追加系统栏留白。
     AppPageScaffold(
         containerColor = Color.Transparent,
+        contentWindowInsets = WindowInsets(left = 0.dp),
         topBar = {
             CustomGroupChatTopBar(
                 title = state.title,
                 strategy = state.activeActivationStrategy,
-                generationState = state.conversationState.generationState,
+                generationState = conversation.generationState,
                 hasAvailableProvider = state.hasAvailableProvider,
                 hasPromptInspection = state.hasPromptInspection,
                 sessionLoreDialogVisible = state.dialogState is GroupChatDialogState.SessionLorebook,
@@ -152,7 +131,7 @@ internal fun GroupChatNormalPage(
         },
         bottomBar = {
             Column {
-                if ((state.conversationState.generationState as? GroupChatGenerationState.Failed)?.canRetryReply == true) {
+                if ((conversation.generationState as? GroupChatGenerationState.Failed)?.canRetryReply == true) {
                     TextButton(
                         onClick = { emitIntent(GroupChatUiIntent.RetryImageReply) },
                         modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -167,7 +146,7 @@ internal fun GroupChatNormalPage(
                     },
                 )
                 Composer(
-                    draft = state.conversationState.inputDraft,
+                    draft = conversation.inputDraft,
                     generating = generating,
                     writingState = impersonating?.writing,
                     onToggleReasoning = { emitIntent(GroupChatUiIntent.ToggleWritingReasoning) },
@@ -196,7 +175,7 @@ internal fun GroupChatNormalPage(
                 }
                 MemberRail(
                     members = state.members,
-                    selectedSpeakerId = state.conversationState.selectedSpeakerId,
+                    selectedSpeakerId = conversation.selectedSpeakerId,
                     enabled = !generating,
                     onSelect = { id ->
                         emitIntent(GroupChatUiIntent.SelectSpeaker(id))
@@ -205,33 +184,50 @@ internal fun GroupChatNormalPage(
                         emitIntent(GroupChatUiIntent.ToggleMemberMuted(id))
                     },
                 )
-                MessageList(
-                    imageState = state.imageState,
-                    messages = impersonating?.preview?.let { state.conversationState.messages + it }
-                        ?: state.conversationState.messages,
-                    canLoadOlderMessages = state.conversationState.canLoadOlderMessages,
-                    historyLoadState = state.conversationState.historyLoadState,
-                    searchAnchorMessageId = state.conversationState.searchAnchorMessageId,
-                    canLoadNewerMessages = state.conversationState.canLoadNewerMessages,
-                    expandedThinkBlockIds = state.conversationState.expandedThinkBlockIds,
-                    editingMessageId = state.conversationState.editingMessageId,
-                    editingMessageDraft = state.conversationState.editingMessageDraft,
-                    emitIntent = emitIntent,
+                ConversationMessageList(
+                    messages = displayMessages,
+                    itemId = { message -> message.id.toString() },
+                    itemContentType = { message -> message.source },
+                    itemContentKey = { message -> message.content },
+                    canLoadOlderMessages = conversation.canLoadOlderMessages,
+                    historyLoadState = conversation.historyLoadState,
+                    searchAnchorMessageId = conversation.searchAnchorMessageId?.toString(),
+                    canLoadNewerMessages = conversation.canLoadNewerMessages,
+                    expandedThinkBlockIds = conversation.expandedThinkBlockIds,
+                    onLoadOlderMessages = { emitIntent(GroupChatUiIntent.LoadOlderMessages) },
+                    onLoadNewerMessages = { emitIntent(GroupChatUiIntent.LoadNewerMessages) },
+                    onReturnToLatest = { emitIntent(GroupChatUiIntent.ReturnToLatest) },
+                    onReachLatestMessage = { message ->
+                        emitIntent(GroupChatUiIntent.ReachLatestMessage(message.id))
+                    },
                     modifier = Modifier.weight(1f),
+                    emptyContent = { emptyModifier ->
+                        EmptyConversation(modifier = emptyModifier)
+                    },
+                    messageContent = { _, message ->
+                        val isEditing = conversation.editingMessageId == message.id
+                        GroupChatMessageBubble(
+                            imageState = state.imageState,
+                            message = message,
+                            editing = isEditing,
+                            editingDraft = conversation.editingMessageDraft
+                                .takeIf { isEditing }
+                                .orEmpty(),
+                            expandedThinkBlockIds = conversation.expandedThinkBlockIds,
+                            emitIntent = emitIntent,
+                        )
+                    },
                 )
             }
         },
     )
 }
 
-/** 当前窗口顶部进入该范围时预取更早消息。 */
-private const val HISTORY_LOAD_THRESHOLD = 4
-
 /**
  * 群聊专用顶部栏。
  * - 整合返回导航、群聊标题、发言顺序策略与生成状态描述。
  * - 生成过程中在副标题旁展示微型进度指示。
- * - 右侧保留 Prompt 检查、会话世界书与设置入口。
+ * - 右侧图标尺寸、透明度与入口样式与单聊保持一致。
  */
 @Composable
 private fun CustomGroupChatTopBar(
@@ -277,7 +273,9 @@ private fun CustomGroupChatTopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .windowInsetsPadding(insets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
+                .windowInsetsPadding(
+                    insets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
+                )
                 .padding(horizontal = 6.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -312,7 +310,7 @@ private fun CustomGroupChatTopBar(
                     Text(
                         text = "$strategyText • $statusText",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(weight = 1f, fill = false),
@@ -326,21 +324,26 @@ private fun CustomGroupChatTopBar(
                 }
             }
 
-            // 顶部操作区：Prompt 检查、会话世界书与群设置。
+            // 顶部操作区：沿用单聊的按钮尺寸、图标与不透明度层级。
             IconButton(
                 onClick = { emitIntent(GroupChatUiIntent.OpenPromptInspector) },
                 enabled = hasPromptInspection,
-                modifier = Modifier.size(38.dp),
+                modifier = Modifier.size(36.dp),
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Info,
                     contentDescription = stringResource(R.string.prompt_inspector_title),
                     modifier = Modifier.size(20.dp),
+                    tint = if (hasPromptInspection) {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                    },
                 )
             }
             IconButton(
                 onClick = { emitIntent(GroupChatUiIntent.ShowSessionLoreDialog) },
-                modifier = Modifier.size(38.dp),
+                modifier = Modifier.size(36.dp),
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Book,
@@ -349,26 +352,31 @@ private fun CustomGroupChatTopBar(
                     tint = if (sessionLoreDialogVisible) {
                         MaterialTheme.colorScheme.primary
                     } else {
-                        MaterialTheme.colorScheme.onSurface
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
                     },
                 )
             }
             IconButton(
                 onClick = { emitIntent(GroupChatUiIntent.OpenSettings) },
                 enabled = !generating,
-                modifier = Modifier.size(38.dp),
+                modifier = Modifier.size(36.dp),
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.Settings,
+                    imageVector = Icons.Rounded.Tune,
                     contentDescription = stringResource(R.string.settings),
                     modifier = Modifier.size(20.dp),
+                    tint = if (!generating) {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                    },
                 )
             }
         }
     }
 }
 
-/** 单行横向滚动的轻量成员轨，横屏下自然平铺展开。 */
+/** 单行横向滚动的轻量成员轨，横屏下自然平铺展开并避让水平安全区。 */
 @Composable
 private fun MemberRail(
     members: List<GroupChatMemberItem>,
@@ -381,6 +389,9 @@ private fun MemberRail(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .windowInsetsPadding(
+                insets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
+            )
             .horizontalScroll(rememberScrollState())
             .padding(horizontal = 12.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -491,240 +502,6 @@ private fun MemberChip(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun MessageList(
-    imageState: MessageImageState,
-    messages: List<GroupChatMessageItem>,
-    canLoadOlderMessages: Boolean,
-    historyLoadState: MessageHistoryLoadState,
-    searchAnchorMessageId: Long?,
-    canLoadNewerMessages: Boolean,
-    expandedThinkBlockIds: Set<String>,
-    editingMessageId: Long?,
-    editingMessageDraft: String,
-    emitIntent: (GroupChatUiIntent) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val isLoadingOlderMessages = historyLoadState.isLoadingOlder
-    val isLoadingNewerMessages = historyLoadState.isLoadingNewer
-    val activeSearchAnchor by rememberUpdatedState(searchAnchorMessageId)
-    val listState = rememberLazyListState()
-    val isListDragged by listState.interactionSource.collectIsDraggedAsState()
-    val latestCanLoadOlderMessages by rememberUpdatedState(canLoadOlderMessages)
-    val latestIsLoadingOlderMessages by rememberUpdatedState(isLoadingOlderMessages)
-    // 与列表位置一起恢复，返回设置前的历史阅读位置不应被首次定位或流式跟随覆盖。
-    var shouldFollowBottom by rememberSaveable { mutableStateOf(true) }
-    var isFirstLoad by rememberSaveable { mutableStateOf(true) }
-    var isScrollIndicatorDragged by remember { mutableStateOf(false) }
-    var lastTailMessageId by rememberSaveable { mutableStateOf<Long?>(value = null) }
-    var lastSearchAnchor by rememberSaveable { mutableStateOf<Long?>(value = null) }
-
-    LaunchedEffect(listState) {
-        // 恢复列表尚未完成测量时 canScrollForward 暂为 false，不能据此重新开启底部跟随。
-        snapshotFlow {
-            if (listState.layoutInfo.visibleItemsInfo.isEmpty()) null
-            else listState.canScrollForward to isScrollIndicatorDragged
-        }.collect { position ->
-            val (canScrollForward, indicatorDragged) = position ?: return@collect
-            if (indicatorDragged) {
-                shouldFollowBottom = false
-            } else if (activeSearchAnchor == null && !canScrollForward) {
-                shouldFollowBottom = true
-            }
-        }
-    }
-    LaunchedEffect(isListDragged) {
-        if (isListDragged) {
-            snapshotFlow { listState.canScrollForward }
-                .collect { canScrollForward ->
-                    shouldFollowBottom = activeSearchAnchor == null && !canScrollForward
-                }
-        }
-    }
-
-    val currentMessages by rememberUpdatedState(messages)
-    val latestCanLoadNewerMessages by rememberUpdatedState(canLoadNewerMessages)
-    val latestIsLoadingNewerMessages by rememberUpdatedState(isLoadingNewerMessages)
-    LaunchedEffect(listState) {
-        // 页头加载项也计入布局数量，防止分页后旧测量结果提前结束历史定位。
-        snapshotFlow {
-            val headerCount =
-                if (latestCanLoadOlderMessages || latestIsLoadingOlderMessages) 1 else 0
-            val layout = listState.layoutInfo
-            currentMessages.lastOrNull()?.id?.takeIf {
-                !isFirstLoad && activeSearchAnchor != null
-                    && !latestCanLoadNewerMessages && !latestIsLoadingNewerMessages
-                    && layout.totalItemsCount == currentMessages.size + headerCount + 1
-                    && layout.visibleItemsInfo.isNotEmpty() && !listState.canScrollForward
-            }
-        }.filterNotNull().distinctUntilChanged().collect { messageId ->
-            emitIntent(GroupChatUiIntent.ReachLatestMessage(messageId))
-        }
-    }
-
-    // 首次定位到底部完成后，用户接近当前窗口顶部才请求更早历史
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex to isFirstLoad }
-            .distinctUntilChanged()
-            .collect { (firstVisibleItemIndex, firstLoad) ->
-                val shouldLoadOlderMessages = !firstLoad
-                    && firstVisibleItemIndex <= HISTORY_LOAD_THRESHOLD
-                    && latestCanLoadOlderMessages
-                    && !latestIsLoadingOlderMessages
-                if (shouldLoadOlderMessages) {
-                    emitIntent(GroupChatUiIntent.LoadOlderMessages)
-                }
-            }
-    }
-
-    // 只有尾部消息身份改变时才滚到底部，头部加载历史不会打断用户位置
-    val tailMessageId = messages.lastOrNull()?.id
-    LaunchedEffect(tailMessageId, activeSearchAnchor) {
-        if (activeSearchAnchor != null) {
-            // 只在首次进入定位窗口时滚动，继续分页和流式刷新保持阅读位置。
-            if (isFirstLoad) {
-                val targetIndex =
-                    messages.indexOfFirst { groupChatMessageItem -> groupChatMessageItem.id == activeSearchAnchor }
-                if (targetIndex >= 0) listState.scrollToItem(targetIndex + (if (canLoadOlderMessages || isLoadingOlderMessages) 1 else 0))
-                isFirstLoad = false
-            }
-            shouldFollowBottom = false
-        } else if (tailMessageId == null) {
-            isFirstLoad = true
-        } else if (isFirstLoad || tailMessageId != lastTailMessageId || lastSearchAnchor != null) {
-            shouldFollowBottom = true
-            listState.scrollToItem(messages.size + (if (canLoadOlderMessages || isLoadingOlderMessages) 1 else 0))
-            isFirstLoad = false
-        }
-        lastTailMessageId = tailMessageId
-        lastSearchAnchor = activeSearchAnchor
-    }
-
-    // - 内容流式生成或思考块折叠变动时，若处于跟随状态则自动跟随到底部
-    LaunchedEffect(
-        key1 = messages.lastOrNull()?.content,
-        key2 = expandedThinkBlockIds,
-    ) {
-        if (messages.isNotEmpty()) {
-            if (activeSearchAnchor == null && (isFirstLoad || shouldFollowBottom)) {
-                listState.scrollToItem(
-                    index = messages.size + if (canLoadOlderMessages || isLoadingOlderMessages) 1 else 0,
-                )
-                isFirstLoad = false
-            }
-        }
-    }
-
-    // 记录列表视口高度，在软键盘弹出/收起导致视口尺寸变化时，将差值转化为滚动偏移，
-    // 从而使当前查看的消息被键盘等高顶起，保持位置不变，顶部溢出部分在标题栏下方自然裁切
-    val coroutineScope = rememberCoroutineScope()
-    var previousListHeight by remember { mutableIntStateOf(0) }
-    if (messages.isEmpty()) {
-        EmptyConversation(modifier)
-        return
-    }
-    LazyColumn(
-        modifier = modifier
-            .fillMaxWidth()
-            .onSizeChanged(
-                onSizeChanged = { size ->
-                    val newHeight = size.height
-                    val shouldCompensateViewportHeight =
-                        activeSearchAnchor == null && previousListHeight > 0 && newHeight > 0 && newHeight != previousListHeight
-                    if (shouldCompensateViewportHeight) {
-                        val delta = (previousListHeight - newHeight).toFloat()
-                        coroutineScope.launch {
-                            // 尺寸回调仍处于测量阶段，下一帧再滚动以免重入布局。
-                            withFrameNanos { }
-                            if (shouldFollowBottom && delta > 0) {
-                                listState.scrollToItem(
-                                    index = messages.size + if (canLoadOlderMessages || isLoadingOlderMessages) 1 else 0,
-                                )
-                            } else {
-                                listState.dispatchRawDelta(delta)
-                            }
-                        }
-                    }
-                    previousListHeight = newHeight
-                },
-            )
-            .draggableLazyListScrollIndicator(
-                state = listState,
-                onDragStateChanged = { dragging ->
-                    isScrollIndicatorDragged = dragging
-                    shouldFollowBottom = if (dragging) {
-                        false
-                    } else {
-                        !listState.canScrollForward
-                    }
-                },
-            ),
-        state = listState,
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        if (canLoadOlderMessages || isLoadingOlderMessages) {
-            item(key = "older-messages-loader") {
-                OlderMessagesLoadIndicator(loading = isLoadingOlderMessages)
-            }
-        }
-        items(
-            count = messages.size,
-            key = { value -> messages[value].id },
-        ) { index ->
-            val message = messages[index]
-            MessageBubble(
-                imageState = imageState,
-                message = message,
-                editing = editingMessageId == message.id,
-                editingDraft = editingMessageDraft
-                    .takeIf { editingMessageId == message.id }
-                    .orEmpty(),
-                expandedThinkBlockIds = expandedThinkBlockIds,
-                onToggleThinkBlock = { blockId ->
-                    emitIntent(GroupChatUiIntent.ToggleThinkBlock(blockId))
-                },
-                emitIntent = emitIntent,
-            )
-        }
-        item(key = "conversation-end") {
-            if (activeSearchAnchor != null && canLoadNewerMessages) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    TextButton(
-                        onClick = { emitIntent(GroupChatUiIntent.LoadNewerMessages) },
-                        enabled = !isLoadingNewerMessages,
-                    ) {
-                        Text(stringResource(R.string.content_search_newer))
-                    }
-                    TextButton(onClick = { emitIntent(GroupChatUiIntent.ReturnToLatest) }) {
-                        Text(stringResource(R.string.content_search_latest))
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-        }
-    }
-}
-
-/** 在消息窗口顶部保留稳定高度，并在读取历史时展示轻量进度。 */
-@Composable
-private fun OlderMessagesLoadIndicator(loading: Boolean) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(36.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (loading) {
-            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-        }
-    }
-}
-
 @Composable
 private fun EmptyConversation(modifier: Modifier) {
     // 空会话提示占用原有内容区域，保留输入区布局。
@@ -744,7 +521,7 @@ private fun EmptyConversation(modifier: Modifier) {
                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
                 border = BorderStroke(
                     width = 1.dp,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
                 ),
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -770,467 +547,106 @@ private fun EmptyConversation(modifier: Modifier) {
     }
 }
 
+/** 将群聊消息模型与意图回调接入公共消息气泡。 */
 @Composable
-private fun MessageBubble(
+private fun GroupChatMessageBubble(
     imageState: MessageImageState,
     message: GroupChatMessageItem,
     editing: Boolean,
     editingDraft: String,
     expandedThinkBlockIds: Set<String>,
-    onToggleThinkBlock: (String) -> Unit,
     emitIntent: (GroupChatUiIntent) -> Unit,
 ) {
-    val isUser = message.source == GroupChatMessageSource.User
-    val isSystem = message.source == GroupChatMessageSource.System
-    // 供应商对助手图片的支持不一致，暂只向用户消息开放新增入口，保留所有消息既有附件的编辑能力。
-    val canAddImages = editing && isUser
-    val accent = getMacaronColor(message.speakerName)
-    var showActions by remember(message.id) { mutableStateOf(false) }
-    val messageArrangement = when {
-        isUser -> Arrangement.End
-        isSystem -> Arrangement.Center
-        else -> Arrangement.Start
-    }
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = messageArrangement,
-        verticalAlignment = Alignment.Top,
-    ) {
-        if (!isUser && !isSystem) {
-            RpAvatar(
-                text = message.speakerName.firstOrNull()?.uppercase() ?: "?",
-                color = accent,
-                modifier = Modifier.size(38.dp),
-                image = message.avatarImage,
-            )
-            Spacer(modifier = Modifier.width(9.dp))
-        }
-        val messageAlignment = when {
-            isUser -> Alignment.End
-            isSystem -> Alignment.CenterHorizontally
-            else -> Alignment.Start
-        }
-        val messageWidthFraction = if (isSystem) 0.92f else if (isUser) 0.82f else 0.88f
-        Column(
-            modifier = Modifier.fillMaxWidth(messageWidthFraction),
-            horizontalAlignment = messageAlignment,
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                val speakerColor = if (isUser) {
-                    MaterialTheme.colorScheme.primary
-                } else if (isSystem) {
-                    MaterialTheme.colorScheme.secondary
-                } else {
-                    accent
-                }
-                Text(
-                    text = message.speakerName,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = speakerColor,
-                )
-                Spacer(modifier = Modifier.width(7.dp))
-                Text(
-                    text = message.time,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-                )
-                if (canAddImages) {
-                    Spacer(Modifier.width(6.dp))
-                    MessageImageEditButton(
-                        state = imageState,
-                        emit = { action -> emitIntent(GroupChatUiIntent.ImageAction(action)) },
-                    )
-                }
-            }
-            val bubbleShape = when {
-                isUser -> RoundedCornerShape(
-                    topStart = 18.dp,
-                    topEnd = 4.dp,
-                    bottomEnd = 18.dp,
-                    bottomStart = 18.dp,
-                )
-
-                isSystem -> RoundedCornerShape(14.dp)
-                else -> RoundedCornerShape(
-                    topStart = 4.dp,
-                    topEnd = 18.dp,
-                    bottomEnd = 18.dp,
-                    bottomStart = 18.dp,
-                )
-            }
-            val bubbleColor = when {
-                isUser -> MaterialTheme.colorScheme.primary.copy(alpha = LocalPageBubbleOpacity.current)
-                isSystem -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f * LocalPageBubbleOpacity.current)
-                else -> MaterialTheme.colorScheme.surface.copy(alpha = LocalPageBubbleOpacity.current)
-            }
-            PageSurface(
-                kind = PageSurfaceKind.Bubble,
-                modifier = Modifier
-                    .padding(top = 5.dp)
-                    .clickable(
-                        enabled = !editing,
-                        onClick = {
-                            showActions = !showActions
-                        },
-                    ),
-                shape = bubbleShape,
-                color = bubbleColor,
-                shadowElevation = (if (isUser) 1.5.dp else 0.5.dp) * LocalPageBubbleOpacity.current,
-            ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    val imageIds = if (editing) imageState.editing else message.imageUuids
-                    MessageImageGallery(
-                        ids = imageIds,
-                        state = imageState,
-                        editing = editing,
-                        emit = { action ->
-                            emitIntent(GroupChatUiIntent.ImageAction(action))
-                        },
-                    )
-                    if (editing) imageState.errorResId?.let { errorResId ->
-                        Text(
-                            text = stringResource(errorResId),
-                            color = if (isUser) pageUserBubbleContentColor() else MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                    if (editing) {
-                        GroupMessageEditContent(
-                            draft = editingDraft,
-                            imageState = imageState,
-                            isUser = isUser,
-                            emitIntent = emitIntent,
-                        )
-                    } else {
-                        GroupMessageContent(
-                            message = message,
-                            isUser = isUser,
-                            accent = accent,
-                            expandedThinkBlockIds = expandedThinkBlockIds,
-                            onToggleThinkBlock = onToggleThinkBlock,
-                        )
-                    }
-                    AnimatedVisibility(
-                        visible = showActions && !editing && !message.isStreaming,
-                        enter = fadeIn() + expandVertically(),
-                        exit = fadeOut() + shrinkVertically(),
-                    ) {
-                        AppSurface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f * LocalPageBubbleOpacity.current),
-                            modifier = Modifier.padding(top = 2.dp),
-                        ) {
-                            Row(modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)) {
-                                GroupMessageActions(
-                                    message = message,
-                                    isUser = isUser,
-                                    emitIntent = emitIntent,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/** 在群聊消息气泡内展示编辑输入框。 */
-@Composable
-private fun GroupMessageContent(
-    message: GroupChatMessageItem,
-    isUser: Boolean,
-    accent: Color,
-    expandedThinkBlockIds: Set<String>,
-    onToggleThinkBlock: (String) -> Unit,
-) {
-    // 按原有分段顺序展示正文和思考内容，展开状态由消息 ID 对应。
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (message.isStreaming && (message.content.isBlank() || message.parts.isEmpty())) {
-            GroupStreamingStatus(
-                text = stringResource(R.string.waiting_for_response),
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.64f),
-                indicatorColor = accent,
-            )
-        }
-        message.parts.forEach { part ->
-            when (part) {
-                is MessageContentPart.Text -> {
-                    if (part.content.isNotBlank()) {
-                        MarkdownMessageText(
-                            content = part.content,
-                            isUser = isUser,
-                        )
-                    }
-                }
-
-                is MessageContentPart.Think -> GroupThinkBlock(
-                    part = part,
-                    expanded = part.id in expandedThinkBlockIds,
-                    isThinking = message.isStreaming && !part.isComplete,
-                    indicatorColor = accent,
-                    onToggle = { onToggleThinkBlock(part.id) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun GroupStreamingStatus(
-    text: String,
-    color: Color,
-    indicatorColor: Color,
-    modifier: Modifier = Modifier,
-) {
-    // 等待提示保持在流式消息内部，不额外插入列表项。
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        CircularProgressIndicator(
-            modifier = Modifier.size(14.dp),
-            strokeWidth = 2.dp,
-            color = indicatorColor,
-        )
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodySmall,
-            color = color,
-        )
-    }
-}
-
-@Composable
-private fun GroupThinkBlock(
-    part: MessageContentPart.Think,
-    expanded: Boolean,
-    isThinking: Boolean,
-    indicatorColor: Color,
-    onToggle: () -> Unit,
-) {
-    // 展开状态由页面状态管理，动画只影响思考内容的呈现。
-    AppSurface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onToggle),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f * LocalPageBubbleOpacity.current),
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.AutoAwesome,
-                    contentDescription = null,
-                    tint = if (isThinking) indicatorColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(16.dp),
-                )
-                if (isThinking) {
-                    GroupStreamingStatus(
-                        text = stringResource(R.string.thinking),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        indicatorColor = indicatorColor,
-                        modifier = Modifier.weight(1f),
-                    )
-                } else {
-                    Text(
-                        text = stringResource(R.string.thought_process),
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Icon(
-                    imageVector = if (expanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
-                    contentDescription = if (expanded) stringResource(R.string.hide) else stringResource(
-                        R.string.show
-                    ),
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-            AnimatedVisibility(
-                visible = expanded,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut(),
-            ) {
-                Text(
-                    text = part.content,
-                    style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 2.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun GroupMessageEditContent(
-    draft: String,
-    imageState: MessageImageState,
-    isUser: Boolean,
-    emitIntent: (GroupChatUiIntent) -> Unit,
-) {
-    // 编辑草稿与图片操作继续由页面状态和意图管理。
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        RpScrollableOutlinedTextField(
-            enabled = !imageState.loadState.isSubmitting,
-            value = draft,
-            onValueChange = { text ->
-                emitIntent(GroupChatUiIntent.ChangeEditingMessageDraft(text))
-            },
-            modifier = Modifier.fillMaxWidth(),
-            minLines = 1,
-            maxLines = 8,
-            shape = RoundedCornerShape(12.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = if (isUser) {
-                    pageUserBubbleContentColor()
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                },
-                unfocusedTextColor = if (isUser) {
-                    pageUserBubbleContentColor()
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                },
-                cursorColor = if (isUser) {
-                    pageUserBubbleContentColor()
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
-                focusedBorderColor = if (isUser) {
-                    pageUserBubbleContentColor().copy(alpha = 0.72f)
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
-                unfocusedBorderColor = if (isUser) {
-                    pageUserBubbleContentColor().copy(alpha = 0.42f)
-                } else {
-                    MaterialTheme.colorScheme.outline
-                },
-            ),
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-        ) {
-            TextButton(
-                onClick = { emitIntent(GroupChatUiIntent.CancelEditingMessage) },
-                enabled = !imageState.loadState.isSubmitting,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.cancel),
-                    color = if (isUser) {
-                        pageUserBubbleContentColor().copy(alpha = 0.85f)
-                    } else {
-                        MaterialTheme.colorScheme.primary
-                    },
-                )
-            }
-            Spacer(modifier = Modifier.width(4.dp))
-            TextButton(
-                onClick = { emitIntent(GroupChatUiIntent.SaveEditingMessage) },
-                enabled = !imageState.loadState.isBusy,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-            ) {
-                Text(
-                    text = stringResource(if (imageState.loadState.isSubmitting) R.string.image_loading else R.string.save),
-                    fontWeight = FontWeight.Bold,
-                    color = if (isUser) {
-                        pageUserBubbleContentColor()
-                    } else {
-                        MaterialTheme.colorScheme.primary
-                    },
-                )
-            }
-        }
-    }
-}
-
-/** 展示群聊消息的内联操作栏。 */
-@Composable
-private fun GroupMessageActions(
-    message: GroupChatMessageItem,
-    isUser: Boolean,
-    emitIntent: (GroupChatUiIntent) -> Unit,
-) {
-    // 消息操作沿用原有的生成与编辑限制。
-    val iconColor = if (isUser) {
-        pageUserBubbleContentColor().copy(alpha = 0.85f)
-    } else {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-    }
-    val actionModifier = @Composable { onClick: () -> Unit ->
-        Modifier
-            .size(32.dp)
-            .clip(CircleShape)
-            .clickable(onClick = onClick)
-            .padding(6.dp)
-    }
-    AppSurface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        color = if (isUser) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f * LocalPageBubbleOpacity.current)
-        } else {
-            MaterialTheme.colorScheme.surface.copy(alpha = 0.55f * LocalPageBubbleOpacity.current)
+    val item = remember(message) { message.toConversationMessageItem() }
+    // 群聊消息完全复用单聊标准的气泡与外置悬浮操作栏，只注入群聊支持的业务操作。
+    ConversationMessageBubble(
+        message = item,
+        imageState = imageState,
+        expandedThinkBlockIds = expandedThinkBlockIds,
+        editing = editing,
+        editingDraft = editingDraft,
+        onToggleThinkBlock = { blockId ->
+            emitIntent(GroupChatUiIntent.ToggleThinkBlock(blockId))
         },
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.ContentCopy,
-                contentDescription = stringResource(R.string.copy),
-                modifier = actionModifier {
-                    emitIntent(GroupChatUiIntent.CopyMessage(message.id))
-                },
-                tint = iconColor,
+        onEditingDraftChange = { text ->
+            emitIntent(GroupChatUiIntent.ChangeEditingMessageDraft(text))
+        },
+        onSaveEdit = { emitIntent(GroupChatUiIntent.SaveEditingMessage) },
+        onCancelEdit = { emitIntent(GroupChatUiIntent.CancelEditingMessage) },
+        onImageAction = { action -> emitIntent(GroupChatUiIntent.ImageAction(action)) },
+        actions = {
+            GroupChatMessageActions(
+                message = message,
+                emitIntent = emitIntent,
             )
-            Icon(
-                imageVector = Icons.Rounded.Edit,
-                contentDescription = stringResource(R.string.edit),
-                modifier = actionModifier {
-                    emitIntent(GroupChatUiIntent.StartEditMessage(message.id))
-                },
-                tint = iconColor,
-            )
-            if (message.source == GroupChatMessageSource.Character) {
-                Icon(
-                    imageVector = Icons.Rounded.Refresh,
-                    contentDescription = stringResource(R.string.regenerate),
-                    modifier = actionModifier {
-                        emitIntent(GroupChatUiIntent.RegenerateMessage(message.id))
-                    },
-                    tint = iconColor,
-                )
-            }
-            Icon(
-                imageVector = Icons.Rounded.Delete,
-                contentDescription = stringResource(R.string.delete),
-                modifier = actionModifier {
-                    emitIntent(GroupChatUiIntent.DeleteMessageClick(message.id))
-                },
-                tint = iconColor,
-            )
-        }
+        },
+    )
+}
+
+/** 将群聊消息展示模型映射为公共消息气泡展示模型。 */
+private fun GroupChatMessageItem.toConversationMessageItem(): ConversationMessageItem {
+    val visualRole = when (source) {
+        GroupChatMessageSource.User -> ConversationMessageRole.User
+        GroupChatMessageSource.Character -> ConversationMessageRole.Assistant
+        GroupChatMessageSource.System -> ConversationMessageRole.Narrator
     }
+    // 角色消息使用各自头像与稳定马卡龙强调色，系统消息与单聊旁白视觉保持一致。
+    val avatar = when (source) {
+        GroupChatMessageSource.User -> null
+        GroupChatMessageSource.Character -> ConversationMessageAvatar(
+            text = speakerName.firstOrNull()?.uppercase() ?: "?",
+            accentColor = getMacaronColor(speakerName),
+            image = avatarImage,
+        )
+
+        GroupChatMessageSource.System -> ConversationMessageAvatar(
+            text = speakerName.firstOrNull()?.uppercase() ?: "?",
+            accentColor = NarratorAvatarColor,
+            image = null,
+        )
+    }
+    return ConversationMessageItem(
+        id = id.toString(),
+        role = visualRole,
+        speaker = speakerName,
+        content = content,
+        parts = parts,
+        time = time,
+        imageUuids = imageUuids,
+        isStreaming = isStreaming,
+        avatar = avatar,
+    )
+}
+
+/** 提供群聊消息悬浮操作栏中的业务按钮。 */
+@Composable
+private fun RowScope.GroupChatMessageActions(
+    message: GroupChatMessageItem,
+    emitIntent: (GroupChatUiIntent) -> Unit,
+) {
+    // 全部消息支持复制、编辑与删除，角色回复额外开放单条重生成。
+    ConversationMessageActionButton(
+        icon = Icons.Rounded.ContentCopy,
+        contentDescription = stringResource(R.string.copy),
+        onClick = { emitIntent(GroupChatUiIntent.CopyMessage(message.id)) },
+    )
+    ConversationMessageActionButton(
+        icon = Icons.Rounded.Edit,
+        contentDescription = stringResource(R.string.edit),
+        onClick = { emitIntent(GroupChatUiIntent.StartEditMessage(message.id)) },
+    )
+    if (message.source == GroupChatMessageSource.Character) {
+        ConversationMessageActionButton(
+            icon = Icons.Rounded.Refresh,
+            contentDescription = stringResource(R.string.regenerate),
+            onClick = { emitIntent(GroupChatUiIntent.RegenerateMessage(message.id)) },
+        )
+    }
+    ConversationMessageActionButton(
+        icon = Icons.Rounded.Delete,
+        contentDescription = stringResource(R.string.delete),
+        onClick = { emitIntent(GroupChatUiIntent.DeleteMessageClick(message.id)) },
+    )
 }
 
 /** 群聊输入意图与快捷操作接入公共输入区。 */
