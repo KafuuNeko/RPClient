@@ -13,7 +13,7 @@ sealed class CharacterListUiIntent {
 
     data class ChangeSearchText(val value: String) : CharacterListUiIntent()
 
-    data class SelectCharacter(val characterId: Long) : CharacterListUiIntent()
+    data class OpenCharacter(val characterId: Long) : CharacterListUiIntent()
 
     data class BeginCharacterSelection(val characterId: Long) : CharacterListUiIntent()
 

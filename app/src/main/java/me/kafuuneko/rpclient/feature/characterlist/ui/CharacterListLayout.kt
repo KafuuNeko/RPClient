@@ -215,7 +215,6 @@ private fun CharacterListNormal(
                 key = { characterListItem -> characterListItem.id }) { character ->
                 CharacterListCard(
                     character = character,
-                    selected = character.id == state.selectedCharacterId,
                     selectionMode = selectionMode,
                     bulkSelected = character.id in state.selectedCharacterIds,
                     enabled = state.loadState == CharacterListLoadState.None,
@@ -223,7 +222,7 @@ private fun CharacterListNormal(
                         if (selectionMode) {
                             CharacterListUiIntent.ToggleCharacterSelection(character.id).emit()
                         } else {
-                            CharacterListUiIntent.SelectCharacter(character.id).emit()
+                            CharacterListUiIntent.OpenCharacter(character.id).emit()
                         }
                     },
                     onLongClick = {
@@ -489,7 +488,6 @@ private fun EmptyCharacterCard(emit: CharacterListUiIntent.() -> Unit) {
 @Composable
 private fun CharacterListCard(
     character: CharacterListItem,
-    selected: Boolean,
     selectionMode: Boolean,
     bulkSelected: Boolean,
     enabled: Boolean,
@@ -497,8 +495,8 @@ private fun CharacterListCard(
     onLongClick: () -> Unit,
     onExport: () -> Unit
 ) {
-    // 批量选择优先于最近打开的角色高亮，三处列表使用相同的主题选中色。
-    val highlighted = if (selectionMode) bulkSelected else selected
+    // 仅批量选择中的条目使用选中色，普通打开不保留高亮。
+    val highlighted = selectionMode && bulkSelected
     AppCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -631,7 +629,6 @@ private fun CharacterListLayoutPreview() {
     AppTheme(dynamicColor = false) {
         CharacterListLayout(
             uiState = CharacterListUiState.Normal(
-                selectedCharacterId = 1L,
                 characters = listOf(
                     element = CharacterListItem(
                         id = 1L,

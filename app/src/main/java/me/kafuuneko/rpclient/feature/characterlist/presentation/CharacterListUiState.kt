@@ -11,8 +11,6 @@ sealed class CharacterListUiState {
         val loadState: CharacterListLoadState = CharacterListLoadState.None,
         /** 用户当前输入的搜索文本。 */
         val searchText: String = "",
-        /** 当前选中角色的 ID。 */
-        val selectedCharacterId: Long? = null,
         /** 批量操作的角色 ID 集合，独立于当前搜索过滤结果。 */
         val selectedCharacterIds: Set<Long> = emptySet(),
         /** 当前页面或流程可使用的角色列表。 */

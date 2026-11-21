@@ -78,16 +78,16 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
     private suspend fun onInit() {
         if (!isStateOf<CharacterListUiState.None>()) return
         CharacterListUiState.Normal(loadState = CharacterListLoadState.Loading).setup()
-        refreshCharacters(selectedCharacterId = null)
+        refreshCharacters()
     }
 
     /** 页面恢复可见时刷新角色列表数据（导入或导出传输任务进行中时不打断）。 */
     @UiIntentObserver(CharacterListUiIntent.Resume::class)
     private suspend fun onResume() {
-        val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
+        if (!isStateOf<CharacterListUiState.Normal>()) return
         // Activity Result 会早于紧随其后的 onResume；传输任务负责唯一的最终刷新
         if (mTransferJob?.isActive == true) return
-        refreshCharacters(selectedCharacterId = uiState.selectedCharacterId)
+        refreshCharacters()
     }
 
     /** 返回时优先退出多选，持久化期间保留页面，离开时取消头像加载。 */
@@ -161,21 +161,17 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
     }
 
     /**
-     * 选择并打开指定角色的编辑页面。
+     * 通过一次性导航事件打开角色编辑页面，批量选择期间忽略打开请求。
      *
      * @param intent 包含目标角色 ID 的意图
      */
-    @UiIntentObserver(CharacterListUiIntent.SelectCharacter::class)
-    private fun onSelectCharacter(intent: CharacterListUiIntent.SelectCharacter) {
+    @UiIntentObserver(CharacterListUiIntent.OpenCharacter::class)
+    private fun onOpenCharacter(intent: CharacterListUiIntent.OpenCharacter) {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
         if (uiState.loadState != CharacterListLoadState.None || mTransferJob?.isActive == true) return
         if (uiState.dialogState != CharacterListDialogState.None) return
-        if (uiState.selectedCharacterIds.isNotEmpty()) {
-            onToggleCharacterSelection(CharacterListUiIntent.ToggleCharacterSelection(intent.characterId))
-            return
-        }
+        if (uiState.selectedCharacterIds.isNotEmpty()) return
         if (uiState.characters.none { it.id == intent.characterId }) return
-        uiState.copy(selectedCharacterId = intent.characterId).setup()
         AppViewEvent.StartActivity(
             activity = CharacterEditActivity::class.java,
             extras = Bundle().apply {
@@ -286,7 +282,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
                     )?.setup()
                     return@launch
                 }
-                refreshCharacters(selectedCharacterId = state.selectedCharacterId)
+                refreshCharacters()
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (_: Exception) {
@@ -418,7 +414,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
                 throw cancellation
             } catch (_: Exception) {
                 AppViewEvent.PopupToastMessageByResId(R.string.import_character_failed).tryEmit()
-                refreshCharacters(selectedCharacterId = uiState.selectedCharacterId)
+                refreshCharacters()
             } finally {
                 finishTransfer(token)
             }
@@ -481,7 +477,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
                 throw cancellation
             } catch (_: Exception) {
                 AppViewEvent.PopupToastMessageByResId(R.string.import_character_failed).tryEmit()
-                refreshCharacters(selectedCharacterId = uiState.selectedCharacterId)
+                refreshCharacters()
             } finally {
                 // 结束传输状态
                 finishTransfer(token)
@@ -540,7 +536,6 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
     private suspend fun saveImportBatch(batch: CharacterCardImportBatch) {
         var successCount = 0
         var failureCount = batch.parseFailureCount
-        var selectedCharacterId = getOrNull<CharacterListUiState.Normal>()?.selectedCharacterId
         updateImportProgress(
             stage = CharacterImportStage.Saving,
             completedCount = 0,
@@ -549,7 +544,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         // 逐卡提交可控制头像解码峰值，并保留部分成功结果
         batch.drafts.forEachIndexed { index, draft ->
             try {
-                selectedCharacterId = mCharacterCardRepository.saveImport(draft)
+                mCharacterCardRepository.saveImport(draft)
                 successCount++
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -563,7 +558,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
             )
         }
         // 列表只在整批完成后查询一次，避免导入数量放大数据库读取与头像失效开销
-        refreshCharacters(selectedCharacterId = selectedCharacterId)
+        refreshCharacters()
         publishImportResult(
             totalCount = batch.totalCount,
             successCount = successCount,
@@ -713,10 +708,8 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
      *
      * [mRefreshGeneration] 防止较早的数据库查询晚返回后覆盖新列表；头像位图只按当前
      * 可见项延迟加载，不进入完整角色列表状态。
-     *
-     * @param selectedCharacterId 刷新后需高亮选中的角色 ID（可选）
      */
-    private suspend fun refreshCharacters(selectedCharacterId: Long?) {
+    private suspend fun refreshCharacters() {
         if (!isStateOf<CharacterListUiState.Normal>()) return
         val generation = ++mRefreshGeneration
         // 从数据库查询全量角色
@@ -759,7 +752,6 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         // 驱动 UI 状态展示
         current.copy(
             loadState = CharacterListLoadState.None,
-            selectedCharacterId = characters.firstOrNull { it.id == selectedCharacterId }?.id,
             selectedCharacterIds = current.selectedCharacterIds.intersect(avatarUuids.keys),
             characters = renderCharacters(current.searchText)
         ).setup()
