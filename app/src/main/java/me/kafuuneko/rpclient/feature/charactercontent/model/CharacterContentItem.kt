@@ -7,7 +7,7 @@ import me.kafuuneko.rpclient.utils.stripThinkBlocks
 import me.kafuuneko.rpclient.utils.toPreview
 import me.kafuuneko.rpclient.libs.room.model.CharacterContentItem as CharacterContentRecord
 
-/** 页面筛选与导航所需的轻量条目。 */
+/** 页面筛选、批量选择与导航所需的轻量条目。 */
 data class CharacterContentItem(
     val type: CharacterContentKind,
     val contentId: Long,
@@ -15,7 +15,12 @@ data class CharacterContentItem(
     val latestTime: Long,
     val preview: String,
     @param:StringRes val previewFallbackResId: Int,
-)
+) {
+    val selection = CharacterContentItemSelection(type = type, contentId = contentId)
+}
+
+/** 内容类型属于选择键的一部分，避免不同数据表中相同的主键相互干扰。 */
+data class CharacterContentItemSelection(val type: CharacterContentKind, val contentId: Long)
 
 /**
  * 将查询结果转换为页面条目，沿用首页的正文清理、长度限制和空内容占位。

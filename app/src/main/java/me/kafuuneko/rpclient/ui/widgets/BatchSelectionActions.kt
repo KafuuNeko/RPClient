@@ -23,6 +23,7 @@ import me.kafuuneko.rpclient.R
  * @param onDelete 请求删除确认。
  * @param exportDescription 导出的无障碍说明。
  * @param onExport 可选的批量导出入口。
+ * @param canDelete 当前是否有可删除的已选项；空选择仍可使用全选按钮。
  */
 @Composable
 fun BatchSelectionActions(
@@ -33,6 +34,7 @@ fun BatchSelectionActions(
     onDelete: () -> Unit,
     exportDescription: String? = null,
     onExport: (() -> Unit)? = null,
+    canDelete: Boolean = true,
 ) {
     // 全选与导出沿用普通操作色，删除使用主题错误色提示其破坏性。
     IconButton(onClick = onToggleAll, enabled = enabled && canSelectAll) {
@@ -48,7 +50,7 @@ fun BatchSelectionActions(
     }
     IconButton(
         onClick = onDelete,
-        enabled = enabled,
+        enabled = enabled && canDelete,
         colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.error),
     ) {
         Icon(
