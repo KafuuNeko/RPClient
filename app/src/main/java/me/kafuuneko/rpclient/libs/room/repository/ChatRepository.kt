@@ -1007,7 +1007,7 @@ class ChatRepository(
             val candidates = mChatMessageDao.getSummaryMessageCandidates(
                 sessionId = sessionId,
                 afterMessageId = coveredMessageId,
-                throughMessageId = replayBoundary ?: Long.MAX_VALUE,
+                throughMessageId = replayBoundary ?: draft?.throughMessageId ?: Long.MAX_VALUE,
                 excludedMessageId = excludedMessageId,
                 limit = if (maxCandidateMessages == 0) -1 else summaryCandidateQueryLimit(
                     maxCandidateMessages

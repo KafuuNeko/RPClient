@@ -77,8 +77,11 @@ class CharacterContentViewModel :
         refresh()
     }
 
-    /** 恢复时按当前成员关系查询并退出多选，避免沿用已经解除关联或删除的选择。 */
-    private suspend fun refresh() {
+    /**
+     * 按当前成员关系刷新列表，只剔除已经删除或解除关联的选择。
+     * @param clearSelection 批量删除成功后主动退出多选并关闭确认窗口。
+     */
+    private suspend fun refresh(clearSelection: Boolean = false) {
         val previous = getOrNull<CharacterContentUiState.Normal>()
         val content = try {
             mCharacterRepository.getCharacterContent(mCharacterId)
@@ -94,12 +97,29 @@ class CharacterContentViewModel :
             CharacterContentUiState.Finished(uiStateFlow.value).setup()
             return
         }
+        // 生命周期恢复保留有效勾选，确认窗口继续使用用户确认前的固定集合。
+        val items = content.items.map { it.toUiModel() }
+        val validSelections = items.mapTo(mutableSetOf()) { it.selection }
+        val selection = previous?.list?.selectionState as? CharacterContentSelectionState.Selecting
+        val dialog = previous?.dialogState as? CharacterContentDialogState.DeleteSelectedItems
         CharacterContentUiState.Normal(
             characterName = content.name,
             list = CharacterContentListState(
-                items = content.items.map { it.toUiModel() },
-                filter = previous?.list?.filter
+                items = items,
+                filter = previous?.list?.filter,
+                selectionState = if (clearSelection) CharacterContentSelectionState.None else {
+                    selection?.copy(
+                        selectedItems = selection.selectedItems.intersect(
+                            validSelections
+                        )
+                    )
+                        ?: CharacterContentSelectionState.None
+                },
             ),
+            dialogState = if (clearSelection) CharacterContentDialogState.None else {
+                dialog?.copy(items = dialog.items.intersect(validSelections))
+                    ?.takeIf { it.items.isNotEmpty() } ?: CharacterContentDialogState.None
+            },
         ).setup()
     }
 
@@ -206,7 +226,7 @@ class CharacterContentViewModel :
                     }
                 }
                 // 完成后重新读取关联内容，保留筛选并清除多选与确认窗口。
-                refresh()
+                refresh(clearSelection = true)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {

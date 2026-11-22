@@ -75,6 +75,7 @@ import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.LLMResponseException
 import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
+import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.isOutputIncomplete
 import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
@@ -108,6 +109,7 @@ import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
 import me.kafuuneko.rpclient.libs.room.model.SummaryDraftContext
 import me.kafuuneko.rpclient.libs.room.model.SummaryDraftConflictException
+import me.kafuuneko.rpclient.libs.room.model.SummaryVersion
 import me.kafuuneko.rpclient.libs.room.model.withDependency
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatPromptHistoryContext
@@ -1477,7 +1479,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     @UiIntentObserver(ChatUiIntent.SummarizeNow::class)
     private suspend fun onSummarizeNow() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
-        if (uiState.page != ChatPage.Settings) return
         if (uiState.dialogState.isBlocking()) return
         val sessionId = mSessionId ?: return
         if (mGenerationJob?.isCompleted == false) {
@@ -1486,6 +1487,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             return
         }
         if (mSummaryJob?.isActive == true) return
+        // 快捷入口复用设置草稿，生成后由用户显式保存或放弃。
+        if (uiState.page == ChatPage.Conversation) onOpenChatSettings()
         launchSummaryJob(sessionId = sessionId, manual = true)
     }
 
@@ -2610,7 +2613,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             }
 
             // 在后台计算线程按需扩展候选窗口并构建最终摘要请求
-            val prepared = buildSummaryRequest(
+            val prepared = prepareSummaryRequest(
                 templates = promptTemplates,
                 sessionId = sessionId,
                 manual = manual,
@@ -2624,25 +2627,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
 
             currentCoroutineContext().ensureActive()
 
-            // 调用大模型生成摘要
-            val response = withContext(Dispatchers.IO) {
-                mLLMRepository.generateWithProvider(
-                    provider = data.provider,
-                    request = prepared.request,
-                    routingSessionKey = "chat:$sessionId",
-                )
-            }
-            // 截断的摘要不能覆盖已有记忆；思考耗尽额度时正文也可能为空。
-            if (response.isOutputTokenLimitReached()) {
-                val uiState = getOrNull<ChatUiState.Normal>() ?: return
-                uiState.copy(dialogState = ChatDialogState.SummaryTokenLimit).setup()
-                return
-            }
-            if (response.isOutputIncomplete()) throw LLMResponseException("incomplete_summary")
-            val summaryContent = response.content.summarySafeContent()
-            if (summaryContent.isBlank()) {
-                error(mContext.getString(R.string.summary_failed))
-            }
+            val summaryContent = generateSummaryContent(
+                sessionId = sessionId,
+                provider = data.provider,
+                request = prepared.request,
+            ) ?: return
 
             currentCoroutineContext().ensureActive()
 
@@ -2714,6 +2703,38 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     /**
+     * 生成一批完整摘要正文，任何批次截断时都中止本轮重做。
+     * @param sessionId 请求归属的单聊会话。
+     * @param provider 本轮固定的摘要模型。
+     * @param request 已按单次预算选择的摘要请求。
+     * @return 完整正文，输出额度不足时展示提示并返回 null。
+     */
+    private suspend fun generateSummaryContent(
+        sessionId: Long,
+        provider: LLMProvider,
+        request: LLMGenerationRequest,
+    ): String? {
+        val response = withContext(Dispatchers.IO) {
+            mLLMRepository.generateWithProvider(
+                provider = provider,
+                request = request,
+                routingSessionKey = "chat:$sessionId",
+            )
+        }
+        // 中间批次与最终批次使用相同的完整性校验，截断内容不能成为下一批的记忆。
+        if (response.isOutputTokenLimitReached()) {
+            getOrNull<ChatUiState.Normal>()
+                ?.copy(dialogState = ChatDialogState.SummaryTokenLimit)?.setup()
+            return null
+        }
+        if (response.isOutputIncomplete()) throw LLMResponseException("incomplete_summary")
+        val content = response.content.summarySafeContent()
+        check(content.isNotBlank()) { "Empty summary content" }
+        currentCoroutineContext().ensureActive()
+        return content
+    }
+
+    /**
      * 同步自动摘要的最新持久化结果，设置入口在自动任务期间不可用。
      * @param sessionId 当前单聊会话 ID。
      */
@@ -2738,10 +2759,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     }
 
     /**
-     * 按需扩展单聊摘要候选窗口，并在后台计算线程完成 Prompt 构建。
+     * 按需扩展候选窗口，重做时通过分批生成恢复到原覆盖位置。
      *
      * 只有当前窗口全部进入预算且数据库仍有更早候选时才扩大窗口；一旦 Token 预算截断，
-     * 立即返回与完整历史构建相同的连续前缀及覆盖边界。
+     * 返回连续前缀。重做范围超出单次预算时，先用临时记忆处理前缀，直到末批覆盖原末尾。
      * @param sessionId 单聊会话 ID。
      * @param manual 是否允许覆盖末条消息或重做当前摘要。
      * @param data 固定的会话、角色和模型配置。
@@ -2753,7 +2774,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @param draft 手动操作使用的当前草稿和历史版本；自动摘要为空。
      * @return 可提交的摘要请求，没有稳定候选时返回 null。
      */
-    private suspend fun buildSummaryRequest(
+    private suspend fun prepareSummaryRequest(
         sessionId: Long,
         manual: Boolean,
         data: AutoSummaryData,
@@ -2775,6 +2796,75 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 draft = draft,
             )
         }
+        var context = initialContext
+        var generationDraft = draft
+        val replayBoundary = initialContext.summaryToUpdate?.coveredMessageId
+        // 重做沿用原覆盖末尾，只有完成全部批次才把最终请求交回调用方。
+        while (true) {
+            val prepared = buildRawSummaryRequest(
+                sessionId = sessionId,
+                manual = manual,
+                data = data,
+                initialContext = context,
+                initialWindowSize = initialWindowSize,
+                maximumCandidates = maximumCandidates,
+                templates = templates,
+                draft = generationDraft,
+            ) ?: return null
+            if (replayBoundary == null || prepared.coveredMessageId == replayBoundary) {
+                return prepared.copy(summaryIdToUpdate = initialContext.summaryToUpdate?.id)
+            }
+            // 中间批次只作为本次请求的记忆，完整重做成功前不发布草稿或写库。
+            val content = generateSummaryContent(
+                sessionId = sessionId,
+                provider = data.provider,
+                request = prepared.request,
+            ) ?: return null
+            val currentDraft = checkNotNull(generationDraft)
+            generationDraft = currentDraft.copy(
+                current = currentDraft.current.copy(
+                    summary = SummaryVersion(
+                        content = content,
+                        coveredMessageId = prepared.coveredMessageId
+                    ),
+                    inputSnapshot = prepared.inputSnapshot,
+                    sources = prepared.sourceSummaries,
+                ),
+                throughMessageId = replayBoundary,
+            )
+            context = withContext(Dispatchers.IO) {
+                mChatRepository.getSummaryGenerationContext(
+                    sessionId = sessionId,
+                    manual = manual,
+                    maxCandidateMessages = initialWindowSize,
+                    draft = generationDraft,
+                )
+            }
+        }
+    }
+
+    /**
+     * 按需扩展 Raw 候选窗口，选择单次预算内可覆盖的连续前缀。
+     * @param sessionId 单聊会话 ID。
+     * @param manual 是否允许覆盖末条原文。
+     * @param data 本轮固定的会话、角色及模型。
+     * @param initialContext 从本批记忆边界读取的候选消息。
+     * @param initialWindowSize 初始候选上限。
+     * @param maximumCandidates 本批最多可以探测的消息数。
+     * @param templates 本轮预设快照。
+     * @param draft 本批继承的记忆及生成依赖。
+     * @return 已完成预算选择的请求，没有可摘要消息时返回 null。
+     */
+    private suspend fun buildRawSummaryRequest(
+        sessionId: Long,
+        manual: Boolean,
+        data: AutoSummaryData,
+        initialContext: ChatSummaryGenerationContext,
+        initialWindowSize: Int,
+        maximumCandidates: Int,
+        templates: PromptTemplateSnapshot,
+        draft: SummaryDraftContext?,
+    ): PreparedSummaryRequest? {
         var windowSize = initialWindowSize
         var context = initialContext
         while (true) {
@@ -2813,15 +2903,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 && windowSize < maximumCandidates
             if (!shouldExpand) {
                 val coveredMessageId = built.selectedMessages.lastOrNull()?.id ?: return null
-                // 预算设置变化时保留已覆盖末尾的快照，避免用缩短范围的结果替换它。
-                val originalBoundary = context.summaryToUpdate?.coveredMessageId
-                check(originalBoundary == null || originalBoundary == coveredMessageId) {
-                    "The original summary range no longer fits the current summary limits"
-                }
                 return PreparedSummaryRequest(
                     request = built.request,
                     coveredMessageId = coveredMessageId,
-                    summaryIdToUpdate = context.summaryToUpdate?.id,
+                    summaryIdToUpdate = initialContext.summaryToUpdate?.id,
                     inputSnapshot = inputSnapshot.withDependency(context.draftBase?.inputSnapshot),
                     sourceSummaries = context.draftBase?.sources.orEmpty(),
                 )
@@ -3127,7 +3212,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         // 获取摘要、世界书及角色头像资源
         val lorebookData = getAllLorebookEntries()
         val enabledIds = mChatRepository.getSessionLorebookEntryIds(session).toSet()
-        val effectiveCreatorNotes = mChatRepository.getSessionCreatorNotes(session)
         val avatarImage = character.avatar.takeIf { it.isNotBlank() }?.let { text ->
             mFileRepository.loadAvatarBitmap(text)?.asImageBitmap()
         }
@@ -3136,7 +3220,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val sessionItem = session.toChatSessionItem(
             summary = pageData.summary,
             canResummarize = pageData.canResummarize,
-            creatorNotes = effectiveCreatorNotes,
             selection = mPersonas.chatSelection(session.userPersonaId),
             inheritedDescription = mPersonas.chatPersona(session.userPersonaId).description,
             messageCount = messagePage.totalMessageCount,

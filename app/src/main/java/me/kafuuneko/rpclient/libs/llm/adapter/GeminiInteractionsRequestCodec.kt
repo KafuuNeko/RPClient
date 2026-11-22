@@ -68,10 +68,12 @@ internal object GeminiInteractionsRequestCodec {
         registerImage: (LLMImageReference) -> String
     ) =
         JsonObject().apply {
+            // Interactions 用步骤类型表达角色，中途系统资料沿用用户步骤的位置。
             addProperty(
                 "type",
                 if (message.role == LLMMessageRole.Assistant) "model_output" else "user_input"
             )
+            // 图文块按原序写出，图片占位符交给共用网络层解析。
             add("content", JsonArray().apply {
                 message.contentBlocks.forEach { block ->
                     when (block) {

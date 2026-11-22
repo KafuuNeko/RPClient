@@ -52,6 +52,8 @@ data class SummaryDraftContext(
     val current: SummaryDraftVersion,
     val previous: List<SummaryDraftVersion>,
     val baseline: SummaryVersion,
+    /** 分批重做的固定末尾，防止生成期间新到的消息混入原摘要范围。 */
+    val throughMessageId: Long? = null,
 )
 
 /** 设置保存事务提交的摘要及乐观并发校验信息。 */

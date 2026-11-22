@@ -71,6 +71,19 @@ class ChatSettingsSnapshotTest {
         )
     }
 
+    /** 相同正文的显式覆盖与继承仍然不同，清空覆盖必须提示保存。 */
+    @Test
+    fun matchingCharacterDefaultStillTracksOverrideChanges() {
+        val inherited = sampleSettings()
+        val explicit = inherited.copy(creatorNotesDraft = inherited.inheritedCreatorNotes)
+            .withCurrentAsSavedSnapshot()
+        assertTrue(
+            inherited.copy(creatorNotesDraft = explicit.creatorNotesDraft).hasUnsavedChanges()
+        )
+        assertTrue(explicit.copy(creatorNotesDraft = "").hasCreatorNotesChange())
+        assertTrue(explicit.copy(creatorNotesDraft = "").hasUnsavedChanges())
+    }
+
     /** 手动摘要保持原保存基线，回到原记忆后摘要变为干净但其他修改仍需保存。 */
     @Test
     fun persistedSummaryUpdatesKeepOtherDraftsDirty() {
@@ -104,7 +117,7 @@ class ChatSettingsSnapshotTest {
         ),
         userNoteDraft = "Keep tension",
         persona = PersonaSelection(selectedId = 1L),
-        creatorNotesDraft = "Character notes",
+        creatorNotesDraft = "",
         inheritedCreatorNotes = "Character notes",
     ).withCurrentAsSavedSnapshot()
 }

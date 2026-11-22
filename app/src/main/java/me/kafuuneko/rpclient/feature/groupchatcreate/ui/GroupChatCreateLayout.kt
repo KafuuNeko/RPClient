@@ -122,6 +122,7 @@ private fun GroupChatCreateNormalView(
         bottomBar = {
             CreateBottomBar(
                 selectedCount = state.selectedCount,
+                subtitleResId = state.creationStatusResId,
                 enabled = state.canCreate && controlsEnabled,
                 onCreate = { emitIntent(GroupChatCreateUiIntent.Create) },
             )
@@ -264,6 +265,8 @@ private fun LazyListScope.groupMemberSetupItems(
         SelectedMembersSummaryCard(
             totalCharacterCount = state.characters.size,
             selectedCharacters = state.selectedCharacters,
+            ready = state.canCreate,
+            subtitleResId = state.creationStatusResId,
             characterAvatars = state.characterAvatars,
             enabled = controlsEnabled,
             onOpenPicker = { emitIntent(GroupChatCreateUiIntent.ShowCharacterPicker) },
@@ -281,6 +284,8 @@ private fun LazyListScope.groupMemberSetupItems(
 private fun SelectedMembersSummaryCard(
     totalCharacterCount: Int,
     selectedCharacters: List<GroupChatCreateCharacterItem>,
+    ready: Boolean,
+    subtitleResId: Int,
     characterAvatars: Map<Long, ImageBitmap>,
     enabled: Boolean,
     onOpenPicker: () -> Unit,
@@ -293,7 +298,6 @@ private fun SelectedMembersSummaryCard(
     }
 
     val selectedCount = selectedCharacters.size
-    val ready = selectedCount >= 2
     val titleText = if (selectedCount == 0) {
         stringResource(R.string.group_chat_members_empty_title)
     } else {
@@ -305,8 +309,7 @@ private fun SelectedMembersSummaryCard(
             totalCharacterCount,
         )
 
-        ready -> stringResource(R.string.group_chat_ready_to_begin)
-        else -> stringResource(R.string.group_chat_select_at_least_two)
+        else -> stringResource(subtitleResId)
     }
     val subtitleColor = if (selectedCount == 1) {
         MaterialTheme.colorScheme.error
@@ -736,6 +739,7 @@ private fun GreetingHint(textRes: Int) {
 @Composable
 private fun CreateBottomBar(
     selectedCount: Int,
+    subtitleResId: Int,
     enabled: Boolean,
     onCreate: () -> Unit,
 ) {
@@ -745,10 +749,7 @@ private fun CreateBottomBar(
             selectedCount,
             selectedCount,
         ),
-        subtitle = stringResource(
-            id = if (selectedCount >= 2) R.string.group_chat_ready_to_begin
-            else R.string.group_chat_select_at_least_two,
-        ),
+        subtitle = stringResource(subtitleResId),
         enabled = enabled,
         onCreate = onCreate,
     )

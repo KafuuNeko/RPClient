@@ -212,7 +212,11 @@ internal fun ChatSettingsPage(
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text(stringResource(R.string.creator_notes)) },
                         value = state.creatorNotesDraft,
-                        placeholder = { Text(stringResource(R.string.using_character_default_or_empty)) },
+                        placeholder = {
+                            Text(state.inheritedCreatorNotes.ifEmpty {
+                                stringResource(R.string.using_character_default_or_empty)
+                            })
+                        },
                         minLines = 3,
                         maxLines = 8,
                         onValueChange = { ChatUiIntent.ChangeCreatorNotes(it).emit() },

@@ -301,7 +301,7 @@ class GroupChatRepository(
                 mMessageDao.getSummaryMessageCandidates(
                     sessionId = sessionId,
                     afterMessageId = coveredMessageId,
-                    throughMessageId = replayBoundary ?: Long.MAX_VALUE,
+                    throughMessageId = replayBoundary ?: draft?.throughMessageId ?: Long.MAX_VALUE,
                     excludedMessageId = excludedMessageId,
                     limit = queryLimit,
                 )

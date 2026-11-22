@@ -85,6 +85,7 @@ import me.kafuuneko.rpclient.libs.llm.LLMResponseException
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
+import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
 import me.kafuuneko.rpclient.libs.llm.model.isOutputIncomplete
@@ -116,6 +117,8 @@ import me.kafuuneko.rpclient.libs.room.entity.toConfig
 import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
 import me.kafuuneko.rpclient.libs.room.model.SummaryDraftConflictException
+import me.kafuuneko.rpclient.libs.room.model.SummaryDraftContext
+import me.kafuuneko.rpclient.libs.room.model.SummaryVersion
 import me.kafuuneko.rpclient.libs.room.model.toSummaryVersion
 import me.kafuuneko.rpclient.libs.room.model.withDependency
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
@@ -1544,11 +1547,14 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.SummarizeNow::class)
     private suspend fun onSummarizeNow() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
-        if (uiState.page != GroupChatPage.Settings || uiState.dialogState.isBlocking()) return
+        if (uiState.dialogState.isBlocking()) return
         if (mGenerationJob?.isCompleted == false) return
         if (!ensureProviderConfigured()) return
+        // 快捷入口先展示编辑器，生成结果仍由用户显式保存。
+        if (uiState.page == GroupChatPage.Conversation) onOpenSettings()
+        val settingsUiState = getOrNull<GroupChatUiState.Normal>() ?: return
         // 准备请求也属于阻塞操作，避免读取期间离开设置或继续修改本轮草稿。
-        uiState.copy(dialogState = GroupChatDialogState.Summarizing).setup()
+        settingsUiState.copy(dialogState = GroupChatDialogState.Summarizing).setup()
         // 手动摘要与回复共用生成任务，释放意图队列以便用户随时取消。
         mGenerationJob = viewModelScope.launch {
             try {
@@ -2978,7 +2984,7 @@ class GroupChatViewModel :
                 return
             }
             // 格式化与 Token 统计在后台线程按需扩展，主线程只负责状态调度
-            val prepared = buildGroupSummaryRequest(
+            val prepared = prepareGroupSummaryRequest(
                 templates = templates ?: mPromptPresets.getActiveSnapshot(),
                 sessionId = sessionId,
                 provider = provider,
@@ -2990,24 +2996,11 @@ class GroupChatViewModel :
                 settings = settings,
             ) ?: return
             currentCoroutineContext().ensureActive()
-            val response = withContext(Dispatchers.IO) {
-                mLLMRepository.generateWithProvider(
-                    provider = provider,
-                    request = prepared.request,
-                    routingSessionKey = "group-chat:$sessionId",
-                )
-            }
-            // 截断的摘要不能覆盖已有记忆；思考耗尽额度时正文也可能为空。
-            if (response.isOutputTokenLimitReached()) {
-                val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
-                uiState.copy(dialogState = GroupChatDialogState.SummaryTokenLimit).setup()
-                return
-            }
-            if (response.isOutputIncomplete()) throw LLMResponseException("incomplete_summary")
-            val summaryContent = response.content.summarySafeContent()
-            if (summaryContent.isBlank()) {
-                error(mContext.getString(R.string.summary_failed))
-            }
+            val summaryContent = generateSummaryContent(
+                sessionId = sessionId,
+                provider = provider,
+                request = prepared.request,
+            ) ?: return
             currentCoroutineContext().ensureActive()
             if (manual && settings != null) {
                 // 只发布完整草稿，取消、失败或额度截断均不会追加回退版本。
@@ -3071,10 +3064,43 @@ class GroupChatViewModel :
     }
 
     /**
-     * 按需扩展群聊摘要候选窗口，并在后台计算线程完成 Prompt 构建。
+     * 生成一批完整群聊摘要，任何批次截断时都中止本轮重做。
+     * @param sessionId 请求归属的群聊会话。
+     * @param provider 本轮固定的摘要模型。
+     * @param request 已按单次预算选择的摘要请求。
+     * @return 完整正文，输出额度不足时展示提示并返回 null。
+     */
+    private suspend fun generateSummaryContent(
+        sessionId: Long,
+        provider: LLMProvider,
+        request: LLMGenerationRequest,
+    ): String? {
+        val response = withContext(Dispatchers.IO) {
+            mLLMRepository.generateWithProvider(
+                provider = provider,
+                request = request,
+                routingSessionKey = "group-chat:$sessionId",
+            )
+        }
+        // 中间批次也必须完整，避免后续摘要继承被截断的记忆。
+        if (response.isOutputTokenLimitReached()) {
+            getOrNull<GroupChatUiState.Normal>()
+                ?.copy(dialogState = GroupChatDialogState.SummaryTokenLimit)?.setup()
+            return null
+        }
+        if (response.isOutputIncomplete()) throw LLMResponseException("incomplete_summary")
+        val content = response.content.summarySafeContent()
+        check(content.isNotBlank()) { "Empty summary content" }
+        currentCoroutineContext().ensureActive()
+        return content
+    }
+
+    /**
+     * 按需扩展群聊候选窗口，重做时通过分批生成恢复到原覆盖位置。
      *
      * 仅当当前窗口全部符合预算且数据库仍有候选消息时继续扩大；最终请求的消息顺序、
      * 最新消息排除规则和摘要覆盖边界与完整历史构建保持一致。
+     * 重做超出单次预算时只暂存中间记忆，末批完成后才发布完整草稿。
      * @param sessionId 群聊会话 ID。
      * @param provider 摘要专用模型。
      * @param initialData 初次读取的会话和摘要窗口。
@@ -3086,7 +3112,7 @@ class GroupChatViewModel :
      * @param settings 手动操作捕获的表单草稿，自动摘要为空。
      * @return 可提交的摘要请求，没有稳定候选时返回 null。
      */
-    private suspend fun buildGroupSummaryRequest(
+    private suspend fun prepareGroupSummaryRequest(
         sessionId: Long,
         provider: LLMProvider,
         initialData: GroupChatSummaryGenerationData,
@@ -3108,6 +3134,79 @@ class GroupChatViewModel :
                 settings = settings,
             )
         }
+        var generationData = initialData
+        var generationDraft = settings?.summary?.toGenerationContext()
+        val replayBoundary = initialData.summaryToUpdate?.coveredMessageId
+        // 完整重做可以跨多次请求，各次仍受原有条数和 Token 预算约束。
+        while (true) {
+            val prepared = buildRawGroupSummaryRequest(
+                sessionId = sessionId,
+                provider = provider,
+                initialData = generationData,
+                initialWindowSize = initialWindowSize,
+                maximumCandidates = maximumCandidates,
+                templates = templates,
+                manual = manual,
+                settings = settings,
+                draft = generationDraft,
+            ) ?: return null
+            if (replayBoundary == null || prepared.coveredMessageId == replayBoundary) {
+                return prepared.copy(summaryIdToUpdate = initialData.summaryToUpdate?.id)
+            }
+            // 取消或失败时丢弃中间批次，原草稿和持久化摘要继续生效。
+            val content = generateSummaryContent(
+                sessionId = sessionId,
+                provider = provider,
+                request = prepared.request,
+            ) ?: return null
+            val currentDraft = checkNotNull(generationDraft)
+            generationDraft = currentDraft.copy(
+                current = currentDraft.current.copy(
+                    summary = SummaryVersion(
+                        content = content,
+                        coveredMessageId = prepared.coveredMessageId
+                    ),
+                    inputSnapshot = prepared.inputSnapshot,
+                    sources = prepared.sourceSummaries,
+                ),
+                throughMessageId = replayBoundary,
+            )
+            generationData = withContext(Dispatchers.IO) {
+                mGroupChatRepository.getGroupChatSummaryData(
+                    sessionId = sessionId,
+                    maxCandidateMessages = initialWindowSize,
+                    manual = manual,
+                    draft = generationDraft,
+                    editSession = { settings?.applyToSession(it) ?: it },
+                )
+            } ?: return null
+        }
+    }
+
+    /**
+     * 按需扩展群聊 Raw 窗口，选择单次预算内可覆盖的连续前缀。
+     * @param sessionId 群聊会话 ID。
+     * @param provider 本轮摘要模型。
+     * @param initialData 从本批记忆边界读取的会话及候选消息。
+     * @param initialWindowSize 初始候选上限。
+     * @param maximumCandidates 本批最多可以探测的消息数。
+     * @param templates 本轮预设快照。
+     * @param manual 是否允许覆盖末条原文。
+     * @param settings 手动操作捕获的设置表单。
+     * @param draft 本批继承的记忆及生成依赖。
+     * @return 已完成预算选择的请求，没有可摘要消息时返回 null。
+     */
+    private suspend fun buildRawGroupSummaryRequest(
+        sessionId: Long,
+        provider: LLMProvider,
+        initialData: GroupChatSummaryGenerationData,
+        initialWindowSize: Int,
+        maximumCandidates: Int,
+        templates: PromptTemplateSnapshot,
+        manual: Boolean,
+        settings: GroupChatSettingsState?,
+        draft: SummaryDraftContext?,
+    ): PreparedGroupSummaryRequest? {
         var windowSize = initialWindowSize
         var generationData = initialData
         while (true) {
@@ -3120,7 +3219,7 @@ class GroupChatViewModel :
                     sessionId = sessionId,
                     maxCandidateMessages = windowSize,
                     manual = manual,
-                    draft = settings?.summary?.toGenerationContext(),
+                    draft = draft,
                     editSession = { settings?.applyToSession(it) ?: it },
                 ) == generationData
             ) {
@@ -3147,15 +3246,10 @@ class GroupChatViewModel :
                 && windowSize < maximumCandidates
             if (!shouldExpand) {
                 val coveredMessageId = built.selectedMessages.lastOrNull()?.id ?: return null
-                // 更小的预算不能让重新摘要丢失已经覆盖的群聊历史。
-                val originalBoundary = generationData.summaryToUpdate?.coveredMessageId
-                check(originalBoundary == null || originalBoundary == coveredMessageId) {
-                    "The original summary range no longer fits the current summary limits"
-                }
                 return PreparedGroupSummaryRequest(
                     request = built.request,
                     coveredMessageId = coveredMessageId,
-                    summaryIdToUpdate = generationData.summaryToUpdate?.id,
+                    summaryIdToUpdate = initialData.summaryToUpdate?.id,
                     inputSnapshot = inputSnapshot.withDependency(generationData.draftBase?.inputSnapshot),
                     sourceSummaries = generationData.draftBase?.sources.orEmpty(),
                 )
@@ -3167,7 +3261,7 @@ class GroupChatViewModel :
                     sessionId = sessionId,
                     maxCandidateMessages = windowSize,
                     manual = manual,
-                    draft = settings?.summary?.toGenerationContext(),
+                    draft = draft,
                     editSession = { settings?.applyToSession(it) ?: it },
                 )
             } ?: return null

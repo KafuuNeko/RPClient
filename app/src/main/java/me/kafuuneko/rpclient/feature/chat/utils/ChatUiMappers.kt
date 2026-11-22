@@ -27,7 +27,6 @@ fun ChatSession.toChatSessionItem(
     inheritedDescription: String,
     summary: String,
     canResummarize: Boolean,
-    creatorNotes: String,
     messageCount: Int,
     enabledIds: Set<Long>,
 ): ChatSessionItem {
@@ -42,7 +41,7 @@ fun ChatSession.toChatSessionItem(
         persona = selection,
         inheritedDescription = inheritedDescription,
         userDescription = userDescription.orEmpty(),
-        creatorNotes = creatorNotes,
+        creatorNotes = creatorNotes.orEmpty(),
         autoSummaryPaused = autoSummaryPaused,
         messageCount = messageCount,
         enabledLorebookEntryIds = enabledIds,
@@ -51,7 +50,7 @@ fun ChatSession.toChatSessionItem(
 }
 
 /**
- * 从持久化会话展示值建立设置草稿，另行保留作者备注的角色默认值以保护继承语义。
+ * 从持久化会话覆盖值建立设置草稿，角色默认备注只用于占位提示。
  * @param inheritedCreatorNotes 角色卡当前提供的默认备注。
  * @param summary 与持久化摘要同步的编辑基线及覆盖位置。
  * @return 记录加载基线的设置表单。
@@ -60,7 +59,7 @@ internal fun ChatSessionItem.toChatSettingsState(
     inheritedCreatorNotes: String,
     summary: SummaryEditorState,
 ): ChatSettingsState {
-    // 作者备注继续显示有效正文，但保存其他字段时不将继承正文写入覆盖列。
+    // 原始覆盖与默认正文分开保留，清空覆盖后继续跟随角色卡变化。
     return ChatSettingsState(
         titleDraft = title,
         summary = summary,

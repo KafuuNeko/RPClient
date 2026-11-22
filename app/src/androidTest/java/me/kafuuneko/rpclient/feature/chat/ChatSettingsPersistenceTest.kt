@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.feature.chat
 import android.content.Intent
 import androidx.annotation.StringRes
 import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasContentDescription
@@ -13,6 +14,7 @@ import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import androidx.lifecycle.Lifecycle
@@ -94,7 +96,7 @@ class ChatSettingsPersistenceTest {
             field(R.string.title).assertTextContains("Draft title")
             val restore = hasText(mContext.getString(R.string.restore_previous_summary))
             rule.onNode(hasScrollToIndexAction()).performScrollToNode(restore)
-            rule.onNode(restore).performClick()
+            rule.onNode(restore).performScrollTo().assertIsDisplayed().performClick()
             field(R.string.current_summary)
             rule.waitUntil(10_000) {
                 rule.onAllNodes(hasSetTextAction() and hasText("Previous memory"))
@@ -135,6 +137,31 @@ class ChatSettingsPersistenceTest {
         }
     }
 
+    /** 清空与角色默认正文相同的会话覆盖后，后续角色编辑仍能被会话继承。 */
+    @Test
+    fun clearingMatchingCreatorNotesRestoresInheritance() {
+        runBlocking { mChats.updateSessionCreatorNotes(mSessionId, "Inherited notes") }
+        val intent = Intent(mContext, ChatActivity::class.java)
+            .putExtra(ChatActivity.EXTRA_SESSION_ID, mSessionId.toString())
+        ActivityScenario.launch<ChatActivity>(intent).use {
+            // 通过真实输入框清空覆盖，离开确认必须识别继承状态的变化。
+            openSettings()
+            field(R.string.creator_notes).performTextReplacement("")
+            requestLeave()
+            rule.onNode(
+                hasText(mContext.getString(R.string.save)) and hasAnyAncestor(isDialog()),
+            ).performClick()
+            awaitConversation()
+            // 保存后更新角色默认备注，确认会话没有留下与旧默认相同的覆盖。
+            runBlocking {
+                assertNull(mChats.getSessionById(mSessionId)?.creatorNotes)
+                val character = requireNotNull(mCharacters.getCharacterById(mCharacterId))
+                mCharacters.updateCharacter(character.copy(creatorNotes = "Updated character notes"))
+                assertEquals("Updated character notes", mChats.getSessionCreatorNotes(mSessionId))
+            }
+        }
+    }
+
     /** 等待真实会话渲染完成后打开设置。 */
     private fun openSettings() {
         awaitConversation()
@@ -158,6 +185,6 @@ class ChatSettingsPersistenceTest {
     private fun field(@StringRes label: Int): SemanticsNodeInteraction {
         val matcher = hasSetTextAction() and hasText(mContext.getString(label))
         rule.onNode(hasScrollToIndexAction()).performScrollToNode(matcher)
-        return rule.onNode(matcher)
+        return rule.onNode(matcher).performScrollTo().assertIsDisplayed()
     }
 }

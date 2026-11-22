@@ -165,6 +165,10 @@ class SummaryDraftWorkflowTest {
                     )
                 },
                 persisted = { mChats.getLatestSummary(mChatId).toSummaryVersion() },
+                appendMessages = {
+                    mChats.createMessage(mChatId, ChatMessage.Source.User, "Third message", 3L)
+                    mChats.createMessage(mChatId, ChatMessage.Source.Char, "Fourth message", 4L)
+                },
                 resume = {
                     scenario.moveToState(Lifecycle.State.CREATED)
                     scenario.moveToState(Lifecycle.State.RESUMED)
@@ -251,6 +255,24 @@ class SummaryDraftWorkflowTest {
                     )
                 },
                 persisted = { mGroups.getGroupChatData(mGroupId)?.summary.toSummaryVersion() },
+                appendMessages = {
+                    mGroups.createMessage(
+                        sessionId = mGroupId,
+                        source = GroupChatMessage.Source.User,
+                        content = "Third message",
+                        speakerCharacterId = null,
+                        speakerNameSnapshot = "",
+                        createTime = 3L,
+                    )
+                    mGroups.createMessage(
+                        sessionId = mGroupId,
+                        source = GroupChatMessage.Source.User,
+                        content = "Fourth message",
+                        speakerCharacterId = null,
+                        speakerNameSnapshot = "",
+                        createTime = 4L,
+                    )
+                },
                 resume = {
                     scenario.moveToState(Lifecycle.State.CREATED)
                     scenario.moveToState(Lifecycle.State.RESUMED)
@@ -307,9 +329,43 @@ class SummaryDraftWorkflowTest {
         workflow.emit(Action.Discard)
         workflow.await { !it.settings }
         assertEquals(saved, workflow.persisted())
+        exerciseReplay(workflow)
         // 请求必须采用表单里的未保存名称，且确实完成了所有真实 HTTP 调用。
         mServer.finished.get(5, TimeUnit.SECONDS)
         assertTrue(mServer.requests.all { it.contains("Draft persona name") })
+    }
+
+    /** 验证快捷入口、分批保存后的完整重做，以及第二批取消时的草稿边界。 */
+    private suspend fun exerciseReplay(workflow: Workflow) {
+        // 合并保存的摘要可以按当前预算分批重做，快捷入口应直接打开设置并开始生成。
+        val replayBoundary = workflow.appendMessages()
+        workflow.resume()
+        workflow.await { !it.settings && it.summary.latestMessageId == replayBoundary }
+        AppModel.summaryMode = SummaryMode.Raw.persistedValue
+        AppModel.summaryMaxMessagesPerRequest = 1
+        for (expected in listOf("Batch F", "Batch G")) {
+            workflow.emit(Action.Generate)
+            workflow.await { it.settings && it.summary.text == expected && !it.summarizing }
+        }
+        workflow.emit(Action.Save)
+        workflow.await { !it.settings }
+        val combined = workflow.persisted()
+        assertEquals("Batch G", combined.content)
+        assertEquals(replayBoundary, combined.coveredMessageId)
+        workflow.emit(Action.Generate)
+        val replayed = workflow.await { it.summary.text == "Replay I" && !it.summarizing }
+        assertEquals(replayBoundary, replayed.summary.effectiveSummary.coveredMessageId)
+        assertEquals(combined, workflow.persisted())
+        assertTrue(mServer.requests[7].contains("Replay H"))
+        // 中间批次不进入回退栈，重做一次只产生一份完整草稿。
+        workflow.emit(Action.Restore)
+        workflow.await { it.summary.text == "Batch G" }
+        workflow.emit(Action.Generate)
+        assertTrue(mServer.replayCancelRequest.await(5, TimeUnit.SECONDS))
+        workflow.emit(Action.Cancel)
+        assertEquals("Batch G", workflow.await { !it.summarizing }.summary.text)
+        assertEquals(combined, workflow.persisted())
+        mServer.releaseReplayCanceled.countDown()
     }
 
     private enum class Action { Open, Generate, Edit, Name, Cancel, Restore, Save, Back, Discard }
@@ -321,26 +377,33 @@ class SummaryDraftWorkflowTest {
 
     private data class Workflow(
         val states: Flow<Snapshot>, val emit: (Action) -> Unit,
-        val persisted: suspend () -> SummaryVersion, val resume: () -> Unit
+        val persisted: suspend () -> SummaryVersion, val resume: () -> Unit,
+        val appendMessages: suspend () -> Long,
     ) {
         /** 等待业务状态而非固定延时，避免网络与 UI 调度导致偶发失败。 */
         suspend fun await(predicate: (Snapshot) -> Boolean): Snapshot = states.first(predicate)
     }
 
-    /** 本机模型按序返回 B、C、可取消请求和 E，不访问任何外部服务。 */
+    /** 本机模型覆盖普通摘要及分批重做，并在两个取消场景等待客户端停止。 */
     private class SummaryServer : AutoCloseable {
         private val mSocket = ServerSocket(0, 4, InetAddress.getByName("127.0.0.1"))
         val port: Int get() = mSocket.localPort
         val cancelRequest = CountDownLatch(1)
+        val replayCancelRequest = CountDownLatch(1)
         val releaseCanceled = CountDownLatch(1)
+        val releaseReplayCanceled = CountDownLatch(1)
         val requests = mutableListOf<String>()
         val finished = CompletableFuture<Unit>()
 
         init {
             thread(isDaemon = true, name = "summary-draft-fixture") {
                 try {
-                    // 第三次请求在模型返回前等待取消，其余请求返回完整普通响应。
-                    for ((index, content) in listOf("B", "C", "Ignored", "E").withIndex()) {
+                    // 普通重做和分批重做各暂停一次，其余请求返回完整普通响应。
+                    val responses = listOf(
+                        "B", "C", "Ignored", "E", "Batch F", "Batch G",
+                        "Replay H", "Replay I", "Canceled J", "Ignored",
+                    )
+                    for ((index, content) in responses.withIndex()) {
                         mSocket.accept().use { socket ->
                             socket.soTimeout = 5_000
                             val input = socket.getInputStream().source().buffer()
@@ -357,9 +420,14 @@ class SummaryDraftWorkflowTest {
                                     headers.getValue("content-length").toLong()
                                 )
                             )
-                            if (index == 2) {
-                                cancelRequest.countDown()
-                                check(releaseCanceled.await(10, TimeUnit.SECONDS))
+                            if (index == 2 || index == 9) {
+                                if (index == 2) {
+                                    cancelRequest.countDown()
+                                    check(releaseCanceled.await(10, TimeUnit.SECONDS))
+                                } else {
+                                    replayCancelRequest.countDown()
+                                    check(releaseReplayCanceled.await(10, TimeUnit.SECONDS))
+                                }
                             } else {
                                 val body =
                                     """{"choices":[{"message":{"role":"assistant","content":"$content"},"finish_reason":"stop"}]}""".toByteArray()
@@ -380,6 +448,7 @@ class SummaryDraftWorkflowTest {
         /** 解除服务端等待并关闭监听口，测试失败时也不会留下工作线程。 */
         override fun close() {
             releaseCanceled.countDown()
+            releaseReplayCanceled.countDown()
             mSocket.close()
         }
     }

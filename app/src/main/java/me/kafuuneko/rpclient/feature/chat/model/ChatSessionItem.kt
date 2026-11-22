@@ -18,7 +18,7 @@ data class ChatSessionItem(
     val userName: String,
     /** 当前会话或 Prompt 使用的用户设定。 */
     val userDescription: String,
-    /** 作者提供的角色使用说明和备注。 */
+    /** 当前会话的创建者备注覆盖，空白表示继承角色卡。 */
     val creatorNotes: String,
     /** 当前会话的自动摘要是否暂停。 */
     val autoSummaryPaused: Boolean,

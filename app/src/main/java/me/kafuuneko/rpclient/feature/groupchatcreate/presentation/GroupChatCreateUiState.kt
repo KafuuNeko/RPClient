@@ -1,6 +1,8 @@
 package me.kafuuneko.rpclient.feature.groupchatcreate.presentation
 
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.ImageBitmap
+import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatCreateCharacterItem
 import me.kafuuneko.rpclient.feature.groupchatcreate.model.GroupChatCreateGreetingState
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
@@ -49,9 +51,22 @@ sealed class GroupChatCreateUiState {
         val selectedCount: Int
             get() = selectedCharacters.size
 
+        /** 群聊至少需要两名成员。 */
+        val hasEnoughMembers: Boolean
+            get() = selectedCount >= 2
+
         /** 当前成员数量和开场白配置是否允许提交。 */
         val canCreate: Boolean
-            get() = selectedCount >= 2 && greetingState.canCreate
+            get() = hasEnoughMembers && greetingState.canCreate
+
+        /** 成员卡片与底栏共用的创建条件提示，与提交按钮采用相同规则。 */
+        @get:StringRes
+        val creationStatusResId: Int
+            get() = when {
+                !hasEnoughMembers -> R.string.group_chat_select_at_least_two
+                !greetingState.canCreate -> R.string.group_chat_greeting_incomplete
+                else -> R.string.group_chat_ready_to_begin
+            }
     }
 
     data class Finished(val previous: GroupChatCreateUiState) : GroupChatCreateUiState()
