@@ -23,6 +23,7 @@ import me.kafuuneko.rpclient.libs.room.model.SummaryDraftCommit
 import me.kafuuneko.rpclient.libs.room.model.SummaryDraftConflictException
 import me.kafuuneko.rpclient.libs.room.model.SummaryDraftContext
 import me.kafuuneko.rpclient.libs.room.model.SummaryDraftVersion
+import me.kafuuneko.rpclient.libs.room.model.withDependency
 import me.kafuuneko.rpclient.libs.room.model.SummaryVersion
 import me.kafuuneko.rpclient.libs.room.model.toSummaryVersion
 
@@ -1028,13 +1029,16 @@ class GroupChatRepository(
             val latest = mSummaryDao.getLatest(sessionId).toSummaryVersion()
             if (latest != draft.baseline) throw SummaryDraftConflictException()
             // 群聊与单聊使用相同的依赖校验，恢复的旧稿也必须仍然存在。
-            for (source in draft.sources) {
+            val versions = draft.versions
+            for (source in versions.flatMap { it.sources }.distinct()) {
                 val stored = source.id?.let { mSummaryDao.getById(it) }
                 if (stored?.sessionId != sessionId || stored.toSummaryVersion() != source) {
                     throw SummaryDraftConflictException()
                 }
             }
-            draft.inputSnapshot?.let { expected ->
+            val expected = versions.mapNotNull { it.inputSnapshot }
+                .reduceOrNull { combined, snapshot -> combined.withDependency(snapshot) }
+            expected?.let {
                 val current = getSummaryInputSnapshot(
                     sessionId = sessionId,
                     messageIds = expected.messages.map { it.key.messageId },
@@ -1043,24 +1047,28 @@ class GroupChatRepository(
             }
         }
 
-    /** 追加当前草稿版本；依赖失效时回滚整份设置，保留所有已保存摘要。 */
+    /** 按顺序追加全部有效草稿，任一版本依赖失效时回滚整份设置。 */
     private suspend fun saveSummaryDraft(sessionId: Long, draft: SummaryDraftCommit) {
         validateSummaryDraft(sessionId, draft)
-        val latest = mSummaryDao.getLatest(sessionId).toSummaryVersion()
-        if (latest.hasSameMemory(draft.summary)) return
-        val boundary = draft.summary.normalizedBoundary()
-        require(boundary == 0L || mMessageDao.getMessageById(boundary)?.sessionId == sessionId) {
-            "Summary boundary must reference a message in the same group chat"
-        }
-        // 恢复只是新增当前记忆，不删除被撤销的已保存版本。
-        mSummaryDao.insertOrReplace(
-            data = GroupChatSummary(
-                sessionId = sessionId,
-                createTime = System.currentTimeMillis(),
-                content = draft.summary.content.trim(),
-                coveredMessageId = boundary,
+        var latest = mSummaryDao.getLatest(sessionId).toSummaryVersion()
+        // 最终选中稿最后写入，历史版本可逐份恢复，事务失败不会留下半批记录。
+        for (version in draft.versions) {
+            val summary = version.summary
+            if (latest.hasSameMemory(summary)) continue
+            val boundary = summary.normalizedBoundary()
+            require(boundary == 0L || mMessageDao.getMessageById(boundary)?.sessionId == sessionId) {
+                "Summary boundary must reference a message in the same group chat"
+            }
+            mSummaryDao.insertOrReplace(
+                data = GroupChatSummary(
+                    sessionId = sessionId,
+                    createTime = System.currentTimeMillis(),
+                    content = summary.content.trim(),
+                    coveredMessageId = boundary,
+                )
             )
-        )
+            latest = summary
+        }
     }
 
     /**

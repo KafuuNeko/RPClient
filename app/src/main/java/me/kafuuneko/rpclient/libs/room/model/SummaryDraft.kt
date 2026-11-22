@@ -56,13 +56,23 @@ data class SummaryDraftContext(
     val throughMessageId: Long? = null,
 )
 
-/** 设置保存事务提交的摘要及乐观并发校验信息。 */
+/** 设置保存事务提交的完整摘要历史及乐观并发校验信息。 */
 data class SummaryDraftCommit(
     val summary: SummaryVersion,
     val baseline: SummaryVersion,
     val sources: List<SummaryVersion>,
     val inputSnapshot: SummaryInputSnapshot?,
-)
+    /** 当前选中稿之前尚未保存且未被撤销的版本，按生成顺序排列。 */
+    val history: List<SummaryDraftVersion> = emptyList(),
+) {
+    /** 同一事务按此顺序校验并保存，最终选中的摘要最后写入。 */
+    val versions: List<SummaryDraftVersion>
+        get() = history + SummaryDraftVersion(
+            summary = summary,
+            inputSnapshot = inputSnapshot,
+            sources = sources,
+        )
+}
 
 /**
  * 合并增量摘要继承的输入，保证保存后续草稿时也校验前序生成依赖。

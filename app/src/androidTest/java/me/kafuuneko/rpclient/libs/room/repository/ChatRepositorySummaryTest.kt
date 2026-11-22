@@ -135,7 +135,26 @@ class ChatRepositorySummaryTest {
         val saved = repository.getLatestSummary(sessionId).toSummaryVersion()
         assertEquals("C", saved.content)
         assertEquals(ids.last(), saved.coveredMessageId)
-        assertEquals(baseline, repository.getPreviousSummary(sessionId, requireNotNull(saved.id)))
+        val savedMiddle =
+            requireNotNull(repository.getPreviousSummary(sessionId, requireNotNull(saved.id)))
+        assertEquals("B", savedMiddle.content)
+        assertEquals(ids[3], savedMiddle.coveredMessageId)
+        assertEquals(
+            baseline,
+            repository.getPreviousSummary(sessionId, requireNotNull(savedMiddle.id))
+        )
+        val replay = repository.getSummaryGenerationContext(
+            sessionId = sessionId,
+            manual = true,
+            maxCandidateMessages = 2,
+            draft = SummaryEditorState(
+                saved = saved,
+                latestMessageId = ids.last()
+            ).toGenerationContext(),
+        )
+        assertEquals("B", replay.existingSummary)
+        assertEquals(ids.takeLast(2), replay.messages.map { it.id })
+        assertEquals(false, replay.hasMoreCandidateMessages)
 
         // 只读恢复不会删除当前快照；保存恢复结果后依然保留 C，清空则恢复全部原文。
         val restored = SummaryEditorState(saved = saved).restorePersisted(baseline)
@@ -168,10 +187,11 @@ class ChatRepositorySummaryTest {
         repository.saveSummary(sessionId, "A", ids.first())
         val saved = repository.getLatestSummary(sessionId).toSummaryVersion()
         val firstInput = repository.getSummaryInputSnapshot(sessionId, listOf(ids[1]))
-        val secondInput =
-            repository.getSummaryInputSnapshot(sessionId, listOf(ids[2])).withDependency(firstInput)
+        val secondInput = repository.getSummaryInputSnapshot(sessionId, listOf(ids[2]))
         val editor =
-            SummaryEditorState(saved = saved).generated("C", ids[2], secondInput, listOf(saved))
+            SummaryEditorState(saved = saved)
+                .generated("B", ids[1], firstInput, listOf(saved))
+                .generated("C", ids[2], secondInput, listOf(saved))
         // 编辑未被已保存 A 覆盖的消息，摘要基线不变，必须通过完整依赖发现冲突。
         repository.updateMessageContent(ids[1], "edited earlier input")
         val result = runCatching {

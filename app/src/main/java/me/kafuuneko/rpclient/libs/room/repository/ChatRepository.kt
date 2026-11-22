@@ -17,6 +17,7 @@ import me.kafuuneko.rpclient.libs.room.model.SummaryDraftCommit
 import me.kafuuneko.rpclient.libs.room.model.SummaryDraftConflictException
 import me.kafuuneko.rpclient.libs.room.model.SummaryDraftContext
 import me.kafuuneko.rpclient.libs.room.model.SummaryDraftVersion
+import me.kafuuneko.rpclient.libs.room.model.withDependency
 import me.kafuuneko.rpclient.libs.room.model.SummaryVersion
 import me.kafuuneko.rpclient.libs.room.model.toSummaryVersion
 import me.kafuuneko.rpclient.utils.takeIfNotBlank
@@ -436,13 +437,16 @@ class ChatRepository(
             val latest = mChatMessageDao.getLatestSummaryBySessionId(sessionId).toSummaryVersion()
             if (latest != draft.baseline) throw SummaryDraftConflictException()
             // 来源摘要与原始图文都需仍然有效，增量草稿不能绕过前一轮输入校验。
-            for (source in draft.sources) {
+            val versions = draft.versions
+            for (source in versions.flatMap { it.sources }.distinct()) {
                 val stored = source.id?.let { mChatMessageDao.getMessageById(it) }
                 if (stored?.sessionId != sessionId || stored.source != ChatMessage.Source.Summary ||
                     stored.toSummaryVersion() != source
                 ) throw SummaryDraftConflictException()
             }
-            draft.inputSnapshot?.let { expected ->
+            val expected = versions.mapNotNull { it.inputSnapshot }
+                .reduceOrNull { combined, snapshot -> combined.withDependency(snapshot) }
+            expected?.let {
                 val current = getSummaryInputSnapshot(
                     sessionId = sessionId,
                     messageIds = expected.messages.map { it.key.messageId },
@@ -451,28 +455,32 @@ class ChatRepository(
             }
         }
 
-    /** 在设置事务内校验并追加选中的记忆，旧摘要继续保留。 */
+    /** 在设置事务内校验整批历史，按顺序追加，最终选中的记忆最后生效。 */
     private suspend fun saveSummaryDraft(sessionId: Long, draft: SummaryDraftCommit) {
         validateSummaryDraft(sessionId, draft)
-        val latest = mChatMessageDao.getLatestSummaryBySessionId(sessionId).toSummaryVersion()
-        if (latest.hasSameMemory(draft.summary)) return
-        val boundary = draft.summary.normalizedBoundary()
-        if (boundary != 0L) {
-            val message = mChatMessageDao.getMessageById(boundary)
-            require(message?.sessionId == sessionId && message.source != ChatMessage.Source.Summary) {
-                "Summary boundary must reference a regular message in the same session"
+        var latest = mChatMessageDao.getLatestSummaryBySessionId(sessionId).toSummaryVersion()
+        // 所有版本共用外层事务，任一覆盖位置失效都会回滚整批及其他设置。
+        for (version in draft.versions) {
+            val summary = version.summary
+            if (latest.hasSameMemory(summary)) continue
+            val boundary = summary.normalizedBoundary()
+            if (boundary != 0L) {
+                val message = mChatMessageDao.getMessageById(boundary)
+                require(message?.sessionId == sessionId && message.source != ChatMessage.Source.Summary) {
+                    "Summary boundary must reference a regular message in the same session"
+                }
             }
-        }
-        // 手写、生成、清空和恢复统一追加版本，不因保存而销毁先前的已保存摘要。
-        mChatMessageDao.insertOrReplace(
-            data = ChatMessage(
-                sessionId = sessionId,
-                createTime = System.currentTimeMillis(),
-                source = ChatMessage.Source.Summary,
-                content = draft.summary.content.trim(),
-                coveredMessageId = boundary,
+            mChatMessageDao.insertOrReplace(
+                data = ChatMessage(
+                    sessionId = sessionId,
+                    createTime = System.currentTimeMillis(),
+                    source = ChatMessage.Source.Summary,
+                    content = summary.content.trim(),
+                    coveredMessageId = boundary,
+                )
             )
-        )
+            latest = summary
+        }
     }
 
     /**

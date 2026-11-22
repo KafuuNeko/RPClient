@@ -165,6 +165,16 @@ class SummaryDraftWorkflowTest {
                     )
                 },
                 persisted = { mChats.getLatestSummary(mChatId).toSummaryVersion() },
+                previousPersisted = {
+                    val latest = requireNotNull(mChats.getLatestSummary(mChatId))
+                    mChats.getPreviousSummary(mChatId, latest.id)
+                },
+                prepareLegacyReplay = {
+                    val latest = requireNotNull(mChats.getLatestSummary(mChatId))
+                    val middle = requireNotNull(mChats.getPreviousSummary(mChatId, latest.id))
+                    assertEquals("Batch F", middle.content)
+                    mDatabase.getChatMessageDao().deleteMessageById(requireNotNull(middle.id))
+                },
                 appendMessages = {
                     mChats.createMessage(mChatId, ChatMessage.Source.User, "Third message", 3L)
                     mChats.createMessage(mChatId, ChatMessage.Source.Char, "Fourth message", 4L)
@@ -255,6 +265,17 @@ class SummaryDraftWorkflowTest {
                     )
                 },
                 persisted = { mGroups.getGroupChatData(mGroupId)?.summary.toSummaryVersion() },
+                previousPersisted = {
+                    val latest = requireNotNull(mGroups.getGroupChatData(mGroupId)?.summary)
+                    mGroups.getPreviousSummary(mGroupId, latest.id)
+                },
+                prepareLegacyReplay = {
+                    val latest = requireNotNull(mGroups.getGroupChatData(mGroupId)?.summary)
+                    val middle = requireNotNull(mGroups.getPreviousSummary(mGroupId, latest.id))
+                    assertEquals("Batch F", middle.content)
+                    val dao = mDatabase.getGroupChatSummaryDao()
+                    dao.delete(requireNotNull(dao.getById(requireNotNull(middle.id))))
+                },
                 appendMessages = {
                     mGroups.createMessage(
                         sessionId = mGroupId,
@@ -352,12 +373,16 @@ class SummaryDraftWorkflowTest {
         val combined = workflow.persisted()
         assertEquals("Batch G", combined.content)
         assertEquals(replayBoundary, combined.coveredMessageId)
+        // 新保存的增量版本可供重做使用，移除它以模拟只有最终稿的历史数据。
+        workflow.prepareLegacyReplay()
         workflow.emit(Action.Generate)
         val replayed = workflow.await { it.summary.text == "Replay I" && !it.summarizing }
         assertEquals(replayBoundary, replayed.summary.effectiveSummary.coveredMessageId)
         assertEquals(combined, workflow.persisted())
         assertTrue(mServer.requests[7].contains("Replay H"))
-        // 中间批次不进入回退栈，重做一次只产生一份完整草稿。
+        // 完整重做成功后保留每批版本，用户可以逐份回退。
+        workflow.emit(Action.Restore)
+        workflow.await { it.summary.text == "Replay H" }
         workflow.emit(Action.Restore)
         workflow.await { it.summary.text == "Batch G" }
         workflow.emit(Action.Generate)
@@ -366,6 +391,13 @@ class SummaryDraftWorkflowTest {
         assertEquals("Batch G", workflow.await { !it.summarizing }.summary.text)
         assertEquals(combined, workflow.persisted())
         mServer.releaseReplayCanceled.countDown()
+        // 取消产生的中间稿不入库，再次完成并保存后可以读回每一批。
+        workflow.emit(Action.Generate)
+        workflow.await { it.summary.text == "Saved L" && !it.summarizing }
+        workflow.emit(Action.Save)
+        workflow.await { !it.settings }
+        assertEquals("Saved L", workflow.persisted().content)
+        assertEquals("Saved K", workflow.previousPersisted()?.content)
     }
 
     private enum class Action { Open, Generate, Edit, Name, Cancel, Restore, Save, Back, Discard }
@@ -379,6 +411,8 @@ class SummaryDraftWorkflowTest {
         val states: Flow<Snapshot>, val emit: (Action) -> Unit,
         val persisted: suspend () -> SummaryVersion, val resume: () -> Unit,
         val appendMessages: suspend () -> Long,
+        val previousPersisted: suspend () -> SummaryVersion?,
+        val prepareLegacyReplay: suspend () -> Unit,
     ) {
         /** 等待业务状态而非固定延时，避免网络与 UI 调度导致偶发失败。 */
         suspend fun await(predicate: (Snapshot) -> Boolean): Snapshot = states.first(predicate)
@@ -402,6 +436,7 @@ class SummaryDraftWorkflowTest {
                     val responses = listOf(
                         "B", "C", "Ignored", "E", "Batch F", "Batch G",
                         "Replay H", "Replay I", "Canceled J", "Ignored",
+                        "Saved K", "Saved L",
                     )
                     for ((index, content) in responses.withIndex()) {
                         mSocket.accept().use { socket ->

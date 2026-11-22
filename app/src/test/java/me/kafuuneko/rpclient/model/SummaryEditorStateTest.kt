@@ -5,6 +5,7 @@ import me.kafuuneko.rpclient.libs.room.model.MessageType
 import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
 import me.kafuuneko.rpclient.libs.room.model.SummaryInputSnapshot
 import me.kafuuneko.rpclient.libs.room.model.SummaryVersion
+import me.kafuuneko.rpclient.libs.room.model.SummaryDraftVersion
 import me.kafuuneko.rpclient.libs.room.model.withDependency
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -45,6 +46,44 @@ class SummaryEditorStateTest {
             state = requireNotNull(state.restoreLocal())
             assertEquals(expected, state.text)
         }
+    }
+
+    /** 一次保存包含本轮全部有效版本，已保存基线不重复追加，撤销后的版本不提交。 */
+    @Test
+    fun commitsAllActiveVersionsAndDropsUndoneSuccessors() {
+        val state = SummaryEditorState(saved = mSaved)
+            .generate("B", 3L).generate("C", 4L).copy(text = "Edited C")
+        assertEquals(
+            listOf("B", "C", "Edited C"),
+            state.toCommit()?.versions?.map { it.summary.content })
+        val restored = requireNotNull(requireNotNull(state.restoreLocal()).restoreLocal())
+        assertEquals(listOf("B"), restored.toCommit()?.versions?.map { it.summary.content })
+        val cleared = state.copy(text = "")
+        assertEquals(listOf(""), cleared.toCommit()?.versions?.map { it.summary.content })
+        val restarted = requireNotNull(cleared.generate("New", 4L).toCommit())
+        assertEquals(listOf("", "New"), restarted.versions.map { it.summary.content })
+        assertNull(restarted.history.first().inputSnapshot)
+        assertTrue(restarted.history.first().sources.isEmpty())
+    }
+
+    /** 分批重做的中间稿同样可保存，即使最终正文与已保存摘要相同也保留生成历史。 */
+    @Test
+    fun replayBatchesRemainSaveableWhenFinalMemoryMatchesBaseline() {
+        val intermediate = SummaryDraftVersion(
+            summary = SummaryVersion(content = "Batch", coveredMessageId = 1L),
+            inputSnapshot = mInput,
+            sources = listOf(mSaved),
+        )
+        val state = SummaryEditorState(saved = mSaved).generated(
+            content = mSaved.content,
+            coveredMessageId = mSaved.coveredMessageId,
+            inputSnapshot = mInput,
+            sources = listOf(mSaved),
+            intermediateVersions = listOf(intermediate),
+        )
+        assertTrue(state.hasChanges)
+        assertEquals(listOf("Batch", "A"), state.toCommit()?.versions?.map { it.summary.content })
+        assertEquals("Batch", requireNotNull(state.restoreLocal()).text)
     }
 
     /** 相同正文推进覆盖位置仍是新版本；完全相同的结果不产生额外撤销步骤。 */

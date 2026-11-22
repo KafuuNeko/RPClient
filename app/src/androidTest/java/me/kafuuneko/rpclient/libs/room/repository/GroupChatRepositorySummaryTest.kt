@@ -129,7 +129,28 @@ class GroupChatRepositorySummaryTest {
         val saved = repository.getGroupChatData(sessionId)?.summary.toSummaryVersion()
         assertEquals("C", saved.content)
         assertEquals(ids.last(), saved.coveredMessageId)
-        assertEquals(baseline, repository.getPreviousSummary(sessionId, requireNotNull(saved.id)))
+        val savedMiddle =
+            requireNotNull(repository.getPreviousSummary(sessionId, requireNotNull(saved.id)))
+        assertEquals("B", savedMiddle.content)
+        assertEquals(ids[3], savedMiddle.coveredMessageId)
+        assertEquals(
+            baseline,
+            repository.getPreviousSummary(sessionId, requireNotNull(savedMiddle.id))
+        )
+        val replay = requireNotNull(
+            repository.getGroupChatSummaryData(
+                sessionId = sessionId,
+                maxCandidateMessages = 2,
+                manual = true,
+                draft = SummaryEditorState(
+                    saved = saved,
+                    latestMessageId = ids.last()
+                ).toGenerationContext(),
+            )
+        )
+        assertEquals("B", replay.data.summary?.content)
+        assertEquals(ids.takeLast(2), replay.data.messages.map { it.id })
+        assertEquals(false, replay.hasMoreCandidateMessages)
         // 恢复先只读；提交后旧稿仍保留，清空后全部消息重新进入上下文。
         val restored = SummaryEditorState(saved = saved).restorePersisted(baseline)
         assertEquals(saved, repository.getGroupChatData(sessionId)?.summary.toSummaryVersion())
@@ -163,10 +184,11 @@ class GroupChatRepositorySummaryTest {
         repository.saveSummary(sessionId, "A", ids.first())
         val saved = repository.getGroupChatData(sessionId)?.summary.toSummaryVersion()
         val firstInput = repository.getSummaryInputSnapshot(sessionId, listOf(ids[1]))
-        val secondInput =
-            repository.getSummaryInputSnapshot(sessionId, listOf(ids[2])).withDependency(firstInput)
+        val secondInput = repository.getSummaryInputSnapshot(sessionId, listOf(ids[2]))
         val editor =
-            SummaryEditorState(saved = saved).generated("C", ids[2], secondInput, listOf(saved))
+            SummaryEditorState(saved = saved)
+                .generated("B", ids[1], firstInput, listOf(saved))
+                .generated("C", ids[2], secondInput, listOf(saved))
         // 修改未被已保存摘要覆盖的原文，保留同一摘要基线以验证跨轮依赖校验。
         repository.updateMessageContent(ids[1], "edited earlier input")
         val result = runCatching {

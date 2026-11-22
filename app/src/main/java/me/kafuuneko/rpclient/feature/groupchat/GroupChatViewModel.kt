@@ -118,6 +118,7 @@ import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
 import me.kafuuneko.rpclient.libs.room.model.SummaryDraftConflictException
 import me.kafuuneko.rpclient.libs.room.model.SummaryDraftContext
+import me.kafuuneko.rpclient.libs.room.model.SummaryDraftVersion
 import me.kafuuneko.rpclient.libs.room.model.SummaryVersion
 import me.kafuuneko.rpclient.libs.room.model.toSummaryVersion
 import me.kafuuneko.rpclient.libs.room.model.withDependency
@@ -3009,6 +3010,7 @@ class GroupChatViewModel :
                     coveredMessageId = prepared.coveredMessageId,
                     inputSnapshot = prepared.inputSnapshot,
                     sources = prepared.sourceSummaries,
+                    intermediateVersions = prepared.intermediateVersions,
                 )
                 editor.toCommit()?.let { commit ->
                     withContext(Dispatchers.IO) {
@@ -3137,6 +3139,7 @@ class GroupChatViewModel :
         var generationData = initialData
         var generationDraft = settings?.summary?.toGenerationContext()
         val replayBoundary = initialData.summaryToUpdate?.coveredMessageId
+        val intermediateVersions = mutableListOf<SummaryDraftVersion>()
         // 完整重做可以跨多次请求，各次仍受原有条数和 Token 预算约束。
         while (true) {
             val prepared = buildRawGroupSummaryRequest(
@@ -3151,7 +3154,10 @@ class GroupChatViewModel :
                 draft = generationDraft,
             ) ?: return null
             if (replayBoundary == null || prepared.coveredMessageId == replayBoundary) {
-                return prepared.copy(summaryIdToUpdate = initialData.summaryToUpdate?.id)
+                return prepared.copy(
+                    summaryIdToUpdate = initialData.summaryToUpdate?.id,
+                    intermediateVersions = intermediateVersions.toList(),
+                )
             }
             // 取消或失败时丢弃中间批次，原草稿和持久化摘要继续生效。
             val content = generateSummaryContent(
@@ -3171,6 +3177,7 @@ class GroupChatViewModel :
                 ),
                 throughMessageId = replayBoundary,
             )
+            intermediateVersions.add(generationDraft.current)
             generationData = withContext(Dispatchers.IO) {
                 mGroupChatRepository.getGroupChatSummaryData(
                     sessionId = sessionId,

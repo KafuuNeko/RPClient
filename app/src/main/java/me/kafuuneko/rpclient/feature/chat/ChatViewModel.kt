@@ -109,6 +109,7 @@ import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
 import me.kafuuneko.rpclient.libs.room.model.SummaryDraftContext
 import me.kafuuneko.rpclient.libs.room.model.SummaryDraftConflictException
+import me.kafuuneko.rpclient.libs.room.model.SummaryDraftVersion
 import me.kafuuneko.rpclient.libs.room.model.SummaryVersion
 import me.kafuuneko.rpclient.libs.room.model.withDependency
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
@@ -2642,6 +2643,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     coveredMessageId = prepared.coveredMessageId,
                     inputSnapshot = prepared.inputSnapshot,
                     sources = prepared.sourceSummaries,
+                    intermediateVersions = prepared.intermediateVersions,
                 )
                 editor.toCommit()?.let { commit ->
                     withContext(Dispatchers.IO) {
@@ -2799,6 +2801,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         var context = initialContext
         var generationDraft = draft
         val replayBoundary = initialContext.summaryToUpdate?.coveredMessageId
+        val intermediateVersions = mutableListOf<SummaryDraftVersion>()
         // 重做沿用原覆盖末尾，只有完成全部批次才把最终请求交回调用方。
         while (true) {
             val prepared = buildRawSummaryRequest(
@@ -2812,7 +2815,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 draft = generationDraft,
             ) ?: return null
             if (replayBoundary == null || prepared.coveredMessageId == replayBoundary) {
-                return prepared.copy(summaryIdToUpdate = initialContext.summaryToUpdate?.id)
+                return prepared.copy(
+                    summaryIdToUpdate = initialContext.summaryToUpdate?.id,
+                    intermediateVersions = intermediateVersions.toList(),
+                )
             }
             // 中间批次只作为本次请求的记忆，完整重做成功前不发布草稿或写库。
             val content = generateSummaryContent(
@@ -2832,6 +2838,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 ),
                 throughMessageId = replayBoundary,
             )
+            intermediateVersions.add(generationDraft.current)
             context = withContext(Dispatchers.IO) {
                 mChatRepository.getSummaryGenerationContext(
                     sessionId = sessionId,
