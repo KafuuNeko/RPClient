@@ -51,8 +51,21 @@ class PromptPresetActivity : CoreActivityWithEvent() {
         )
     }
 
+    /**
+     * 分发剪贴板动作及需要动态占位符的本地化提示。
+     * @param viewEvent 已由 ViewModel 校验的一次性宿主动作。
+     */
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         when (viewEvent) {
+            is PromptPresetViewEvent.ShowInvalidSummaryFormat -> Toast.makeText(
+                this,
+                getString(
+                    R.string.prompt_raw_summary_format_requires_macro,
+                    viewEvent.requiredMacro
+                ),
+                Toast.LENGTH_SHORT,
+            ).show()
+
             is PromptPresetViewEvent.CopyText -> {
                 val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 clipboard.setPrimaryClip(

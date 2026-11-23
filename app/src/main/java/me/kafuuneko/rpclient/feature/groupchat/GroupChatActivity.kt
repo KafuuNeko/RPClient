@@ -14,6 +14,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.flowWithLifecycle
+import kotlinx.coroutines.flow.merge
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiIntent
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiState
@@ -49,7 +50,12 @@ class GroupChatActivity : CoreActivityWithEvent() {
     }
 
 
-    override fun getViewEventFlow() = mViewModel.viewEventFlow
+    /**
+     * 收集普通事件及可跨 Activity 重建恢复的分支导航。
+     * @return 仍由同一个包装器保证最多消费一次的事件流。
+     */
+    override fun getViewEventFlow() =
+        merge(mViewModel.viewEventFlow, mViewModel.branchNavigationFlow)
 
     /** 加载页和群聊页共用已解析的所属背景，背景及时就绪时随首帧显示。 */
     @Composable

@@ -3,11 +3,14 @@ package me.kafuuneko.rpclient.libs.character
 import com.google.gson.Gson
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.util.Base64
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
+import me.kafuuneko.rpclient.libs.room.entity.FileEntity
+import me.kafuuneko.rpclient.libs.room.model.PreparedFile
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -22,6 +25,8 @@ class CharacterCardArchiveReaderTest {
     val temporary = TemporaryFolder()
 
     private val mapper = CharacterCardMapper(Gson())
+    private val mArchiveCache by lazy { temporary.newFolder("archives") }
+    private val mAvatarStaging by lazy { temporary.newFolder("avatars") }
 
     /** 损坏卡片不阻止后续条目；普通附件和不安全路径不会成为角色。 */
     @Test
@@ -43,7 +48,7 @@ class CharacterCardArchiveReaderTest {
 
     /** 混合归档同时保留 PNG 的头像与角色元数据，JSON 条目不生成头像。 */
     @Test
-    fun mixedPngAndJsonArchivePreservesAvatarBytes() = runBlocking {
+    fun mixedPngAndJsonArchiveStagesAvatarOnDisk() = runBlocking {
         // 使用真实元数据 PNG 组成混合归档，验证暂存文件删除后头像仍可保存。
         val png = CharacterCardPngCodec.writeCharacterJson(avatarPng(), card("猫🙂"))
         val result = read(
@@ -54,9 +59,10 @@ class CharacterCardArchiveReaderTest {
         )
 
         assertEquals(listOf("猫🙂", "No avatar"), result.drafts.map { it.card.character.name })
-        assertArrayEquals(png, result.drafts.first().avatarBytes)
+        val staged = requireNotNull(result.drafts.first().stagedAvatar)
+        assertArrayEquals(png, File(mAvatarStaging, staged.handle).readBytes())
         assertEquals("image/png", result.drafts.first().avatarMimeType)
-        assertNull(result.drafts.last().avatarBytes)
+        assertNull(result.drafts.last().stagedAvatar)
         assertEquals(0, result.failureCount)
         assertCacheEmpty()
     }
@@ -105,13 +111,51 @@ class CharacterCardArchiveReaderTest {
     @Test
     fun fullBackupIsRejectedRegardlessOfManifestOrder() = runBlocking {
         val result = read(
-            zip(
-                "characters/Alice.json" to card("Alice"),
-                "manifest.json" to """{"format":"rpclient-portable-data","version":3}"""
+            zipBytes(
+                "characters/Alice.png" to CharacterCardPngCodec.writeCharacterJson(
+                    avatarPng(),
+                    card("Alice")
+                ),
+                "manifest.json" to """{"format":"rpclient-portable-data","version":3}""".toByteArray()
             )
         )
         assertTrue(result.drafts.isEmpty())
         assertEquals(1, result.failureCount)
+        assertTrue(mAvatarStaging.listFiles().orEmpty().isEmpty())
+        assertCacheEmpty()
+    }
+
+    /** 整包在后续条目超限时，已经暂存的头像也必须回收。 */
+    @Test
+    fun archiveFailureReleasesPreviouslyStagedAvatars() = runBlocking {
+        val png = CharacterCardPngCodec.writeCharacterJson(avatarPng(), card("Image"))
+        val archive = zipBytes("image.png" to png, "text.json" to card("Text").toByteArray())
+        val failure = runCatching {
+            read(archive, CharacterCardArchiveLimits(totalEntryBytes = png.size.toLong()))
+        }.exceptionOrNull()
+
+        assertTrue(failure?.message.orEmpty().contains("total entry size limit"))
+        assertTrue(mAvatarStaging.listFiles().orEmpty().isEmpty())
+        assertCacheEmpty()
+    }
+
+    /** 取消后续卡片解析时，前一张已完成的头像不能遗留。 */
+    @Test
+    fun cancellationReleasesPreviouslyStagedAvatars() = runBlocking {
+        val png = CharacterCardPngCodec.writeCharacterJson(avatarPng(), card("Image"))
+        var stageCount = 0
+        val reader = reader(stageAvatar = { bytes ->
+            if (++stageCount == 2) throw CancellationException("cancelled")
+            stageAvatar(bytes)
+        })
+        val failure = runCatching {
+            zipBytes("first.png" to png, "second.png" to png).inputStream().use {
+                reader.read(it, mArchiveCache)
+            }
+        }.exceptionOrNull()
+
+        assertTrue(failure is CancellationException)
+        assertTrue(mAvatarStaging.listFiles().orEmpty().isEmpty())
         assertCacheEmpty()
     }
 
@@ -196,7 +240,7 @@ class CharacterCardArchiveReaderTest {
             }
         }
         val failure = runCatching {
-            input.use { CharacterCardArchiveReader(mapper).read(it, temporary.root) }
+            input.use { reader().read(it, mArchiveCache) }
         }.exceptionOrNull()
 
         assertTrue(failure is CancellationException)
@@ -208,7 +252,30 @@ class CharacterCardArchiveReaderTest {
         archive: ByteArray,
         limits: CharacterCardArchiveLimits = CharacterCardArchiveLimits()
     ): CharacterCardArchiveReadResult = archive.inputStream().use {
-        CharacterCardArchiveReader(mapper, limits).read(it, temporary.root)
+        reader(limits).read(it, mArchiveCache)
+    }
+
+    /** 用真实磁盘暂存替代 Android 文件仓库，验证读取器的资源所有权。 */
+    private fun reader(
+        limits: CharacterCardArchiveLimits = CharacterCardArchiveLimits(),
+        stageAvatar: suspend (ByteArray) -> PreparedFile = ::stageAvatar,
+    ) = CharacterCardArchiveReader(
+        mMapper = mapper,
+        mStageAvatar = stageAvatar,
+        mReleaseAvatar = { File(mAvatarStaging, it.handle).delete() },
+        mLimits = limits,
+    )
+
+    /** 测试凭据只引用磁盘，避免测试本身重新持有全部 PNG 原图。 */
+    private fun stageAvatar(bytes: ByteArray): PreparedFile {
+        val file = File.createTempFile("avatar-", ".png", mAvatarStaging)
+        file.writeBytes(bytes)
+        return PreparedFile(
+            ownerId = "test",
+            handle = file.name,
+            file = FileEntity(uuid = file.name, hash = file.name, mimeType = "image/png"),
+            byteCount = file.length(),
+        )
     }
 
     /** 构造包含实际压缩数据与中央目录的 ZIP。 */
@@ -240,6 +307,6 @@ class CharacterCardArchiveReaderTest {
 
     /** 成功、失败和取消都不能留下导入缓存。 */
     private fun assertCacheEmpty() {
-        assertTrue(temporary.root.listFiles().orEmpty().isEmpty())
+        assertTrue(mArchiveCache.listFiles().orEmpty().isEmpty())
     }
 }

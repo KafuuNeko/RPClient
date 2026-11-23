@@ -57,7 +57,11 @@ data class SummaryPromptBuildResult(
     val selectedMessages: List<ChatMessage>
 )
 
-/** 构建不含角色扮演设定的增量聊天摘要请求。 */
+/**
+ * 构建不含角色扮演设定的增量聊天摘要请求。
+ * - 分离摘要指令与原始素材，人物宏按同一上下文展开。
+ * - 在文本与图片预算内选择连续历史前缀，返回实际覆盖的原始消息。
+ */
 class SummaryPromptBuilder(
     private val mMacroResolver: PromptMacroResolver,
     private val mHistoryBuilder: FormattedHistoryBuilder,
@@ -73,7 +77,18 @@ class SummaryPromptBuilder(
      * - 从最早消息开始贪婪选择不超过 Prompt 预算的最大消息前缀；
      * - 组装并渲染包含总结指令模板与格式化历史的请求对象。
      *
+     * @param userName 本次冻结的有效用户名称。
+     * @param userDescription 本次冻结的人设描述。
+     * @param character 用于人物宏展开的角色快照。
+     * @param session 用于会话宏展开的会话快照。
+     * @param existingSummary 本轮继续累积的已有记忆。
+     * @param messages 数据层按时间排序的候选历史窗口。
+     * @param provider 摘要所用模型配置，缺失时采用默认预算。
+     * @param messageImages 候选消息关联的已准备图片。
+     * @param unavailableImages 候选消息中暂不可读取的图片，用于选中后的明确失败提示。
+     * @param templates 本轮冻结的摘要指令及素材格式。
      * @param includeLastMessage 候选窗口已在数据层选定时，保留窗口中的末条消息。
+     * @return 与最终请求使用同一次预算选择结果的消息集合。
      */
     fun buildWithSelection(
         userName: String,

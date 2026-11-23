@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.groupchat
 
 import android.content.Context
+import android.database.sqlite.SQLiteException
 import android.os.Bundle
 import android.util.LruCache
 import androidx.compose.ui.graphics.ImageBitmap
@@ -17,6 +18,8 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
@@ -61,6 +64,7 @@ import me.kafuuneko.rpclient.libs.chat.UserWritingRuntime
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
+import me.kafuuneko.rpclient.libs.core.ViewEventWrapper
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatGenerationMode
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatOutputSanitizer
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatPromptBuilder
@@ -171,6 +175,12 @@ class GroupChatViewModel :
     private val mPersonas by inject<UserPersonaRepository>()
     private val mPromptPresets by inject<PromptPresetRepository>()
     private val mFileRepository by inject<FileRepository>()
+
+    /** 分支已经落库后保留导航通知，Activity 重建也能继续消费同一个包装器。 */
+    private val mBranchNavigation = MutableSharedFlow<ViewEventWrapper>(replay = 1)
+
+    /** 分支导航专用事件流，普通 Toast 等瞬时事件仍使用通用通道。 */
+    val branchNavigationFlow = mBranchNavigation.asSharedFlow()
 
     /** 以文件 UUID 共享头像，按像素内存限制缓存，避免每条消息重复解码。 */
     private val mAvatarCache = object : LruCache<String, ImageBitmap>(AVATAR_CACHE_SIZE_BYTES) {
@@ -838,21 +848,28 @@ class GroupChatViewModel :
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         val dialogState = uiState.dialogState as? GroupChatDialogState.AddMembers ?: return
         mAddMembersSearchJob?.cancel()
-        mAddMembersAvatarLoader.clearVisibleCharacters()
         // 按候选列表顺序收集待加入角色，保证追加排序号稳定可预期
         val orderedIds = uiState.settingsState.availableCharacters
             .filter { character -> !character.alreadyMember && character.id in dialogState.selectedCharacterIds }
             .map { character -> character.id }
         if (orderedIds.isEmpty()) {
+            mAddMembersAvatarLoader.clearVisibleCharacters()
             uiState.copy(dialogState = GroupChatDialogState.None).setup()
             return
         }
-        withContext(Dispatchers.IO) {
-            mGroupChatRepository.addMembers(
-                sessionId = uiState.sessionId,
-                characterIds = orderedIds,
-            )
+        try {
+            withContext(Dispatchers.IO) {
+                mGroupChatRepository.addMembers(
+                    sessionId = uiState.sessionId,
+                    characterIds = orderedIds,
+                )
+            }
+        } catch (_: SQLiteException) {
+            // 写入失败时继续展示选择和头像，用户可以调整候选或重试。
+            AppViewEvent.PopupToastMessageByResId(R.string.story_save_failed_short).tryEmit()
+            return
         }
+        mAddMembersAvatarLoader.clearVisibleCharacters()
         refreshState(
             page = uiState.page,
             dialogState = GroupChatDialogState.None,
@@ -984,12 +1001,7 @@ class GroupChatViewModel :
             .filter { entry -> entry.enabled }
             .mapTo(mutableSetOf()) { entry -> entry.id }
         val mergedIds = (currentEnabledIds + dialogState.selectedEntryIds).intersect(validEntryIds)
-        withContext(Dispatchers.IO) {
-            mGroupChatRepository.updateSessionLorebookEntryIds(
-                sessionId = uiState.sessionId,
-                entryIds = mergedIds.toList(),
-            )
-        }
+        if (!saveSessionLorebookEntryIds(uiState.sessionId, mergedIds)) return
         refreshState(
             page = uiState.page,
             dialogState = GroupChatDialogState.None,
@@ -1620,10 +1632,19 @@ class GroupChatViewModel :
         updateSettingsState { copy(scenarioDraft = intent.value) }
     }
 
-    /** 在设置草稿中选择人设，保存时随会话一起写入。 */
+    /**
+     * 在设置草稿中选择仍存在的人设，保存时随会话一起写入。
+     * @param intent 用户选择的身份 ID。
+     */
     @UiIntentObserver(GroupChatUiIntent.SelectPersona::class)
     private suspend fun onSelectPersona(intent: GroupChatUiIntent.SelectPersona) {
-        val inherited = mPersonas.chatPersona(intent.id)
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.page != GroupChatPage.Settings || uiState.dialogState.isBlocking()) return
+        val inherited = withContext(Dispatchers.IO) { mPersonas.chatPersonaOrNull(intent.id) }
+        if (inherited == null) {
+            refreshState(preserveSettingsDraft = true)
+            return
+        }
         updateSettingsState {
             copy(
                 persona = persona.copy(selectedId = intent.id),
@@ -1896,12 +1917,7 @@ class GroupChatViewModel :
             .toMutableSet()
         if (!enabledIds.add(intent.entryId)) enabledIds.remove(intent.entryId)
         // 异步保存条目配置至数据库
-        withContext(Dispatchers.IO) {
-            mGroupChatRepository.updateSessionLorebookEntryIds(
-                sessionId = uiState.sessionId,
-                entryIds = enabledIds.toList(),
-            )
-        }
+        if (!saveSessionLorebookEntryIds(uiState.sessionId, enabledIds)) return
         // 刷新当前页面并保留设置页其余未保存草稿
         refreshState(
             page = uiState.page,
@@ -1930,12 +1946,7 @@ class GroupChatViewModel :
             .mapTo(mutableSetOf()) { it.id }
             .toggleAll(entryIds)
         // 异步保存至数据库
-        withContext(Dispatchers.IO) {
-            mGroupChatRepository.updateSessionLorebookEntryIds(
-                sessionId = uiState.sessionId,
-                entryIds = enabledIds.toList(),
-            )
-        }
+        if (!saveSessionLorebookEntryIds(uiState.sessionId, enabledIds)) return
         // 刷新页面并保留设置页其余未保存草稿
         refreshState(
             page = uiState.page,
@@ -1955,17 +1966,31 @@ class GroupChatViewModel :
             .flatMap { it.entries }
             .mapTo(mutableSetOf()) { it.id }
         val enabledEntryIds = dialogState.enabledEntryIds.intersect(validEntryIds)
-        withContext(Dispatchers.IO) {
-            mGroupChatRepository.updateSessionLorebookEntryIds(
-                sessionId = uiState.sessionId,
-                entryIds = enabledEntryIds.toList(),
-            )
-        }
+        if (!saveSessionLorebookEntryIds(uiState.sessionId, enabledEntryIds)) return
         refreshState(
             page = uiState.page,
             dialogState = GroupChatDialogState.None,
             preserveSettingsDraft = uiState.page == GroupChatPage.Settings,
         )
+    }
+
+    /**
+     * 保存群聊的世界书选择，失败时保留原弹窗和表单供用户重试。
+     * @param sessionId 当前群聊 ID。
+     * @param enabledIds 需要启用的条目集合。
+     * @return 是否成功保存。
+     */
+    private suspend fun saveSessionLorebookEntryIds(
+        sessionId: Long,
+        enabledIds: Set<Long>
+    ): Boolean = try {
+        withContext(Dispatchers.IO) {
+            mGroupChatRepository.updateSessionLorebookEntryIds(sessionId, enabledIds.toList())
+        }
+        true
+    } catch (_: SQLiteException) {
+        AppViewEvent.PopupToastMessageByResId(R.string.story_save_failed_short).tryEmit()
+        false
     }
 
     /**
@@ -2167,12 +2192,16 @@ class GroupChatViewModel :
             return
         }
         // 等待宿主处理导航后再结束源页面，忙碌状态阻止重复意图创建多个副本。
-        AppViewEvent.StartActivity(
-            activity = GroupChatActivity::class.java,
-            extras = Bundle().apply {
-                putString(GroupChatActivity.EXTRA_SESSION_ID, branchId.toString())
-            },
-        ).emitAndAwait()
+        val navigation = ViewEventWrapper(
+            AppViewEvent.StartActivity(
+                activity = GroupChatActivity::class.java,
+                extras = Bundle().apply {
+                    putString(GroupChatActivity.EXTRA_SESSION_ID, branchId.toString())
+                },
+            )
+        )
+        mBranchNavigation.emit(navigation)
+        navigation.waitForConsumption()
         GroupChatUiState.finished(uiState).setup()
     }
 
@@ -3494,7 +3523,7 @@ class GroupChatViewModel :
                 newGroupChatPromptDraft = draft.newGroupChatPromptDraft,
                 titleDraft = draft.titleDraft,
                 savedSnapshot = draft.savedSnapshot,
-            )
+            ).withRefreshedPersona(next.settingsState)
         } else {
             next.settingsState
         }
@@ -3503,6 +3532,41 @@ class GroupChatViewModel :
             settingsState = mergedSettings,
             imageState = mImageCoordinator.state,
         ).setup()
+    }
+
+    /**
+     * 同步外部人设编辑和删除，保留仍有效的显式选择及名称、描述草稿。
+     * @param loaded 最新持久化表单，包含删除身份后保留的发言者姓名。
+     * @return 候选项、继承预览与相关保存基线一致的群聊设置。
+     */
+    private suspend fun GroupChatSettingsState.withRefreshedPersona(loaded: GroupChatSettingsState): GroupChatSettingsState {
+        val baseline = savedSnapshot
+        val selectionExists = persona.selectedId == UserPersona.FOLLOW_DEFAULT ||
+            loaded.persona.options.any { it.id == persona.selectedId }
+        val keepSelection = baseline != null &&
+            persona.selectedId != baseline.userPersonaId && selectionExists
+        // 候选名称刷新不能替代描述查询，改选的身份也可能刚被其他页面删除。
+        val selected = if (keepSelection) withContext(Dispatchers.IO) {
+            mPersonas.chatPersonaOrNull(persona.selectedId)
+        } else null
+        return copy(
+            persona = loaded.persona.copy(
+                selectedId = if (selected != null) persona.selectedId else loaded.persona.selectedId,
+            ),
+            inheritedDescription = selected?.description ?: loaded.inheritedDescription,
+            userNameDraft = if (baseline != null && userNameDraft != baseline.userName) {
+                userNameDraft
+            } else loaded.userNameDraft,
+            userDescriptionDraft = if (baseline != null && userDescriptionDraft != baseline.userDescription) {
+                userDescriptionDraft
+            } else loaded.userDescriptionDraft,
+            // 解绑不是用户的新修改，只更新受影响的基线，避免其余草稿被误判为已保存。
+            savedSnapshot = baseline?.copy(
+                userPersonaId = loaded.persona.selectedId,
+                userName = loaded.userNameDraft,
+                userDescription = loaded.userDescriptionDraft,
+            ),
+        )
     }
 
     /**

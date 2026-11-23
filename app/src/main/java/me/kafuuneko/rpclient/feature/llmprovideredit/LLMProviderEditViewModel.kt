@@ -180,13 +180,31 @@ class LLMProviderEditViewModel :
             copy(providerType = intent.value)
         }
 
-    /** 修改通信协议（Protocol）。 */
+    /**
+     * 修改通信协议，切换 Gemini 接口时同步尚未自定义的模板字段。
+     * @param intent 用户选择的目标协议。
+     */
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeProtocol::class)
     private fun onChangeProtocol(intent: LLMProviderEditUiIntent.ChangeProtocol) =
         updateForm(invalidateModelCatalog = true) {
             val capabilities = LLMProviderCapabilities.forProtocol(intent.value)
+            val geminiPresets = listOf(ProviderPreset.Gemini, ProviderPreset.GeminiInteractions)
+            val previousPreset = geminiPresets.firstOrNull { it.protocol == protocol }
+            val nextPreset = geminiPresets.firstOrNull { it.protocol == intent.value }
+            val switchesGeminiProtocol = previousPreset != null && nextPreset != null &&
+                previousPreset != nextPreset
+            // 两个 Gemini 接口来回切换时，只转换可识别的模板值，保留自定义网关和参数。
+            val usesDefaultBaseUrl = baseUrl.trim().trimEnd('/') == previousPreset?.baseUrl
+            val usesDefaultPatch = previousPreset != null && runCatching {
+                JsonParser.parseString(requestBodyPatchJson) ==
+                    JsonParser.parseString(previousPreset.defaultRequestBodyPatchJson)
+            }.getOrDefault(false)
             copy(
                 protocol = intent.value,
+                baseUrl = nextPreset?.baseUrl
+                    ?.takeIf { switchesGeminiProtocol && usesDefaultBaseUrl } ?: baseUrl,
+                requestBodyPatchJson = nextPreset?.defaultRequestBodyPatchJson
+                    ?.takeIf { switchesGeminiProtocol && usesDefaultPatch } ?: requestBodyPatchJson,
                 sendTemperature = capabilities.defaultSendTemperature,
                 sendTopP = capabilities.defaultSendTopP,
             )

@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.feature.chat
 
 import android.content.Context
+import android.database.sqlite.SQLiteException
 import android.os.Bundle
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.viewModelScope
@@ -403,7 +404,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             imageState = mImageCoordinator.state,
             settingsState = if (uiState.page == ChatPage.Settings) {
                 (getOrNull<ChatUiState.Normal>()?.settingsState ?: uiState.settingsState)
-                    .withPersonaOptionsFrom(refreshed.settingsState)
+                    .withRefreshedPersona(refreshed.settingsState)
             } else refreshed.settingsState,
             conversationState = refreshed.conversationState.copy(
                 inputDraft = getOrNull<ChatUiState.Normal>()?.conversationState?.inputDraft
@@ -1237,7 +1238,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             .mapTo(mutableSetOf()) { entry -> entry.id }
         val mergedIds = (uiState.session.enabledLorebookEntryIds + dialogState.selectedEntryIds)
             .intersect(validEntryIds)
-        saveSessionLorebookEntryIds(sessionId, mergedIds)
+        if (!saveSessionLorebookEntryIds(sessionId, mergedIds)) return
         refreshUiState(
             sessionId = sessionId,
             inputDraft = uiState.conversationState.inputDraft,
@@ -1260,7 +1261,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             }
         ) return
         val enabledIds = uiState.session.enabledLorebookEntryIds.toggle(intent.entryId)
-        saveSessionLorebookEntryIds(sessionId, enabledIds)
+        if (!saveSessionLorebookEntryIds(sessionId, enabledIds)) return
         refreshUiState(
             sessionId = sessionId,
             inputDraft = uiState.conversationState.inputDraft,
@@ -1282,7 +1283,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val entryIds = group.entries.map { it.id }.toSet()
         if (entryIds.isEmpty()) return
         val enabledIds = uiState.session.enabledLorebookEntryIds.toggleAll(entryIds)
-        saveSessionLorebookEntryIds(sessionId, enabledIds)
+        if (!saveSessionLorebookEntryIds(sessionId, enabledIds)) return
         refreshUiState(
             sessionId = sessionId,
             inputDraft = uiState.conversationState.inputDraft,
@@ -1303,7 +1304,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             .flatMap { it.entries }
             .mapTo(mutableSetOf()) { it.id }
         val enabledEntryIds = dialogState.enabledEntryIds.intersect(validEntryIds)
-        saveSessionLorebookEntryIds(sessionId, enabledEntryIds)
+        if (!saveSessionLorebookEntryIds(sessionId, enabledEntryIds)) return
         refreshUiState(
             sessionId = sessionId,
             inputDraft = uiState.conversationState.inputDraft,
@@ -1659,37 +1660,55 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         uiState.copy(dialogState = ChatDialogState.None).setup()
     }
 
-    /** 暂存会话标题。 */
+    /**
+     * 暂存会话标题。
+     * @param intent 用户输入的原始标题。
+     */
     @UiIntentObserver(ChatUiIntent.ChangeTitle::class)
     private fun onChangeTitle(intent: ChatUiIntent.ChangeTitle) {
         updateSettingsState { copy(titleDraft = intent.value) }
     }
 
-    /** 暂存本轮摘要编辑，保留编辑前版本以支持整轮撤销。 */
+    /**
+     * 暂存本轮摘要编辑，保留编辑前版本以支持整轮撤销。
+     * @param intent 用户输入的摘要正文。
+     */
     @UiIntentObserver(ChatUiIntent.ChangeSummary::class)
     private fun onChangeSummary(intent: ChatUiIntent.ChangeSummary) {
         updateSettingsState { copy(summary = summary.copy(text = intent.value)) }
     }
 
-    /** 暂存会话用户备注。 */
+    /**
+     * 暂存会话用户备注。
+     * @param intent 用户输入的备注原文。
+     */
     @UiIntentObserver(ChatUiIntent.ChangeUserNote::class)
     private fun onChangeUserNote(intent: ChatUiIntent.ChangeUserNote) {
         updateSettingsState { copy(userNoteDraft = intent.value) }
     }
 
-    /** 暂存名称覆盖，空字符串在保存时恢复继承。 */
+    /**
+     * 暂存名称覆盖，空字符串在保存时恢复继承。
+     * @param intent 用户输入的名称原文。
+     */
     @UiIntentObserver(ChatUiIntent.ChangeUserName::class)
     private fun onChangeUserName(intent: ChatUiIntent.ChangeUserName) {
         updateSettingsState { copy(userNameDraft = intent.value) }
     }
 
-    /** 暂存人设描述覆盖，保留用户输入的空白。 */
+    /**
+     * 暂存人设描述覆盖，保留用户输入的空白。
+     * @param intent 用户输入的描述原文。
+     */
     @UiIntentObserver(ChatUiIntent.ChangeUserDescription::class)
     private fun onChangeUserDescription(intent: ChatUiIntent.ChangeUserDescription) {
         updateSettingsState { copy(userDescriptionDraft = intent.value) }
     }
 
-    /** 暂存作者备注正文，保存时按加载基线决定是否改写覆盖值。 */
+    /**
+     * 暂存作者备注正文，保存时按加载基线决定是否改写覆盖值。
+     * @param intent 用户输入的作者备注原文。
+     */
     @UiIntentObserver(ChatUiIntent.ChangeCreatorNotes::class)
     private fun onChangeCreatorNotes(intent: ChatUiIntent.ChangeCreatorNotes) {
         updateSettingsState { copy(creatorNotesDraft = intent.value) }
@@ -1828,7 +1847,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun onSelectPersona(intent: ChatUiIntent.SelectPersona) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         if (uiState.page != ChatPage.Settings || uiState.dialogState.isBlocking()) return
-        val inherited = withContext(Dispatchers.IO) { mPersonas.chatPersona(intent.id) }
+        val inherited = withContext(Dispatchers.IO) { mPersonas.chatPersonaOrNull(intent.id) }
+        if (inherited == null) {
+            refreshUiState(sessionId = uiState.session.id)
+            return
+        }
         updateSettingsState {
             copy(
                 persona = persona.copy(selectedId = intent.id),
@@ -3390,7 +3413,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val currentConversation = currentState.conversationState
         // 即时世界书操作或后台恢复只刷新持久化数据，保留原表单草稿及其脏检测基线。
         val settingsState = if (preserveSettingsDraft) {
-            currentState.settingsState.withPersonaOptionsFrom(nextState.settingsState)
+            currentState.settingsState.withRefreshedPersona(nextState.settingsState)
         } else nextState.settingsState
         nextState.copy(
             imageState = mImageCoordinator.state,
@@ -3408,28 +3431,59 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         ).setup()
     }
 
-    /** 更新人设选择器候选项，保留表单的选择、继承预览及原持久化基线。 */
-    private fun ChatSettingsState.withPersonaOptionsFrom(loaded: ChatSettingsState): ChatSettingsState =
-        copy(
-            persona = persona.copy(
-                options = loaded.persona.options,
-                followDefaultName = loaded.persona.followDefaultName,
+    /**
+     * 刷新人设及解绑结果，同时保留用户仍然有效的选择和独立覆盖草稿。
+     * @param loaded 最新持久化表单，包含删除人设时固定的原发言者姓名。
+     * @return 已更新人设候选、继承预览和相关保存基线的草稿。
+     */
+    private suspend fun ChatSettingsState.withRefreshedPersona(loaded: ChatSettingsState): ChatSettingsState {
+        val baseline = savedSnapshot
+        val selectionExists = persona.selectedId == UserPersona.FOLLOW_DEFAULT ||
+            loaded.persona.options.any { it.id == persona.selectedId }
+        val keepSelection = baseline != null &&
+            persona.selectedId != baseline.userPersonaId && selectionExists
+        // 仅重新解析用户实际改选的有效身份，避免使用删除前的继承描述。
+        val selected = if (keepSelection) withContext(Dispatchers.IO) {
+            mPersonas.chatPersonaOrNull(persona.selectedId)
+        } else null
+        return copy(
+            persona = loaded.persona.copy(
+                selectedId = if (selected != null) persona.selectedId else loaded.persona.selectedId,
+            ),
+            inheritedDescription = selected?.description ?: loaded.inheritedDescription,
+            userNameDraft = if (baseline != null && userNameDraft != baseline.userName) {
+                userNameDraft
+            } else loaded.userNameDraft,
+            userDescriptionDraft = if (baseline != null && userDescriptionDraft != baseline.userDescription) {
+                userDescriptionDraft
+            } else loaded.userDescriptionDraft,
+            // 只同步外部人设操作影响的字段，标题、摘要等草稿仍使用原来的脏检测基线。
+            savedSnapshot = baseline?.copy(
+                userPersonaId = loaded.persona.selectedId,
+                userName = loaded.userNameDraft,
+                userDescription = loaded.userDescriptionDraft,
             ),
         )
+    }
 
     /**
      * 持久化当前会话启用的世界书条目 ID 列表。
      *
      * @param sessionId 会话 ID
      * @param enabledIds 启用的条目 ID 集合
+     * @return 是否成功保存；失败时保留弹窗选择并发布本地化提示。
      */
     private suspend fun saveSessionLorebookEntryIds(
         sessionId: Long,
         enabledIds: Set<Long>,
-    ) {
+    ): Boolean = try {
         withContext(Dispatchers.IO) {
             mChatRepository.updateSessionLorebookEntryIds(sessionId, enabledIds.toList())
         }
+        true
+    } catch (_: SQLiteException) {
+        AppViewEvent.PopupToastMessageByResId(R.string.story_save_failed_short).tryEmit()
+        false
     }
 
     /**

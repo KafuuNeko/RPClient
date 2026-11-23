@@ -20,6 +20,7 @@ import okio.source
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Test
 import java.net.InetAddress
 import java.net.ServerSocket
@@ -29,6 +30,66 @@ import kotlin.concurrent.thread
 
 /** 用真实模型配置页及回环 HTTP 服务验证未保存的预设、分页和连接探针。 */
 class GeminiInteractionsProviderTest {
+    /** 旧模板切换后即可校验通过，自定义网关和参数不会被默认模板覆盖。 */
+    @Test
+    fun switchingLegacyProtocolMigratesDefaultsAndPreservesCustomFields(): Unit = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        ActivityScenario.launch<LLMProviderEditActivity>(
+            Intent(
+                context,
+                LLMProviderEditActivity::class.java
+            )
+        ).use { scenario ->
+            lateinit var vm: LLMProviderEditViewModel
+            scenario.onActivity { vm = ViewModelProvider(it)[LLMProviderEditViewModel::class.java] }
+            val states = vm.uiStateFlow.filterIsInstance<LLMProviderEditUiState.Normal>()
+            withTimeout(15_000) {
+                states.first()
+                vm.emit(LLMProviderEditUiIntent.ApplyPresetTemplate(ProviderPreset.Gemini))
+                states.first { it.form.protocol == LLMProviderProtocol.Gemini }
+                // 兼容用户粘贴的等价 JSON 排版与字段顺序，而非只匹配原始字符串。
+                vm.emit(LLMProviderEditUiIntent.ChangeBaseUrl("${ProviderPreset.Gemini.baseUrl}/"))
+                vm.emit(
+                    LLMProviderEditUiIntent.ConfirmRequestBodyPatch(
+                        """{"generationConfig":{"thinkingConfig":{"includeThoughts":true,"thinkingLevel":"low"}}}"""
+                    )
+                )
+                vm.emit(LLMProviderEditUiIntent.ChangeProtocol(LLMProviderProtocol.GeminiInteractions))
+                val migrated =
+                    states.first { it.form.protocol == LLMProviderProtocol.GeminiInteractions }.form
+                assertEquals(GEMINI_INTERACTIONS_BASE_URL, migrated.baseUrl)
+                assertEquals("{}", migrated.requestBodyPatchJson.trim())
+                assertNotNull(migrated.toProviderOrNull())
+
+                vm.emit(LLMProviderEditUiIntent.ChangeProtocol(LLMProviderProtocol.Gemini))
+                val restored = states.first { it.form.protocol == LLMProviderProtocol.Gemini }.form
+                assertEquals(ProviderPreset.Gemini.baseUrl, restored.baseUrl)
+                assertEquals(
+                    JSONObject(ProviderPreset.Gemini.defaultRequestBodyPatchJson).toString(),
+                    JSONObject(restored.requestBodyPatchJson).toString(),
+                )
+                assertNotNull(restored.toProviderOrNull())
+
+                // 明确自定义的旧接口设置继续保留，由现有校验要求用户按目标协议调整。
+                vm.emit(LLMProviderEditUiIntent.ApplyPresetTemplate(ProviderPreset.Gemini))
+                states.first { it.form.protocol == LLMProviderProtocol.Gemini }
+                val customUrl = "https://example.invalid/gateway/v1"
+                val customPatch =
+                    """{"generationConfig":{"thinkingConfig":{"thinkingLevel":"high"}}}"""
+                vm.emit(LLMProviderEditUiIntent.ChangeBaseUrl(customUrl))
+                vm.emit(LLMProviderEditUiIntent.ConfirmRequestBodyPatch(customPatch))
+                vm.emit(LLMProviderEditUiIntent.ChangeProtocol(LLMProviderProtocol.GeminiInteractions))
+                val custom =
+                    states.first { it.form.protocol == LLMProviderProtocol.GeminiInteractions }.form
+                assertEquals(customUrl, custom.baseUrl)
+                assertEquals(
+                    JSONObject(customPatch).toString(),
+                    JSONObject(custom.requestBodyPatchJson).toString()
+                )
+            }
+        }
+    }
+
     /** 目录与生成使用同一自定义前缀、密钥头和草稿，切换协议不会隐式回退。 */
     @Test
     fun nativePresetListsModelsAndTestsTheChosenModel(): Unit = runBlocking {

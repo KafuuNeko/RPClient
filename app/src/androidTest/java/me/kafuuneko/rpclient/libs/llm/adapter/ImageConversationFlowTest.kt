@@ -296,7 +296,14 @@ class ImageConversationFlowTest {
                 assertTrue("data:image/" in fixture.server.requests.last())
                 await { (vm.uiStateFlow.value as? ChatUiState.Normal)?.conversationState?.generationState == ChatGenerationState.Idle }
                 vm.emit(ChatUiIntent.SummarizeNow)
-                await { repository.getLatestSummary(id) != null }
+                await("manual summary draft") {
+                    val state = vm.uiStateFlow.value as? ChatUiState.Normal
+                    state?.settingsState?.summary?.hasChanges == true &&
+                        state.dialogState == ChatDialogState.None
+                }
+                assertEquals(null, repository.getLatestSummary(id))
+                vm.emit(ChatUiIntent.SaveSettings)
+                await("saved manual summary") { repository.getLatestSummary(id) != null }
                 assertTrue("data:image/" in fixture.server.requests.last())
                 await { (vm.uiStateFlow.value as? ChatUiState.Normal)?.dialogState == ChatDialogState.None }
                 delay(timeMillis = 400)

@@ -643,6 +643,7 @@ private class GroupChatPromptBuildSession(
         slot: String,
         readField: (Character) -> String,
     ): MacroExpansion {
+        // 每个字段使用所属角色的宏作用域，合并后仍保留各段的绑定信息供检查器追踪。
         val rendered = cardMembers.mapNotNull { member ->
             val raw = readField(member.character).trim()
             if (raw.isBlank()) return@mapNotNull null

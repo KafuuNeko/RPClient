@@ -28,7 +28,11 @@ class GeminiInteractionsLLMClient(
     private val mImageRuntime: MessageImageRuntime? = null,
     private val mImageCapabilities: ImageInputCapabilityResolver = ImageInputCapabilityResolver()
 ) : LLMClient {
-    /** 等待交互终态，解析模型输出步骤及用量。 */
+    /**
+     * 等待交互终态，解析模型输出步骤及用量。
+     * @param request 已由业务层确定的历史与生成选项。
+     * @return 经过状态校验的完整生成结果。
+     */
     override suspend fun generate(request: LLMGenerationRequest): LLMGenerationResponse {
         val model = request.model ?: mProvider.model
         val http = buildRequest(request = request, model = model, stream = false)
@@ -60,7 +64,11 @@ class GeminiInteractionsLLMClient(
         }
     }
 
-    /** 按 SSE 帧处理流，在终态立即关闭网络调用并保留停止生成语义。 */
+    /**
+     * 按 SSE 帧处理流，在终态立即关闭网络调用并保留停止生成语义。
+     * @param request 与非流式接口使用相同历史和选项的生成请求。
+     * @return 连接、正文、可展示思考摘要与完成事件组成的冷流。
+     */
     override fun streamGenerate(request: LLMGenerationRequest): Flow<LLMStreamEvent> = flow {
         val model = request.model ?: mProvider.model
         val http = buildRequest(request = request, model = model, stream = true)
@@ -105,7 +113,13 @@ class GeminiInteractionsLLMClient(
         }
     }
 
-    /** 按最终配置生成原生请求，图像数据在 HTTP 生命周期内持有临时文件。 */
+    /**
+     * 按最终配置生成原生请求，图像数据在 HTTP 生命周期内持有临时文件。
+     * @param request 经过 Prompt 最终化的业务请求。
+     * @param model 本次覆盖或默认使用的模型名。
+     * @param stream 是否接收 SSE 增量。
+     * @return 绑定了图片临时文件释放责任的 HTTP 请求。
+     */
     private suspend fun buildRequest(
         request: LLMGenerationRequest,
         model: String,

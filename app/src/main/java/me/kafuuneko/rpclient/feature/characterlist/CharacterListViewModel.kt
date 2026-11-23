@@ -10,6 +10,7 @@ import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -92,7 +93,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
 
     /** 返回时优先退出多选，持久化期间保留页面，离开时取消头像加载。 */
     @UiIntentObserver(CharacterListUiIntent.Back::class)
-    private fun onBack() {
+    private suspend fun onBack() {
         if (isStateOf<CharacterListUiState.Finished>()) return
         val state = getOrNull<CharacterListUiState.Normal>() ?: return
         if (state.loadState != CharacterListLoadState.None) return
@@ -103,7 +104,9 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         }
         mRefreshGeneration++
         mTransferJob?.cancel()
+        val pending = mPendingImport
         mPendingImport = null
+        pending?.let { mCharacterCardRepository.releaseImports(it.drafts) }
         cancelAvatarLoads()
         CharacterListUiState.finished(uiStateFlow.value).setup()
     }
@@ -369,7 +372,7 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
      *
      * - 各文件顺序解析，限制批量导入的瞬时内存占用。
      * - 单个文件解析失败不会阻断其余文件。
-     * - 确认前只保存进程内草稿，不写入角色、头像或世界书。
+     * - 确认前只保存角色草稿与头像暂存，不写入业务实体。
      *
      * @param intent 包含一组角色卡文件 URI 的导入意图
      */
@@ -390,9 +393,10 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
             ),
         ).setup()
         mTransferJob = viewModelScope.launch {
+            var batch: CharacterCardImportBatch? = null
             try {
-                // 解析阶段只创建内存草稿，避免确认前产生半成品数据
-                val batch = readImportBatch(uris)
+                // 原图只暂存到磁盘，确认前不发布文件索引或半成品角色。
+                batch = readImportBatch(uris)
                 val lowBudgetDrafts = batch.drafts.filter { characterCardImportDraft ->
                     LorebookImportPolicy.requiresLowBudgetConfirmation(characterCardImportDraft.card)
                 }
@@ -416,6 +420,10 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
                 AppViewEvent.PopupToastMessageByResId(R.string.import_character_failed).tryEmit()
                 refreshCharacters()
             } finally {
+                // 确认弹窗接管草稿所有权，其余退出路径都释放尚未提交的头像。
+                if (mPendingImport !== batch) {
+                    batch?.let { mCharacterCardRepository.releaseImports(it.drafts) }
+                }
                 finishTransfer(token)
             }
         }
@@ -479,7 +487,8 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
                 AppViewEvent.PopupToastMessageByResId(R.string.import_character_failed).tryEmit()
                 refreshCharacters()
             } finally {
-                // 结束传输状态
+                // 取消会跳过剩余卡片，整批释放同时覆盖尚未开始保存的头像。
+                mCharacterCardRepository.releaseImports(batch.drafts)
                 finishTransfer(token)
             }
         }
@@ -497,35 +506,46 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         uiState.copy(dialogState = CharacterListDialogState.None).setup()
     }
 
-    /** 顺序解析 URI，并把文件级失败折叠到批次统计中。 */
+    /**
+     * 顺序解析 URI，并把文件级失败折叠到批次统计中。
+     * @param uris 用户选中的文件集合。
+     * @return 交由导入任务或确认弹窗持有的批次。
+     */
     private suspend fun readImportBatch(uris: List<Uri>): CharacterCardImportBatch {
         val drafts = mutableListOf<CharacterCardImportDraft>()
-        var failureCount = 0
-        // 每个 URI 独立捕获格式或读取错误，确保后续有效卡片仍能进入保存阶段
-        var totalCount = 0
-        uris.forEachIndexed { index, uri ->
-            try {
-                val result = mCharacterCardRepository.readImportItemsFromUri(uri)
-                drafts += result.drafts
-                failureCount += result.failureCount
-                totalCount += result.totalCount
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (_: Exception) {
-                failureCount++
-                totalCount++
+        var completed = false
+        try {
+            var failureCount = 0
+            // 每个 URI 独立捕获格式或读取错误，确保后续有效卡片仍能进入保存阶段
+            var totalCount = 0
+            uris.forEachIndexed { index, uri ->
+                try {
+                    val result = mCharacterCardRepository.readImportItemsFromUri(uri)
+                    drafts += result.drafts
+                    failureCount += result.failureCount
+                    totalCount += result.totalCount
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (_: Exception) {
+                    failureCount++
+                    totalCount++
+                }
+                updateImportProgress(
+                    stage = CharacterImportStage.Reading,
+                    completedCount = index + 1,
+                    totalCount = uris.size,
+                )
             }
-            updateImportProgress(
-                stage = CharacterImportStage.Reading,
-                completedCount = index + 1,
-                totalCount = uris.size,
+            completed = true
+            return CharacterCardImportBatch(
+                drafts = drafts,
+                parseFailureCount = failureCount,
+                totalCount = maxOf(totalCount, 1)
             )
+        } finally {
+            // 读取到后续 URI 时取消，也要释放此前归档已经完成的头像暂存。
+            if (!completed) mCharacterCardRepository.releaseImports(drafts)
         }
-        return CharacterCardImportBatch(
-            drafts = drafts,
-            parseFailureCount = failureCount,
-            totalCount = maxOf(totalCount, 1)
-        )
     }
 
     /**
@@ -858,11 +878,19 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         mAvatarLoadKeys.clear()
     }
 
+    /** 页面真正销毁时释放待确认头像；旋转屏幕仍复用当前 ViewModel。 */
     override fun onCleared() {
+        val pending = mPendingImport
+        mPendingImport = null
         cancelAvatarLoads()
         mVisibleAvatars.clear()
         mAvatarCache.clear()
         super.onCleared()
+        pending?.let { batch ->
+            CoroutineScope(Dispatchers.IO).launch {
+                mCharacterCardRepository.releaseImports(batch.drafts)
+            }
+        }
     }
 
     /** 根据关键词在搜索语料库中过滤角色。 */

@@ -61,7 +61,13 @@ internal object GeminiInteractionsRequestCodec {
         )
     }
 
-    /** 文本与图片在两种角色步骤中使用同一内容结构，空白属于原文。 */
+    /**
+     * 将通用消息写为原生角色步骤，文本空白与图文块顺序保持不变。
+     * @param message 已最终化的一条历史消息。
+     * @param images 当前模型配置的图片编码器。
+     * @param registerImage 登记本次传输使用的图片占位符。
+     * @return 含有序内容块的用户输入或模型输出步骤。
+     */
     private fun step(
         message: LLMMessage,
         images: ImageContentCodec,

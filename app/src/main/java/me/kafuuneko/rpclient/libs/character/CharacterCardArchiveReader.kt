@@ -6,8 +6,11 @@ import java.io.File
 import java.io.InputStream
 import java.util.zip.ZipFile
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
+import me.kafuuneko.rpclient.libs.room.model.PreparedFile
 
 /** 角色 ZIP 的磁盘与内存预算；累计量也计算解析失败条目已经读入的字节。 */
 internal data class CharacterCardArchiveLimits(
@@ -26,13 +29,16 @@ internal class CharacterArchiveExportLimitException :
     Exception("Character archive exceeds import limits")
 
 /**
- * 在资源预算内解析角色 ZIP，不把条目解包到文件系统。
+ * 在资源预算内解析角色 ZIP，头像交由文件仓库暂存。
  * - 压缩包先限量复制到缓存，所有退出路径都会删除临时文件。
  * - 单卡超限或损坏计入失败后继续；归档累计超限时拒绝整包，不返回部分草稿。
  * - ZIP 元数据仅用于提前拒绝，实际读取仍按字节计量，不能被伪造大小绕过。
+ * - 草稿只持有头像暂存凭据，连续读取多个归档也不会累计保留 PNG 原图字节。
  */
 internal class CharacterCardArchiveReader(
     private val mMapper: CharacterCardMapper,
+    private val mStageAvatar: suspend (ByteArray) -> PreparedFile,
+    private val mReleaseAvatar: suspend (PreparedFile) -> Unit,
     private val mLimits: CharacterCardArchiveLimits = CharacterCardArchiveLimits()
 ) {
     /**
@@ -77,57 +83,67 @@ internal class CharacterCardArchiveReader(
             throw ArchiveLimitException("Character archive contains too many entries")
         }
         val drafts = mutableListOf<CharacterCardImportDraft>()
-        var failureCount = 0
-        var candidateCount = 0
-        var totalEntryBytes = 0L
-        val entries = zip.entries()
-        // 元数据只提前拒绝明显过大的单卡；所有实际解压字节仍纳入整包预算。
-        while (entries.hasMoreElements()) {
-            currentCoroutineContext().ensureActive()
-            val entry = entries.nextElement()
-            val isPng = entry.name.endsWith(".png", ignoreCase = true)
-            val isJson = entry.name.endsWith(".json", ignoreCase = true)
-            if (entry.isDirectory || (!isPng && !isJson) || !isSafePath(entry.name)) continue
-            candidateCount++
-            if (entry.size > mLimits.entryBytes) {
-                failureCount++
-                continue
-            }
-            try {
-                val bytes = zip.getInputStream(entry).use { input ->
-                    readEntry(input) { count ->
-                        totalEntryBytes += count
-                        if (totalEntryBytes > mLimits.totalEntryBytes) {
-                            throw ArchiveLimitException("Character archive exceeds the total entry size limit")
+        var completed = false
+        try {
+            var failureCount = 0
+            var candidateCount = 0
+            var totalEntryBytes = 0L
+            val entries = zip.entries()
+            // 元数据只提前拒绝明显过大的单卡；所有实际解压字节仍纳入整包预算。
+            while (entries.hasMoreElements()) {
+                currentCoroutineContext().ensureActive()
+                val entry = entries.nextElement()
+                val isPng = entry.name.endsWith(".png", ignoreCase = true)
+                val isJson = entry.name.endsWith(".json", ignoreCase = true)
+                if (entry.isDirectory || (!isPng && !isJson) || !isSafePath(entry.name)) continue
+                candidateCount++
+                if (entry.size > mLimits.entryBytes) {
+                    failureCount++
+                    continue
+                }
+                try {
+                    val bytes = zip.getInputStream(entry).use { input ->
+                        readEntry(input) { count ->
+                            totalEntryBytes += count
+                            if (totalEntryBytes > mLimits.totalEntryBytes) {
+                                throw ArchiveLimitException("Character archive exceeds the total entry size limit")
+                            }
                         }
                     }
-                }
-                // PNG 元数据按单卡导入规则读取，原图保留到用户确认后再持久化。
-                val json = if (isPng) {
-                    CharacterCardPngCodec.readCharacterJson(bytes)
-                } else bytes.toString(Charsets.UTF_8)
-                val document = JsonParser.parseString(json).asJsonObject
-                // 误选完整备份时不导入其中的散卡；以根清单的格式标记识别，普通同名文件不影响其他卡。
-                if (entry.name == "manifest.json" && document.get("format")?.asString in BACKUP_FORMATS) {
-                    return CharacterCardArchiveReadResult(
-                        emptyList(),
-                        failureCount = 1,
-                        totalCount = 1
+                    // PNG 元数据按单卡规则读取，只有有效角色才需要暂存头像。
+                    val json = if (isPng) {
+                        CharacterCardPngCodec.readCharacterJson(bytes)
+                    } else bytes.toString(Charsets.UTF_8)
+                    val document = JsonParser.parseString(json).asJsonObject
+                    // 误选完整备份时不导入其中的散卡；以根清单的格式标记识别，普通同名文件不影响其他卡。
+                    if (entry.name == "manifest.json" && document.get("format")?.asString in BACKUP_FORMATS) {
+                        return CharacterCardArchiveReadResult(
+                            emptyList(),
+                            failureCount = 1,
+                            totalCount = 1
+                        )
+                    }
+                    val card = mMapper.parseArchiveCharacter(document)
+                    drafts += CharacterCardImportDraft(
+                        card = card,
+                        avatarSourceUri = null,
+                        avatarMimeType = if (isPng) "image/png" else "application/json",
+                        stagedAvatar = if (isPng) mStageAvatar(bytes) else null
                     )
+                } catch (error: Exception) {
+                    if (error is CancellationException || error is ArchiveLimitException) throw error
+                    failureCount++
                 }
-                drafts += CharacterCardImportDraft(
-                    card = mMapper.parseArchiveCharacter(document),
-                    avatarSourceUri = null,
-                    avatarMimeType = if (isPng) "image/png" else "application/json",
-                    avatarBytes = bytes.takeIf { isPng }
-                )
-            } catch (error: Exception) {
-                if (error is CancellationException || error is ArchiveLimitException) throw error
-                failureCount++
+            }
+            if (candidateCount == 0) failureCount++
+            completed = true
+            return CharacterCardArchiveReadResult(drafts, failureCount, maxOf(candidateCount, 1))
+        } finally {
+            // 整包超限、误选备份或取消时，不能把已解析条目的头像遗留在暂存区。
+            if (!completed) withContext(NonCancellable) {
+                drafts.mapNotNull { it.stagedAvatar }.forEach { mReleaseAvatar(it) }
             }
         }
-        if (candidateCount == 0) failureCount++
-        return CharacterCardArchiveReadResult(drafts, failureCount, maxOf(candidateCount, 1))
     }
 
     /** 在扩容缓冲区之前核对实际解压大小，单卡超限不会耗尽剩余归档的内存。 */

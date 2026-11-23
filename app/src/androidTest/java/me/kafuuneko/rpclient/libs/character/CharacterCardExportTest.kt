@@ -13,7 +13,10 @@ import com.google.gson.Gson
 import com.google.gson.JsonParser
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
+import kotlin.random.Random
 import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.regex.RegexScriptCodec
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
@@ -26,6 +29,7 @@ import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -139,16 +143,77 @@ class CharacterCardExportTest {
         val imported = mCards.readImportItemsFromUri(Uri.fromFile(target))
         assertEquals(0, imported.failureCount)
         assertEquals(3, imported.drafts.size)
-        assertEquals(2, imported.drafts.count { it.avatarBytes != null })
+        assertEquals(2, imported.drafts.count { it.stagedAvatar != null })
         // 草稿保存后头像仍有有效文件索引，不能依赖已经删除的 ZIP 临时文件。
         for (draft in imported.drafts) {
+            val expectedAvatar = draft.stagedAvatar?.let { prepared ->
+                mFiles.withPreparedFile(prepared) { it.readBytes() }
+            }
             val restoredId = mCards.saveImport(draft)
             val restored = requireNotNull(mCharacters.getCharacterById(restoredId))
-            if (draft.avatarBytes == null) {
+            if (expectedAvatar == null) {
                 assertTrue(restored.avatar.isEmpty())
             } else {
-                assertArrayEquals(draft.avatarBytes, mFiles.getFile(restored.avatar)?.readBytes())
+                assertArrayEquals(expectedAvatar, mFiles.getFile(restored.avatar)?.readBytes())
             }
+        }
+    }
+
+    /** 多个归档的待确认头像总量超过普通堆上限时，草稿仍只持有磁盘凭据并可整批释放。 */
+    @Test
+    fun pendingArchiveAvatarsDoNotAccumulateInHeap() = runBlocking {
+        val png = CharacterCardPngCodec.writeCharacterJson(
+            noisyAvatar(),
+            """{"spec":"chara_card_v2","data":{"name":"Memory fixture","description":"Test card"}}""",
+        )
+        assertTrue(png.size < CharacterCardArchiveLimits().entryBytes)
+        val archive = File(mDirectory, "large-avatars.zip")
+        ZipOutputStream(archive.outputStream()).use { zip ->
+            repeat(4) { index ->
+                zip.putNextEntry(ZipEntry("card-$index.png"))
+                zip.write(png)
+                zip.closeEntry()
+            }
+        }
+        val drafts = mutableListOf<CharacterCardImportDraft>()
+        try {
+            // 复用同一归档夹具模拟连续读取，整批确认前保留所有返回草稿。
+            repeat(9) {
+                val result = mCards.readImportItemsFromUri(Uri.fromFile(archive))
+                assertEquals(0, result.failureCount)
+                assertEquals(4, result.drafts.size)
+                drafts += result.drafts
+            }
+            val staged = drafts.map { requireNotNull(it.stagedAvatar) }
+            assertTrue(staged.sumOf { it.byteCount } > 192L * 1024 * 1024)
+            assertEquals(staged.size, staged.map { it.handle }.distinct().size)
+            staged.forEach { prepared ->
+                mFiles.withPreparedFile(prepared) { assertEquals(png.size.toLong(), it.length()) }
+            }
+        } finally {
+            mCards.releaseImports(drafts)
+        }
+        // 释放暂存不依赖角色落库，也不需要重新把原图读回内存。
+        drafts.mapNotNull { it.stagedAvatar }.forEach { prepared ->
+            assertNull(mFiles.restorePrepared(prepared.ownerId, prepared.handle))
+        }
+    }
+
+    /** 生成接近真实照片大小且难以压缩的 PNG，避免小色块掩盖原图累积的问题。 */
+    private fun noisyAvatar(): ByteArray {
+        val bitmap = Bitmap.createBitmap(2048, 1024, Bitmap.Config.ARGB_8888)
+        try {
+            val random = Random(7)
+            val pixels = IntArray(bitmap.width * bitmap.height) {
+                0xff000000.toInt() or random.nextInt(0x1000000)
+            }
+            bitmap.setPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+            return ByteArrayOutputStream().use { output ->
+                check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output))
+                output.toByteArray()
+            }
+        } finally {
+            bitmap.recycle()
         }
     }
 

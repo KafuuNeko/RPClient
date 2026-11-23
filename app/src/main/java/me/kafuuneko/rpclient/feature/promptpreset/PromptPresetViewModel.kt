@@ -150,12 +150,7 @@ class PromptPresetViewModel :
         // 提前提示无效的素材占位符，避免生成摘要时回退默认格式。
         val contentMacro = dialog.type.requiredRawSummaryMacro()
         if (contentMacro != null && dialog.type.splitRawSummaryFormat(dialog.draftText) == null) {
-            AppViewEvent.PopupToastMessage(
-                mContext.getString(
-                    R.string.prompt_raw_summary_format_requires_macro,
-                    "{{$contentMacro}}"
-                )
-            ).tryEmit()
+            PromptPresetViewEvent.ShowInvalidSummaryFormat("{{$contentMacro}}").tryEmit()
             return
         }
         perform {

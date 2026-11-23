@@ -22,7 +22,10 @@ class GeminiModelCatalogClient(
     private val mOkHttpClient: OkHttpClient,
     private val mProvider: LLMProviderConfig
 ) : LLMModelCatalogClient {
-    /** 查询所选协议的模型目录；分页令牌仅在本次请求中使用。 */
+    /**
+     * 查询所选协议的模型目录，分页令牌仅在本次请求中使用。
+     * @return 按服务端顺序去重后的可用模型。
+     */
     override suspend fun listModels(): List<LLMAvailableModel> {
         val models = mutableListOf<LLMAvailableModel>()
         var pageToken: String? = null
@@ -70,6 +73,10 @@ internal data class GeminiModelCatalogPage(
  * 按协议筛选 Gemini 模型页，保留服务端返回的显示名和上下文限制。
  *
  * 同时兼容官方 `supportedGenerationMethods` 与部分网关使用的 `supportedActions` 字段。
+ * @param raw 服务端返回的单页 JSON。
+ * @param protocol 当前模型配置采用的 Gemini 协议。
+ * @return 可生成模型与下一页令牌。
+ * @throws LLMModelCatalogInvalidResponseException 响应不是有效模型列表。
  */
 internal fun parseGeminiModelCatalogPage(
     raw: String,
@@ -77,6 +84,7 @@ internal fun parseGeminiModelCatalogPage(
 ): GeminiModelCatalogPage {
     val json = parseCatalogJsonObject(raw)
     val data = json.arrayOrNull("models") ?: throw LLMModelCatalogInvalidResponseException()
+    // 只过滤明确不可生成的型号，目录缺少新协议能力标记时仍允许用户试用。
     return GeminiModelCatalogPage(
         models = buildList {
             data.forEach { element ->

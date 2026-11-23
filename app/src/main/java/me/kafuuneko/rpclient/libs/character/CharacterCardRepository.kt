@@ -10,6 +10,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.PushbackInputStream
 import java.util.Locale
+import java.util.UUID
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.CancellationException
@@ -23,6 +24,7 @@ import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
 import me.kafuuneko.rpclient.libs.regex.RegexScriptScope
 import me.kafuuneko.rpclient.libs.regex.RegexScriptTarget
 import me.kafuuneko.rpclient.libs.room.entity.Character
+import me.kafuuneko.rpclient.libs.room.model.PreparedFile
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
@@ -44,7 +46,20 @@ class CharacterCardRepository(
 ) {
     /** 无状态格式映射器，在 Repository 生命周期内复用。 */
     private val mMapper = CharacterCardMapper(mGson, mRegexCodec)
-    private val mArchiveReader = CharacterCardArchiveReader(mMapper)
+    private val mArchiveReader = CharacterCardArchiveReader(
+        mMapper = mMapper,
+        mStageAvatar = { bytes ->
+            bytes.inputStream().use { input ->
+                mFileRepository.prepareStream(
+                    ownerId = UUID.randomUUID().toString(),
+                    input = input,
+                    mimeType = "image/png",
+                    maxBytes = CharacterCardArchiveLimits().entryBytes.toLong(),
+                )
+            }
+        },
+        mReleaseAvatar = mFileRepository::releasePrepared,
+    )
 
     /** 从 URI 读取并解析 JSON 或 PNG 角色卡，但不保存头像或业务实体。 */
     suspend fun readImportFromUri(uri: Uri): CharacterCardImportDraft =
@@ -66,61 +81,86 @@ class CharacterCardRepository(
         }
 
     /**
-     * 读取单张角色卡或批量导出的 ZIP，不将压缩条目解包到文件系统。
+     * 读取单张角色卡或批量导出的 ZIP，归档头像暂存于文件仓库。
      * - 先检查文件签名，普通卡片继续使用既有 JSON/PNG 解码入口。
      * - 按 ZIP 元数据跳过非角色卡文件和不安全路径，单个损坏条目不阻止后续卡片解析。
      * - 压缩数据、单卡和累计解压字节均受预算限制，超限不会提交半成品实体。
      *
      * @param uri 用户选择的角色卡或 ZIP 文档。
-     * @return 当前文档解析出的草稿与失败数量。
+     * @return 当前文档解析出的草稿与失败数量；调用方须保存或通过 [releaseImports] 释放草稿。
      */
-    suspend fun readImportItemsFromUri(uri: Uri): CharacterCardArchiveReadResult =
-        withContext(Dispatchers.IO) {
-            // 签名检查只负责分流，普通角色卡仍由原有入口处理。
-            val source = mContext.contentResolver.openInputStream(uri)
-                ?: error("Cannot read character card")
-            PushbackInputStream(BufferedInputStream(source), ZIP_SIGNATURE.size).use { input ->
-                val signature = ByteArray(ZIP_SIGNATURE.size)
-                var signatureSize = 0
-                while (signatureSize < signature.size) {
-                    val count = input.read(signature, signatureSize, signature.size - signatureSize)
-                    if (count < 0) break
-                    signatureSize += count
-                }
-                if (signatureSize > 0) input.unread(signature, 0, signatureSize)
-                if (signatureSize == ZIP_SIGNATURE.size && signature.contentEquals(ZIP_SIGNATURE)) {
-                    return@withContext mArchiveReader.read(input, mContext.cacheDir)
-                }
-                // 普通 JSON/PNG 沿用原有入口；重开 URI 前释放签名检查占用的流。
-                input.close()
-                try {
-                    CharacterCardArchiveReadResult(
-                        drafts = listOf(readImportFromUri(uri)),
-                        failureCount = 0,
-                        totalCount = 1
-                    )
-                } catch (error: Exception) {
-                    if (error is CancellationException) throw error
-                    CharacterCardArchiveReadResult(emptyList(), failureCount = 1, totalCount = 1)
+    suspend fun readImportItemsFromUri(uri: Uri): CharacterCardArchiveReadResult {
+        var completed: CharacterCardArchiveReadResult? = null
+        try {
+            return withContext(Dispatchers.IO) {
+                // 签名检查只负责分流，普通角色卡仍由原有入口处理。
+                val source = mContext.contentResolver.openInputStream(uri)
+                    ?: error("Cannot read character card")
+                PushbackInputStream(BufferedInputStream(source), ZIP_SIGNATURE.size).use { input ->
+                    val signature = ByteArray(ZIP_SIGNATURE.size)
+                    var signatureSize = 0
+                    while (signatureSize < signature.size) {
+                        val count =
+                            input.read(signature, signatureSize, signature.size - signatureSize)
+                        if (count < 0) break
+                        signatureSize += count
+                    }
+                    if (signatureSize > 0) input.unread(signature, 0, signatureSize)
+                    if (signatureSize == ZIP_SIGNATURE.size && signature.contentEquals(ZIP_SIGNATURE)) {
+                        return@withContext mArchiveReader.read(input, mContext.cacheDir)
+                            .also { completed = it }
+                    }
+                    // 普通 JSON/PNG 沿用原有入口；重开 URI 前释放签名检查占用的流。
+                    input.close()
+                    try {
+                        CharacterCardArchiveReadResult(
+                            drafts = listOf(readImportFromUri(uri)),
+                            failureCount = 0,
+                            totalCount = 1
+                        )
+                    } catch (error: Exception) {
+                        if (error is CancellationException) throw error
+                        CharacterCardArchiveReadResult(
+                            emptyList(),
+                            failureCount = 1,
+                            totalCount = 1
+                        )
+                    }
                 }
             }
+        } catch (error: Throwable) {
+            // IO 已解析完毕但尚未交还调用方时也可能取消，暂存凭据仍由此处负责回收。
+            completed?.let { releaseImports(it.drafts) }
+            throw error
         }
+    }
+
+    /**
+     * 释放尚未提交的导入头像；已经保存的角色文件不会被删除。
+     * @param drafts 本批次解析出的全部草稿，允许包含已经成功保存的条目。
+     */
+    suspend fun releaseImports(drafts: List<CharacterCardImportDraft>) {
+        withContext(NonCancellable + Dispatchers.IO) {
+            drafts.mapNotNull { it.stagedAvatar }.forEach { mFileRepository.releasePrepared(it) }
+        }
+    }
 
     /**
      * 保存已解析的角色卡，并返回新角色 ID。
      *
      * 头像与内嵌世界书先保存以建立有效引用；后续步骤失败时会清理本次新增资源。
+     * @param draft 已解析的角色卡与待提交头像。
+     * @return 新角色 ID。
      */
     suspend fun saveImport(draft: CharacterCardImportDraft): Long = withContext(Dispatchers.IO) {
         var avatar = ""
         var lorebookId = 0L
         try {
-            // ZIP 内的 PNG 已通过归档字节预算，保存时直接复用内存草稿，避免临时 URI 失效。
+            // ZIP 头像直接发布暂存文件，避免在保存阶段再次读入整张原图。
             avatar = when {
-                draft.avatarBytes != null -> mFileRepository.saveFile(
-                    draft.avatarBytes,
-                    "image/png"
-                )
+                draft.stagedAvatar != null -> mFileRepository.mutate(listOf(draft.stagedAvatar)) {
+                    draft.stagedAvatar.file.uuid
+                }
 
                 draft.avatarSourceUri != null -> mFileRepository.saveFile(
                     draft.avatarSourceUri,
@@ -162,6 +202,8 @@ class CharacterCardRepository(
                 }
             }
             throw error
+        } finally {
+            draft.stagedAvatar?.let { mFileRepository.releasePrepared(it) }
         }
     }
 
@@ -351,8 +393,8 @@ data class CharacterCardImportDraft(
     val card: CharacterCardImport,
     val avatarSourceUri: Uri?,
     val avatarMimeType: String,
-    /** ZIP 草稿中的 PNG 原图；累计内存由归档读取器的总字节预算约束。 */
-    val avatarBytes: ByteArray? = null
+    /** ZIP 头像的磁盘暂存凭据，避免多个归档的原图累积占用堆内存。 */
+    val stagedAvatar: PreparedFile? = null
 )
 
 /** 单个导入文档的解析结果，失败数量包含 ZIP 中被跳过的无效卡片。 */

@@ -46,6 +46,14 @@ class UserPersonaRepository(
         if (id == UserPersona.FOLLOW_DEFAULT) active() else mDao.get(id)
 
     /**
+     * 解析可能在设置页停留期间被删除的人设选项。
+     * @param id 草稿选择的身份 ID，支持跟随默认项。
+     * @return 当前完整人设；显式身份已被删除时返回 null。
+     */
+    suspend fun chatPersonaOrNull(id: Long): UserPersona? =
+        if (id == UserPersona.FOLLOW_DEFAULT) active() else mDao.find(id)
+
+    /**
      * 返回创建会话时的默认项。
      * @return 当前默认指针指向的完整人设。
      */

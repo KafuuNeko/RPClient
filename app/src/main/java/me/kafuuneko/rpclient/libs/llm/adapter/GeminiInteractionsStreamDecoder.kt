@@ -23,7 +23,13 @@ internal class GeminiInteractionsStreamDecoder {
     var isFinished = false
         private set
 
-    /** 解析完整帧并返回本次新可展示的片段；签名和服务端工具步骤不进入正文。 */
+    /**
+     * 解析完整帧并返回本次新可展示的片段，签名和服务端工具步骤不进入正文。
+     * @param event SSE 帧解码器交付的完整事件。
+     * @return 按服务端步骤顺序可释放的正文、摘要或完成片段。
+     * @throws LLMResponseException 帧结构或步骤时序无效。
+     * @throws IOException 交互终态之前连接结束。
+     */
     fun accept(event: SseEvent): List<LLMProviderStreamPart> {
         // 连接结束和步骤结束都不能替代交互终态，防止断流被当作完整回复。
         if (isFinished) return emptyList()
@@ -46,7 +52,10 @@ internal class GeminiInteractionsStreamDecoder {
         }
     }
 
-    /** EOF 可能发生在最后一条正文之后，仍须等待服务端确认整轮状态。 */
+    /**
+     * 校验连接结束前已收到整轮终态，最后一条正文不能替代服务端完成确认。
+     * @throws IOException 连接结束时交互尚未确认完成。
+     */
     fun requireFinished() {
         if (!isFinished) throw IOException("Interaction stream closed before completion.")
     }
