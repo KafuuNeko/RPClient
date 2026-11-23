@@ -102,6 +102,7 @@ private fun DialogSwitch(
     state: ChatUiState.Normal,
     emit: ChatUiIntent.() -> Unit,
 ) {
+    // 互斥弹窗共用当前页面状态，世界书管理读取同一份候选分组。
     when (val dialogState = state.dialogState) {
         ChatDialogState.None -> Unit
 

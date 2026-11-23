@@ -75,7 +75,10 @@ class GroupChatCreateViewModel :
         )
     }
 
-    /** 切换创建草稿的人设，并重新计算含用户名宏的候选角色。 */
+    /**
+     * 切换创建草稿的人设，并重新计算含用户名宏的候选角色。
+     * @param intent 用户选择的人设 ID，包含跟随默认人设的选项。
+     */
     @UiIntentObserver(GroupChatCreateUiIntent.SelectPersona::class)
     private suspend fun onSelectPersona(intent: GroupChatCreateUiIntent.SelectPersona) {
         val state = getOrNull<GroupChatCreateUiState.Normal>() ?: return
@@ -178,7 +181,10 @@ class GroupChatCreateViewModel :
         ).setup()
     }
 
-    /** 根据群成员选择器弹窗当前可见窗口按需加载头像缩略图。 */
+    /**
+     * 根据群成员选择器弹窗当前可见窗口按需加载头像缩略图。
+     * @param intent 选择器视口内的角色 ID 与头像像素尺寸。
+     */
     @UiIntentObserver(GroupChatCreateUiIntent.VisiblePickerCharactersChanged::class)
     private fun onVisiblePickerCharactersChanged(
         intent: GroupChatCreateUiIntent.VisiblePickerCharactersChanged,
@@ -191,7 +197,10 @@ class GroupChatCreateViewModel :
         )
     }
 
-    /** 在群成员选择器弹窗内后台筛选角色，取消旧任务并保留最新勾选状态。 */
+    /**
+     * 在群成员选择器弹窗内后台筛选角色，取消旧任务并保留最新勾选状态。
+     * @param intent 用于筛选可参与群聊的角色的搜索词。
+     */
     @UiIntentObserver(GroupChatCreateUiIntent.ChangeSearchQuery::class)
     private fun onChangeSearchQuery(intent: GroupChatCreateUiIntent.ChangeSearchQuery) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
@@ -229,7 +238,10 @@ class GroupChatCreateViewModel :
         }
     }
 
-    /** 切换群成员选择器弹窗中的“仅看已选”筛选状态。 */
+    /**
+     * 切换群成员选择器弹窗中的“仅看已选”筛选状态。
+     * @param intent 是否只显示已勾选的角色。
+     */
     @UiIntentObserver(GroupChatCreateUiIntent.ToggleCharacterPickerSelectedOnly::class)
     private fun onToggleCharacterPickerSelectedOnly(
         intent: GroupChatCreateUiIntent.ToggleCharacterPickerSelectedOnly,
@@ -248,7 +260,10 @@ class GroupChatCreateViewModel :
         ).setup()
     }
 
-    /** 切换群成员选择器弹窗草稿中单个角色的选中状态。 */
+    /**
+     * 切换群成员选择器弹窗草稿中单个角色的选中状态。
+     * @param intent 在选择器草稿中切换的角色 ID。
+     */
     @UiIntentObserver(GroupChatCreateUiIntent.ToggleCharacterPickerItem::class)
     private fun onToggleCharacterPickerItem(
         intent: GroupChatCreateUiIntent.ToggleCharacterPickerItem,
@@ -423,7 +438,10 @@ class GroupChatCreateViewModel :
         ).setup()
     }
 
-    /** 修改世界书选择器弹窗中的检索关键词，实时过滤分组与条目。 */
+    /**
+     * 修改世界书选择器弹窗中的检索关键词，实时过滤分组与条目。
+     * @param intent 用于匹配世界书名称、关键词或条目正文的搜索词。
+     */
     @UiIntentObserver(GroupChatCreateUiIntent.ChangeLorebookQuery::class)
     private fun onChangeLorebookQuery(intent: GroupChatCreateUiIntent.ChangeLorebookQuery) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
@@ -439,7 +457,10 @@ class GroupChatCreateViewModel :
         ).setup()
     }
 
-    /** 切换世界书选择器弹窗中的“仅看已启用”筛选状态。 */
+    /**
+     * 切换世界书选择器弹窗中的“仅看已启用”筛选状态。
+     * @param intent 是否将选择器限定在已勾选的条目。
+     */
     @UiIntentObserver(GroupChatCreateUiIntent.ToggleLorebookPickerSelectedOnly::class)
     private fun onToggleLorebookPickerSelectedOnly(
         intent: GroupChatCreateUiIntent.ToggleLorebookPickerSelectedOnly,
@@ -457,7 +478,10 @@ class GroupChatCreateViewModel :
         ).setup()
     }
 
-    /** 批量切换世界书选择器草稿中某本世界书下全部条目的选中状态。 */
+    /**
+     * 批量切换世界书选择器草稿中某本世界书下全部条目的选中状态。
+     * @param intent 待批量切换全部条目的世界书 ID。
+     */
     @UiIntentObserver(GroupChatCreateUiIntent.ToggleLorebook::class)
     private fun onToggleLorebook(intent: GroupChatCreateUiIntent.ToggleLorebook) {
         val uiState = getOrNull<GroupChatCreateUiState.Normal>() ?: return
@@ -486,7 +510,10 @@ class GroupChatCreateViewModel :
         ).setup()
     }
 
-    /** 切换世界书选择器草稿中单个条目的选中状态。 */
+    /**
+     * 切换世界书选择器草稿中单个条目的选中状态。
+     * @param intent 待切换的世界书条目 ID。
+     */
     @UiIntentObserver(GroupChatCreateUiIntent.ToggleLorebookEntry::class)
     private fun onToggleLorebookEntry(
         intent: GroupChatCreateUiIntent.ToggleLorebookEntry,

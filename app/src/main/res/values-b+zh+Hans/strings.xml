@@ -1464,6 +1464,8 @@
     <string name="world_book_selection_empty">未启用世界书条目</string>
     <string name="world_book_selection_summary_subtitle">已启用 %1$d / %2$d 本世界书</string>
     <string name="world_book_selection_tap_to_choose">共 %1$d 本世界书，点击搜索或选择</string>
+    <string name="world_book_summary_group_count">%1$s（%2$d/%3$d）</string>
+    <string name="world_book_summary_more_count">+%1$d</string>
     <string name="group_chat_members_empty_title">尚未选择成员</string>
     <string name="group_chat_members_empty_subtitle">共 %1$d 个角色，至少选择 2 位</string>
     <string name="group_chat_select_members_title">选择群聊成员</string>

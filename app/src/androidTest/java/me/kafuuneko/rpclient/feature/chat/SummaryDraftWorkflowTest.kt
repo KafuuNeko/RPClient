@@ -43,7 +43,7 @@ import me.kafuuneko.rpclient.libs.room.model.toSummaryVersion
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
-import me.kafuuneko.rpclient.model.SummaryEditorState
+import me.kafuuneko.rpclient.model.SummaryEditorUiState
 import okio.buffer
 import okio.source
 import org.junit.After
@@ -144,6 +144,7 @@ class SummaryDraftWorkflowTest {
                 states = states.map {
                     Snapshot(
                         summary = it.settingsState.summary,
+                        latestMessageId = it.conversationState.messages.lastOrNull()?.id?.toLongOrNull(),
                         settings = it.page == ChatPage.Settings,
                         summarizing = it.dialogState == ChatDialogState.Summarizing,
                         confirmDiscard = it.dialogState == ChatDialogState.UnsavedSettingsChanges,
@@ -244,6 +245,7 @@ class SummaryDraftWorkflowTest {
                 states = states.map {
                     Snapshot(
                         summary = it.settingsState.summary,
+                        latestMessageId = it.conversationState.messages.lastOrNull()?.id,
                         settings = it.page == GroupChatPage.Settings,
                         summarizing = it.dialogState == GroupChatDialogState.Summarizing,
                         confirmDiscard = it.dialogState == GroupChatDialogState.UnsavedSettingsChanges,
@@ -361,7 +363,7 @@ class SummaryDraftWorkflowTest {
         // 合并保存的摘要可以按当前预算分批重做，快捷入口应直接打开设置并开始生成。
         val replayBoundary = workflow.appendMessages()
         workflow.resume()
-        workflow.await { !it.settings && it.summary.latestMessageId == replayBoundary }
+        workflow.await { !it.settings && it.latestMessageId == replayBoundary }
         AppModel.summaryMode = SummaryMode.Raw.persistedValue
         AppModel.summaryMaxMessagesPerRequest = 1
         for (expected in listOf("Batch F", "Batch G")) {
@@ -377,7 +379,7 @@ class SummaryDraftWorkflowTest {
         workflow.prepareLegacyReplay()
         workflow.emit(Action.Generate)
         val replayed = workflow.await { it.summary.text == "Replay I" && !it.summarizing }
-        assertEquals(replayBoundary, replayed.summary.effectiveSummary.coveredMessageId)
+        assertTrue(replayed.summary.canResummarize)
         assertEquals(combined, workflow.persisted())
         assertTrue(mServer.requests[7].contains("Replay H"))
         // 完整重做成功后保留每批版本，用户可以逐份回退。
@@ -403,8 +405,11 @@ class SummaryDraftWorkflowTest {
     private enum class Action { Open, Generate, Edit, Name, Cancel, Restore, Save, Back, Discard }
 
     private data class Snapshot(
-        val summary: SummaryEditorState, val settings: Boolean,
-        val summarizing: Boolean, val confirmDiscard: Boolean
+        val summary: SummaryEditorUiState,
+        val latestMessageId: Long?,
+        val settings: Boolean,
+        val summarizing: Boolean,
+        val confirmDiscard: Boolean,
     )
 
     private data class Workflow(

@@ -108,7 +108,8 @@ class GroupChatRepositoryBranchTest {
             message("First reply", 1_001L, batchId = "source-batch"),
             message("Second reply", 1_002L, batchId = "source-batch"),
             message("Narration", 1_003L, source = GroupChatMessage.Source.System),
-            message("Future reply", 1_004L),
+            // 后一条消息可以与分支点同毫秒，分页仍需按消息 ID 排除它。
+            message("Future reply", 1_003L),
         )
         mRepository.saveSummary(mSessionId, "Original memory", ids.first())
         val original = requireNotNull(mRepository.getGroupChatData(mSessionId))

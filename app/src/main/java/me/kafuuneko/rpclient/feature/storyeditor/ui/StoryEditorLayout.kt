@@ -132,6 +132,7 @@ private fun EditorDialogSwitch(
     state: StoryEditorUiState.Normal,
     emit: StoryEditorUiIntent.() -> Unit,
 ) {
+    // 设置页离开确认与正文操作由同一个弹窗状态保证互斥。
     when (val dialogState = state.dialogState) {
         StoryEditorDialogState.None -> Unit
         StoryEditorDialogState.UnsavedSettingsChanges -> AppActionListDialog(

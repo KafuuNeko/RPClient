@@ -14,7 +14,7 @@ import me.kafuuneko.rpclient.libs.media.MessageImageState
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 import me.kafuuneko.rpclient.model.MessageHistoryLoadState
-import me.kafuuneko.rpclient.model.SummaryEditorState
+import me.kafuuneko.rpclient.model.SummaryEditorUiState
 
 /** 群聊页面状态树，统一承载会话、成员、消息、设置草稿和生成状态。 */
 sealed class GroupChatUiState {
@@ -126,7 +126,7 @@ data class GroupChatSettingsState(
     val userDescriptionDraft: String = "",
     val inheritedDescription: String = "",
     /** 群聊摘要的未保存草稿。 */
-    val summary: SummaryEditorState = SummaryEditorState(),
+    val summary: SummaryEditorUiState = SummaryEditorUiState(),
     /** 当前会话的自动摘要是否暂停。 */
     val autoSummaryPaused: Boolean = false,
     /** 群聊系统提示词的未保存草稿。 */
@@ -149,6 +149,10 @@ data class GroupChatSettingsState(
     /** 表单上次从持久化层同步的基线快照，用于判断返回时是否存在未保存修改。 */
     val savedSnapshot: GroupChatSettingsSnapshot? = null,
 ) {
+    /** 当前还可添加的有效角色数，供设置页与成员选择器共享。 */
+    val addableCharacterCount: Int =
+        availableCharacters.count { character -> !character.alreadyMember }
+
     val summaryDraft: String get() = summary.text
     val canResummarize: Boolean get() = summary.canResummarize
 }

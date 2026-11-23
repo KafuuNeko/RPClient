@@ -447,6 +447,7 @@ internal fun createDefaultLLMProviders(
             updateTime = now,
             isEnabled = false,
         ),
+        // 两个 Gemini 端点独立保存版本路径与默认请求配置。
         LLMProvider(
             name = "Gemini Interactions",
             providerType = LLMProviderType.Gemini,

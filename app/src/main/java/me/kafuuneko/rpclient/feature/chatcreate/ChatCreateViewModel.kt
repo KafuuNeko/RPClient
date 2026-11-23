@@ -80,7 +80,10 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         )
     }
 
-    /** 切换创建草稿的人设，并重新计算含用户名宏的候选角色。 */
+    /**
+     * 切换创建草稿的人设，并重新计算含用户名宏的候选角色。
+     * @param intent 用户选择的人设 ID，包含跟随默认人设的选项。
+     */
     @UiIntentObserver(ChatCreateUiIntent.SelectPersona::class)
     private suspend fun onSelectPersona(intent: ChatCreateUiIntent.SelectPersona) {
         val state = getOrNull<ChatCreateUiState.Normal>() ?: return
@@ -186,7 +189,10 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         ).setup()
     }
 
-    /** 根据角色选择器弹窗当前可见窗口按需加载头像缩略图。 */
+    /**
+     * 根据角色选择器弹窗当前可见窗口按需加载头像缩略图。
+     * @param intent 选择器视口内的角色 ID 与头像像素尺寸。
+     */
     @UiIntentObserver(ChatCreateUiIntent.VisiblePickerCharactersChanged::class)
     private fun onVisiblePickerCharactersChanged(
         intent: ChatCreateUiIntent.VisiblePickerCharactersChanged,
@@ -199,7 +205,10 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         )
     }
 
-    /** 在角色选择器弹窗内后台筛选角色，取消旧任务并避免覆盖最新弹窗状态。 */
+    /**
+     * 在角色选择器弹窗内后台筛选角色，取消旧任务并避免覆盖最新弹窗状态。
+     * @param intent 用于过滤角色名称和内容的搜索词。
+     */
     @UiIntentObserver(ChatCreateUiIntent.ChangeCharacterQuery::class)
     private fun onChangeCharacterQuery(intent: ChatCreateUiIntent.ChangeCharacterQuery) {
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
@@ -331,7 +340,10 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         ).setup()
     }
 
-    /** 修改世界书选择器弹窗中的检索关键词，实时过滤分组与条目。 */
+    /**
+     * 修改世界书选择器弹窗中的检索关键词，实时过滤分组与条目。
+     * @param intent 用于匹配世界书名称、关键词或条目正文的搜索词。
+     */
     @UiIntentObserver(ChatCreateUiIntent.ChangeLorebookQuery::class)
     private fun onChangeLorebookQuery(intent: ChatCreateUiIntent.ChangeLorebookQuery) {
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
@@ -347,7 +359,10 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         ).setup()
     }
 
-    /** 切换世界书选择器弹窗中的“仅看已启用”筛选状态。 */
+    /**
+     * 切换世界书选择器弹窗中的“仅看已启用”筛选状态。
+     * @param intent 是否将选择器限定在已勾选的条目。
+     */
     @UiIntentObserver(ChatCreateUiIntent.ToggleLorebookPickerSelectedOnly::class)
     private fun onToggleLorebookPickerSelectedOnly(
         intent: ChatCreateUiIntent.ToggleLorebookPickerSelectedOnly,
@@ -365,7 +380,10 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         ).setup()
     }
 
-    /** 切换世界书选择器草稿中单个条目的启用状态。 */
+    /**
+     * 切换世界书选择器草稿中单个条目的启用状态。
+     * @param intent 待切换的世界书条目 ID。
+     */
     @UiIntentObserver(ChatCreateUiIntent.ToggleLorebookEntry::class)
     private fun onToggleLorebookEntry(intent: ChatCreateUiIntent.ToggleLorebookEntry) {
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return
@@ -392,7 +410,10 @@ class ChatCreateViewModel : CoreViewModelWithEvent<ChatCreateUiIntent, ChatCreat
         ).setup()
     }
 
-    /** 批量切换世界书选择器草稿中某本世界书下全部条目的启用状态。 */
+    /**
+     * 批量切换世界书选择器草稿中某本世界书下全部条目的启用状态。
+     * @param intent 待批量切换全部条目的世界书 ID。
+     */
     @UiIntentObserver(ChatCreateUiIntent.ToggleLorebook::class)
     private fun onToggleLorebook(intent: ChatCreateUiIntent.ToggleLorebook) {
         val uiState = getOrNull<ChatCreateUiState.Normal>() ?: return

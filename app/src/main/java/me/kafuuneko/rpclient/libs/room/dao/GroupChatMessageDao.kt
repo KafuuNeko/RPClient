@@ -33,6 +33,30 @@ interface GroupChatMessageDao : MutableDao<GroupChatMessage> {
     )
     suspend fun getMessages(sessionId: Long): List<GroupChatMessage>
 
+    /**
+     * 只读取分支点及其之前的消息，沿用群聊的时间和 ID 排序。
+     * @param sessionId 群聊会话 ID。
+     * @param throughCreateTime 分支点消息的创建时间。
+     * @param throughMessageId 同时间戳下包含的最后一条消息 ID。
+     * @return 按会话显示顺序排列的消息前缀。
+     */
+    @Query(
+        """
+        SELECT * FROM group_chat_messages
+        WHERE sessionId = :sessionId
+          AND (
+              createTime < :throughCreateTime
+              OR (createTime = :throughCreateTime AND id <= :throughMessageId)
+          )
+        ORDER BY createTime ASC, id ASC
+        """
+    )
+    suspend fun getPrefix(
+        sessionId: Long,
+        throughCreateTime: Long,
+        throughMessageId: Long,
+    ): List<GroupChatMessage>
+
     /** 从会话末尾开始读取一页群聊消息，Repository 会把结果恢复为展示正序。 */
     @Query(
         """

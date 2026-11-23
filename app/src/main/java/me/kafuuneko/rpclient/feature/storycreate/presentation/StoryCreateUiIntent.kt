@@ -21,6 +21,11 @@ sealed class StoryCreateUiIntent {
         val targetSizePx: Int,
     ) : StoryCreateUiIntent()
 
+    data class VisibleFormCharactersChanged(
+        val characterIds: Set<Long>,
+        val targetSizePx: Int,
+    ) : StoryCreateUiIntent()
+
     data class ToggleCharacterPickerSelectedOnly(val selectedOnly: Boolean) : StoryCreateUiIntent()
 
     data class ToggleCharacterPickerItem(val characterId: Long) : StoryCreateUiIntent()

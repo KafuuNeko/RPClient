@@ -63,6 +63,7 @@ import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
+import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -335,6 +336,58 @@ class ImageConversationFlowTest {
     @Test
     fun interactionsGroupImageStreamingPreservesMembersAndRetryHistory() = runBlocking {
         verifyGroupImageFlow(LLMProviderProtocol.GeminiInteractions)
+    }
+
+    /** 摘要覆盖末条图文后，空发送仍须给接话角色提供同一条原始消息。 */
+    @Test
+    fun groupReplyWithoutNewInputKeepsSummarizedImageAndText() = runBlocking {
+        withFixture { fixture ->
+            val koin = GlobalContext.get()
+            val group = koin.get<GroupChatRepository>()
+            val id = group.createSession(
+                title = "Image summary reply",
+                characterIds = fixture.characters,
+                activationStrategy = GroupChatSession.ActivationStrategy.List,
+                allowSelfResponses = false,
+            )
+            try {
+                // 直接建立已保存的图文和摘要，让首个 HTTP 请求就是无新输入的接话。
+                val avatar = koin.get<MessageImageRuntime>()
+                    .prepareArchive(
+                        owner = "summary-reply-image",
+                        input = fixture.image.inputStream()
+                    )
+                val message = group.createUserMessageWithImages(
+                    sessionId = id,
+                    content = "Original image caption",
+                    images = listOf(MessageImageInput.Prepared(avatar)),
+                    speakerNameSnapshot = "User",
+                )
+                group.saveSummary(id, "Previously stored memory", message.key.messageId)
+
+                val launchIntent = Intent(fixture.context, GroupChatActivity::class.java)
+                    .putExtra(GroupChatActivity.EXTRA_SESSION_ID, id.toString())
+                ActivityScenario.launch<GroupChatActivity>(launchIntent).use { scenario ->
+                    lateinit var vm: GroupChatViewModel
+                    scenario.onActivity {
+                        vm = ViewModelProvider(it)[GroupChatViewModel::class.java]
+                    }
+                    await { vm.uiStateFlow.value is GroupChatUiState.Normal }
+                    vm.emit(GroupChatUiIntent.SendMessage)
+                    await { fixture.server.requests.isNotEmpty() }
+                    val request = fixture.server.requests.first()
+                    assertTrue("Original image caption" in request)
+                    assertTrue("data:image/" in request)
+                    await {
+                        group.getMessageCount(id) == 3 &&
+                            (vm.uiStateFlow.value as? GroupChatUiState.Normal)
+                                ?.conversationState?.generationState == GroupChatGenerationState.Idle
+                    }
+                }
+            } finally {
+                group.deleteSession(id)
+            }
+        }
     }
 
     private suspend fun verifyGroupImageFlow(protocol: LLMProviderProtocol) {
@@ -1066,7 +1119,15 @@ class ImageConversationFlowTest {
             AppModel.autoSummaryEnabled = false
             AppModel.maxPromptHistoryMessages = 100
             AppModel.imageSendSettings = ImageSendSettings().encode()
-            block(Fixture(context = context, db = db, characters = characters, server = server))
+            block(
+                Fixture(
+                    context = context,
+                    db = db,
+                    characters = characters,
+                    server = server,
+                    image = image
+                )
+            )
         } finally {
             instrumentation.removeMonitor(pickerMonitor)
             AppModel.currentLLMProvider = old[0] as Long
@@ -1084,7 +1145,7 @@ class ImageConversationFlowTest {
 
     private data class Fixture(
         val context: Context, val db: AppDatabase,
-        val characters: List<Long>, val server: LocalModelServer
+        val characters: List<Long>, val server: LocalModelServer, val image: File,
     )
 
     /** 只监听设备回环地址，返回固定文本并记录合成测试请求。 */

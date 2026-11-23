@@ -426,6 +426,7 @@ private fun PickerEmptyText(text: String) {
 @Preview(name = "CharacterPicker - Multiple", widthDp = 390, heightDp = 844, showBackground = true)
 @Composable
 private fun CharacterPickerMultiplePreview() {
+    // 多选预览使用已有勾选项，以检查所选数量和确认入口的空间。
     AppTheme(dynamicColor = false) {
         CharacterPickerDialog(
             title = "Select members",

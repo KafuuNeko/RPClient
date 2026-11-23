@@ -81,6 +81,10 @@ class CharacterListActivity : CoreActivityWithEvent() {
         )
     }
 
+    /**
+     * 恢复尚未交付系统结果的导出目标，再加载角色列表。
+     * @param savedInstanceState 上次创建文档时冻结的导出目标。
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // 系统可能重建进程，必须在启动阶段的结果回调之前恢复导出目标。

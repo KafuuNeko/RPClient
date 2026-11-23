@@ -2,6 +2,10 @@ package me.kafuuneko.rpclient.libs.character
 
 import com.google.gson.JsonParser
 import java.io.ByteArrayOutputStream
+import java.io.DataInputStream
+import java.io.DataOutputStream
+import java.io.InputStream
+import java.io.OutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.Base64
@@ -14,7 +18,11 @@ import java.util.zip.CRC32
  * 从而在不重新编码图片像素的情况下兼容 chara 与 ccv3 读取方。
  */
 object CharacterCardPngCodec {
-    private val PngSignature = byteArrayOf(
+    private const val TEXT_CHUNK = 0x74455874
+    private const val END_CHUNK = 0x49454e44
+    private const val MAX_TEXT_KEYWORD_PREFIX = 80
+    private val mCardKeywords = setOf("chara", "ccv3")
+    private val mPngSignature = byteArrayOf(
         0x89.toByte(),
         0x50,
         0x4E,
@@ -29,12 +37,11 @@ object CharacterCardPngCodec {
      * 从 PNG tEXt chunk 中读取角色卡 JSON。
      *
      * 新格式优先读取 ccv3，兼容读取 SillyTavern 常见的 chara 字段。
+     * @param bytes 原始 PNG。
+     * @return 角色卡 JSON。
      */
     fun readCharacterJson(bytes: ByteArray): String {
-        val chunks = readChunks(bytes)
-        val textChunks = chunks
-            .filter { it.name == "tEXt" }
-            .mapNotNull { it.decodeTextChunk() }
+        val textChunks = readTextChunks(bytes)
         val ccv3 = textChunks.firstOrNull { it.keyword.equals(other = "ccv3", ignoreCase = true) }
         if (ccv3 != null) return decodeBase64Text(ccv3.text)
         val chara = textChunks.firstOrNull { it.keyword.equals(other = "chara", ignoreCase = true) }
@@ -43,22 +50,72 @@ object CharacterCardPngCodec {
     }
 
     /**
-     * 写入 PNG 角色卡元数据。
-     *
-     * 同时写入 chara 与 ccv3，方便旧工具和新工具都能识别。
+     * 在内存中的 PNG 夹具或小图像上写入角色卡元数据。
+     * @param bytes 原始 PNG。
+     * @param json 最新角色卡 JSON。
+     * @return 保留原图且包含新元数据的 PNG。
      */
-    fun writeCharacterJson(bytes: ByteArray, json: String): ByteArray {
-        // 删除旧元数据后再嵌入最新快照，防止旧版与新版读取方看到不同角色内容。
-        val chunks = readChunks(bytes)
-            .filterNot { chunk ->
-                chunk.name == "tEXt" && chunk.decodeTextChunk()?.keyword?.lowercase() in setOf(
-                    "chara",
-                    "ccv3"
-                )
+    fun writeCharacterJson(bytes: ByteArray, json: String): ByteArray =
+        ByteArrayOutputStream().use { output ->
+            writeCharacterJson(input = bytes.inputStream(), output = output, json = json)
+            output.toByteArray()
+        }
+
+    /**
+     * 逐块重写角色元数据，图片数据始终通过固定大小缓冲区复制。
+     * @param input 原始 PNG 输入流，由调用方关闭。
+     * @param output PNG 输出流，由调用方负责缓冲与关闭。
+     * @param json 最新角色卡 JSON。
+     * @param checkActive 每次复制前调用，用于响应导出取消。
+     */
+    internal fun writeCharacterJson(
+        input: InputStream,
+        output: OutputStream,
+        json: String,
+        checkActive: () -> Unit = {},
+    ) {
+        val source = DataInputStream(input)
+        val target = DataOutputStream(output)
+        val signature = ByteArray(mPngSignature.size).also { source.readFully(it) }
+        require(isPng(signature)) { "Invalid PNG signature" }
+        target.write(signature)
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        val prefix = ByteArray(MAX_TEXT_KEYWORD_PREFIX)
+
+        // 只查看文本块的关键词，像素和其他元数据沿用原有顺序。
+        while (true) {
+            checkActive()
+            val length = source.readInt()
+            require(length >= 0) { "Invalid PNG chunk length" }
+            val type = source.readInt()
+            val prefixLength = if (type == TEXT_CHUNK) minOf(length, prefix.size) else 0
+            source.readFully(prefix, 0, prefixLength)
+            val replace = isCardText(prefix, prefixLength)
+            if (type == END_CHUNK) writeMetadata(target, json)
+
+            // 保留块沿用原 CRC。旧角色信息连同其 CRC 一起跳过。
+            if (!replace) {
+                target.writeInt(length)
+                target.writeInt(type)
+                target.write(prefix, 0, prefixLength)
             }
-            .toMutableList()
-        val insertIndex = chunks.indexOfLast { it.name == "IEND" }.takeIf { it >= 0 } ?: chunks.size
-        chunks.add(insertIndex, textChunk("chara", encodeBase64Text(json)))
+            var remaining = length - prefixLength
+            while (remaining > 0) {
+                checkActive()
+                val count = minOf(remaining, buffer.size)
+                source.readFully(buffer, 0, count)
+                if (!replace) target.write(buffer, 0, count)
+                remaining -= count
+            }
+            val checksum = source.readInt()
+            if (!replace) target.writeInt(checksum)
+            if (type == END_CHUNK) return
+        }
+    }
+
+    /** 双格式使用同一份最新角色数据，便于不同版本的读取方识别。 */
+    private fun writeMetadata(output: DataOutputStream, json: String) {
+        writeTextChunk(output, "chara", encodeBase64Text(json))
         val ccv3Json = runCatching {
             val v3 = JsonParser.parseString(json).asJsonObject.apply {
                 addProperty("spec", "chara_card_v3")
@@ -67,62 +124,71 @@ object CharacterCardPngCodec {
             v3.toString()
         }.getOrNull()
         if (ccv3Json != null) {
-            chunks.add(insertIndex + 1, textChunk("ccv3", encodeBase64Text(ccv3Json)))
+            writeTextChunk(output, "ccv3", encodeBase64Text(ccv3Json))
         }
-        return writeChunks(chunks)
     }
 
-    /** 判断字节数组是否具有完整 PNG 文件签名。 */
+    /**
+     * 判断字节数组是否具有完整 PNG 文件签名。
+     * @param bytes 至少包含签名长度的候选字节。
+     * @return 字节以 PNG 签名开头时为 true。
+     */
     fun isPng(bytes: ByteArray): Boolean {
-        return bytes.size >= PngSignature.size && PngSignature.indices.all { bytes[it] == PngSignature[it] }
+        return bytes.size >= mPngSignature.size && mPngSignature.indices.all { bytes[it] == mPngSignature[it] }
     }
 
-    private fun readChunks(bytes: ByteArray): List<PngChunk> {
+    /** 跳过 PNG 像素块，避免读取角色信息时复制整张图片。 */
+    private fun readTextChunks(bytes: ByteArray): List<PngTextChunk> {
         require(isPng(bytes)) { "Invalid PNG signature" }
-        val chunks = mutableListOf<PngChunk>()
-        var index = PngSignature.size
+        val chunks = mutableListOf<PngTextChunk>()
+        var index = mPngSignature.size
+        // 长度和类型只占固定空间，根据剩余字节判断当前块是否完整。
         while (index + 8 <= bytes.size) {
-            val length = ByteBuffer.wrap(bytes, index, 4).order(ByteOrder.BIG_ENDIAN).int
-            index += 4
-            val name = bytes.copyOfRange(index, index + 4).toString(Charsets.ISO_8859_1)
-            index += 4
-            require(length >= 0 && index + length + 4 <= bytes.size) { "Invalid PNG chunk length" }
-            val data = bytes.copyOfRange(index, index + length)
+            val header = ByteBuffer.wrap(bytes, index, 8).order(ByteOrder.BIG_ENDIAN)
+            val length = header.int
+            val type = header.int
+            index += 8
+            require(length in 0..(bytes.size - index - 4)) { "Invalid PNG chunk length" }
+            if (type == TEXT_CHUNK) {
+                bytes.copyOfRange(index, index + length).decodeTextChunk()?.let(chunks::add)
+            }
             index += length + 4
-            chunks += PngChunk(name, data)
-            if (name == "IEND") break
+            if (type == END_CHUNK) break
         }
         return chunks
     }
 
-    private fun writeChunks(chunks: List<PngChunk>): ByteArray {
-        val output = ByteArrayOutputStream()
-        output.write(PngSignature)
-        chunks.forEach { chunk ->
-            output.write(intBytes(chunk.data.size))
-            val nameBytes = chunk.name.toByteArray(Charsets.ISO_8859_1)
-            output.write(nameBytes)
-            output.write(chunk.data)
-            output.write(intBytes(crc(nameBytes, chunk.data).toInt()))
-        }
-        return output.toByteArray()
+    /** PNG 文本关键词最多 79 字节，分隔符一定能在已读前缀中找到。 */
+    private fun isCardText(prefix: ByteArray, length: Int): Boolean {
+        val separator = prefix.indexOf(0)
+        if (separator !in 1 until length) return false
+        return String(prefix, 0, separator, Charsets.ISO_8859_1).lowercase() in mCardKeywords
     }
 
-    private fun textChunk(keyword: String, text: String): PngChunk {
-        return PngChunk(
-            name = "tEXt",
-            data = keyword.toByteArray(Charsets.ISO_8859_1) + byteArrayOf(0) + text.toByteArray(
-                Charsets.ISO_8859_1
-            ),
-        )
+    /** 校验和覆盖块类型、关键词及 Base64 内容。 */
+    private fun writeTextChunk(output: DataOutputStream, keyword: String, text: String) {
+        val header = "tEXt".toByteArray(Charsets.ISO_8859_1)
+        val name = keyword.toByteArray(Charsets.ISO_8859_1)
+        val encoded = text.toByteArray(Charsets.ISO_8859_1)
+        val crc = CRC32()
+        crc.update(header)
+        crc.update(name)
+        crc.update(0)
+        crc.update(encoded)
+        output.writeInt(name.size + 1 + encoded.size)
+        output.write(header)
+        output.write(name)
+        output.writeByte(0)
+        output.write(encoded)
+        output.writeInt(crc.value.toInt())
     }
 
-    private fun PngChunk.decodeTextChunk(): PngTextChunk? {
-        val separator = data.indexOf(0)
+    private fun ByteArray.decodeTextChunk(): PngTextChunk? {
+        val separator = indexOf(0)
         if (separator <= 0) return null
         val keyword =
-            data.copyOfRange(fromIndex = 0, toIndex = separator).toString(Charsets.ISO_8859_1)
-        val text = data.copyOfRange(separator + 1, data.size).toString(Charsets.ISO_8859_1)
+            String(this, 0, separator, Charsets.ISO_8859_1)
+        val text = String(this, separator + 1, size - separator - 1, Charsets.ISO_8859_1)
         return PngTextChunk(keyword, text)
     }
 
@@ -135,22 +201,6 @@ object CharacterCardPngCodec {
             .decode(text)
             .toString(Charsets.UTF_8)
     }
-
-    private fun intBytes(value: Int): ByteArray {
-        return ByteBuffer.allocate(4)
-            .order(ByteOrder.BIG_ENDIAN)
-            .putInt(value)
-            .array()
-    }
-
-    private fun crc(name: ByteArray, data: ByteArray): Long {
-        val crc = CRC32()
-        crc.update(name)
-        crc.update(data)
-        return crc.value
-    }
-
-    private data class PngChunk(val name: String, val data: ByteArray)
 
     private data class PngTextChunk(val keyword: String, val text: String)
 }

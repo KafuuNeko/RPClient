@@ -11,6 +11,11 @@ import okhttp3.OkHttpClient
 class LLMModelCatalogClientFactory(
     private val mOkHttpClient: OkHttpClient
 ) {
+    /**
+     * 为指定模型配置匹配目录端点及认证方式。
+     * @param provider 用户选定的服务地址、协议和认证配置。
+     * @return 可查询该服务模型目录的客户端。
+     */
     fun create(provider: LLMProviderConfig): LLMModelCatalogClient {
         return when (provider.protocol) {
             LLMProviderProtocol.OpenAICompatible,

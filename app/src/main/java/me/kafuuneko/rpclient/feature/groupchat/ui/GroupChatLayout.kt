@@ -113,9 +113,7 @@ private fun DialogSwitch(
         )
 
         is GroupChatDialogState.AddMembers -> GroupAddMembersDialog(
-            totalCandidateCount = state.settingsState.availableCharacters.count { character ->
-                !character.alreadyMember
-            },
+            totalCandidateCount = state.settingsState.addableCharacterCount,
             dialogState = dialogState,
             emitIntent = emitIntent,
         )

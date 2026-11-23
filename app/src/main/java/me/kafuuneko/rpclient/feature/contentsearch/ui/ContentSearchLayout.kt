@@ -944,6 +944,7 @@ private fun previewResultsState(): ContentSearchUiState.Normal = ContentSearchUi
     inputState = ContentSearchInputState(draft = "rain", submitted = "rain"),
     scopeState = ContentSearchScopeState(kind = SearchKind.All, scope = SearchScope.All),
     indexState = SearchIndexState.Ready,
+    // 单聊与故事命中使用不同的来源标记，预览同时验证两种布局。
     resultState = ContentSearchResultState.Complete(
         items = listOf(
             SearchHit(

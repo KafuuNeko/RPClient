@@ -1479,6 +1479,8 @@
     <string name="world_book_selection_empty">Sin entradas del libro del mundo activadas</string>
     <string name="world_book_selection_summary_subtitle">%1$d de %2$d libros del mundo activos</string>
     <string name="world_book_selection_tap_to_choose">Toca para explorar o buscar entre %1$d libros del mundo</string>
+    <string name="world_book_summary_group_count">%1$s (%2$d/%3$d)</string>
+    <string name="world_book_summary_more_count">+%1$d</string>
     <string name="group_chat_members_empty_title">Sin miembros seleccionados</string>
     <string name="group_chat_members_empty_subtitle">Elige al menos 2 de %1$d personajes</string>
     <string name="group_chat_select_members_title">Seleccionar miembros</string>

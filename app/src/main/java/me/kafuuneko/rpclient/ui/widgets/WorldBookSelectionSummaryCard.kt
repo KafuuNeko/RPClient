@@ -116,10 +116,22 @@ fun WorldBookSelectionSummaryCard(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     selectedGroups.take(MAX_PREVIEW_WORLD_BOOKS).forEach { group ->
-                        RpTagPill(text = "${group.name} (${group.selectedCount}/${group.totalCount})")
+                        RpTagPill(
+                            text = stringResource(
+                                R.string.world_book_summary_group_count,
+                                group.name,
+                                group.selectedCount,
+                                group.totalCount,
+                            ),
+                        )
                     }
                     if (overflowCount > 0) {
-                        RpMetaPill(text = "+$overflowCount")
+                        RpMetaPill(
+                            text = stringResource(
+                                R.string.world_book_summary_more_count,
+                                overflowCount
+                            ),
+                        )
                     }
                 }
             }

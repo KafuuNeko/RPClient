@@ -17,7 +17,7 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
 import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 import me.kafuuneko.rpclient.model.toMessageContentParts
-import me.kafuuneko.rpclient.model.SummaryEditorState
+import me.kafuuneko.rpclient.model.SummaryEditorUiState
 import me.kafuuneko.rpclient.ui.theme.DefaultCharacterAccentColor
 import me.kafuuneko.rpclient.utils.formatTimestamp
 
@@ -57,7 +57,7 @@ fun ChatSession.toChatSessionItem(
  */
 internal fun ChatSessionItem.toChatSettingsState(
     inheritedCreatorNotes: String,
-    summary: SummaryEditorState,
+    summary: SummaryEditorUiState,
 ): ChatSettingsState {
     // 原始覆盖与默认正文分开保留，清空覆盖后继续跟随角色卡变化。
     return ChatSettingsState(

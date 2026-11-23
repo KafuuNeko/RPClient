@@ -500,6 +500,7 @@ private fun FirstMessageOption(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
+    // 整张开场白卡片接收选择操作，长文本仍可在原位置对比。
     AppCard(
         modifier = Modifier
             .fillMaxWidth()

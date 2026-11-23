@@ -122,8 +122,20 @@ class FileRepository(
     private val mActiveDrafts get() = mState.activeDrafts
     private val mLeases get() = mState.leases
 
-    /** 将系统选择结果流式复制到草稿；无法读取时不泄露 URI。 */
-    suspend fun prepareFile(ownerId: String, uri: Uri, mimeType: String? = null): PreparedFile {
+    /**
+     * 将系统选择结果流式复制到草稿；无法读取时不泄露 URI。
+     * @param ownerId 草稿的业务所有者。
+     * @param uri 用户选择的文件。
+     * @param mimeType 调用方已识别的类型，未指定时由系统提供。
+     * @param maxBytes 业务入口允许的最大文件字节数。
+     * @return 已写入磁盘、尚未发布索引的文件凭据。
+     */
+    suspend fun prepareFile(
+        ownerId: String,
+        uri: Uri,
+        mimeType: String? = null,
+        maxBytes: Long = MessageImagePolicy.MAX_ORIGINAL_BYTES,
+    ): PreparedFile {
         // 持有已完成结果，覆盖切回调用方调度器时被取消的窗口。
         var completed: PreparedFile? = null
         try {
@@ -142,6 +154,7 @@ class FileRepository(
                                     ownerId = ownerId,
                                     input = input,
                                     mimeType = mimeType ?: mContext.contentResolver.getType(uri),
+                                    maxBytes = maxBytes,
                                 ).also { prepared -> completed = prepared }
                             }
                         }
@@ -659,10 +672,12 @@ class FileRepository(
         val width = sourceWidth.toLong()
         val height = sourceHeight.toLong()
         var sampleSize = 1L
+        // 按长边约束采样，避免细长图片因短边已达标而完整解码。
         while (
-            sampleSize <= Int.MAX_VALUE / 2L
-            && width / (sampleSize * 2L) >= requestedWidth.toLong()
-            && height / (sampleSize * 2L) >= requestedHeight.toLong()
+            sampleSize <= Int.MAX_VALUE / 2L && (
+                width / (sampleSize * 2L) >= requestedWidth.toLong()
+                    || height / (sampleSize * 2L) >= requestedHeight.toLong()
+                )
         ) {
             sampleSize *= 2L
         }

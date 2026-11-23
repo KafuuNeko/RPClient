@@ -1469,6 +1469,8 @@ Gagal: %2$d</string>
     <string name="world_book_selection_empty">Tidak ada entri buku dunia yang aktif</string>
     <string name="world_book_selection_summary_subtitle">%1$d dari %2$d buku dunia aktif</string>
     <string name="world_book_selection_tap_to_choose">Ketuk untuk menelusuri atau mencari %1$d buku dunia</string>
+    <string name="world_book_summary_group_count">%1$s (%2$d/%3$d)</string>
+    <string name="world_book_summary_more_count">+%1$d</string>
     <string name="group_chat_members_empty_title">Belum ada anggota dipilih</string>
     <string name="group_chat_members_empty_subtitle">Pilih minimal 2 dari %1$d karakter</string>
     <string name="group_chat_select_members_title">Pilih anggota</string>

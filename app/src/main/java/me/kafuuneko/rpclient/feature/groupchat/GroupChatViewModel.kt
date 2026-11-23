@@ -140,6 +140,7 @@ import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.model.ChatWritingState
 import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 import me.kafuuneko.rpclient.model.SummaryEditorState
+import me.kafuuneko.rpclient.model.toUiState
 import me.kafuuneko.rpclient.model.toMessageContentParts
 import me.kafuuneko.rpclient.utils.MessageEditPolicy
 import me.kafuuneko.rpclient.utils.formatTimestamp
@@ -383,6 +384,15 @@ class GroupChatViewModel :
     /** 分页消息执行 Display Regex 所需的不含消息正文的群聊聚合快照。 */
     private var mMessageDisplayContext: GroupChatData? = null
 
+    /** 摘要历史、原始输入和保存基线由页面任务持有。 */
+    private var mSummaryEditor = SummaryEditorState()
+
+    /** 加载结果在主线程统一更新页面和编辑基线。 */
+    private data class LoadedGroupChat(
+        val state: GroupChatUiState.Normal,
+        val summaryEditor: SummaryEditorState,
+    )
+
     /**
      * 校验会话参数并进入独立加载态，首次读取完成后发布正常页面。
      *
@@ -402,15 +412,16 @@ class GroupChatViewModel :
         // 首次读取独立运行，让加载页面可以响应返回并取消任务。
         GroupChatUiState.Loading.setup()
         mInitialLoadJob = viewModelScope.launch {
-            val state = withContext(Dispatchers.IO) {
+            val loaded = withContext(Dispatchers.IO) {
                 loadState(sessionId = sessionId, inputDraft = "")
             }
-            if (state == null) {
+            if (loaded == null) {
                 finishWithToast(R.string.group_chat_not_found)
                 return@launch
             }
             // 完整聚合状态准备好后再开放会话交互。
-            state.setup()
+            mSummaryEditor = loaded.summaryEditor
+            loaded.state.setup()
         }
     }
 
@@ -617,7 +628,10 @@ class GroupChatViewModel :
         ).setup()
     }
 
-    /** 更新群聊快捷管理对话框中的世界书搜索词与过滤结果。 */
+    /**
+     * 更新群聊快捷管理对话框中的世界书搜索词与过滤结果。
+     * @param intent 用于过滤会话世界书名称、关键词或正文的搜索词。
+     */
     @UiIntentObserver(GroupChatUiIntent.ChangeSessionLorebookDialogQuery::class)
     private fun onChangeSessionLorebookDialogQuery(
         intent: GroupChatUiIntent.ChangeSessionLorebookDialogQuery,
@@ -635,7 +649,10 @@ class GroupChatViewModel :
         ).setup()
     }
 
-    /** 切换群聊世界书选择器弹窗中的“仅看已启用”筛选状态。 */
+    /**
+     * 切换群聊世界书选择器弹窗中的“仅看已启用”筛选状态。
+     * @param intent 是否只显示当前会话已勾选的条目。
+     */
     @UiIntentObserver(GroupChatUiIntent.ToggleSessionLorebookDialogSelectedOnly::class)
     private fun onToggleSessionLorebookDialogSelectedOnly(
         intent: GroupChatUiIntent.ToggleSessionLorebookDialogSelectedOnly,
@@ -653,7 +670,10 @@ class GroupChatViewModel :
         ).setup()
     }
 
-    /** 切换群聊快捷管理对话框草稿中的单个条目。 */
+    /**
+     * 切换群聊快捷管理对话框草稿中的单个条目。
+     * @param intent 待切换的会话世界书条目 ID。
+     */
     @UiIntentObserver(GroupChatUiIntent.ToggleSessionLorebookDialogEntry::class)
     private fun onToggleSessionLorebookDialogEntry(
         intent: GroupChatUiIntent.ToggleSessionLorebookDialogEntry,
@@ -681,7 +701,10 @@ class GroupChatViewModel :
         ).setup()
     }
 
-    /** 切换群聊快捷管理对话框草稿中的整个世界书分组。 */
+    /**
+     * 切换群聊快捷管理对话框草稿中的整个世界书分组。
+     * @param intent 待整本切换的会话世界书 ID。
+     */
     @UiIntentObserver(GroupChatUiIntent.ToggleSessionLorebookDialogGroup::class)
     private fun onToggleSessionLorebookDialogGroup(
         intent: GroupChatUiIntent.ToggleSessionLorebookDialogGroup,
@@ -730,7 +753,10 @@ class GroupChatViewModel :
         mAddMembersAvatarLoader.registerCharacters(mAvailableCharacterAvatarUuids)
     }
 
-    /** 根据添加成员弹窗当前可见窗口按需加载候选角色头像缩略图。 */
+    /**
+     * 根据添加成员弹窗当前可见窗口按需加载候选角色头像缩略图。
+     * @param intent 成员选择器当前可见角色及头像显示尺寸。
+     */
     @UiIntentObserver(GroupChatUiIntent.VisibleAddMemberCharactersChanged::class)
     private fun onVisibleAddMemberCharactersChanged(
         intent: GroupChatUiIntent.VisibleAddMemberCharactersChanged,
@@ -743,7 +769,10 @@ class GroupChatViewModel :
         )
     }
 
-    /** 在添加成员选择器弹窗内后台筛选可添加角色。 */
+    /**
+     * 在添加成员选择器弹窗内后台筛选可添加角色。
+     * @param intent 用于筛选可添加成员的搜索词。
+     */
     @UiIntentObserver(GroupChatUiIntent.ChangeAddMembersQuery::class)
     private fun onChangeAddMembersQuery(intent: GroupChatUiIntent.ChangeAddMembersQuery) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
@@ -784,7 +813,10 @@ class GroupChatViewModel :
         }
     }
 
-    /** 切换添加成员选择器弹窗中的“仅看已选”筛选状态。 */
+    /**
+     * 切换添加成员选择器弹窗中的“仅看已选”筛选状态。
+     * @param intent 是否只显示待添加的成员。
+     */
     @UiIntentObserver(GroupChatUiIntent.ToggleAddMembersSelectedOnly::class)
     private fun onToggleAddMembersSelectedOnly(
         intent: GroupChatUiIntent.ToggleAddMembersSelectedOnly,
@@ -812,7 +844,10 @@ class GroupChatViewModel :
         ).setup()
     }
 
-    /** 切换添加成员选择器草稿中单个角色的待添加状态。 */
+    /**
+     * 切换添加成员选择器草稿中单个角色的待添加状态。
+     * @param intent 在添加成员草稿中切换的角色 ID。
+     */
     @UiIntentObserver(GroupChatUiIntent.ToggleAddMemberSelection::class)
     private fun onToggleAddMemberSelection(intent: GroupChatUiIntent.ToggleAddMemberSelection) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
@@ -895,7 +930,10 @@ class GroupChatViewModel :
         ).setup()
     }
 
-    /** 更新添加世界书弹窗中的搜索词并按未启用候选池过滤分组与条目。 */
+    /**
+     * 更新添加世界书弹窗中的搜索词并按未启用候选池过滤分组与条目。
+     * @param intent 用于过滤未启用世界书候选项的搜索词。
+     */
     @UiIntentObserver(GroupChatUiIntent.ChangeAddLorebooksQuery::class)
     private fun onChangeAddLorebooksQuery(intent: GroupChatUiIntent.ChangeAddLorebooksQuery) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
@@ -911,7 +949,10 @@ class GroupChatViewModel :
         ).setup()
     }
 
-    /** 切换添加世界书弹窗中的“仅看已选”筛选状态。 */
+    /**
+     * 切换添加世界书弹窗中的“仅看已选”筛选状态。
+     * @param intent 是否只显示弹窗内待添加的条目。
+     */
     @UiIntentObserver(GroupChatUiIntent.ToggleAddLorebooksSelectedOnly::class)
     private fun onToggleAddLorebooksSelectedOnly(
         intent: GroupChatUiIntent.ToggleAddLorebooksSelectedOnly,
@@ -929,7 +970,10 @@ class GroupChatViewModel :
         ).setup()
     }
 
-    /** 批量切换添加世界书弹窗中某本候选世界书下全部条目的待添加状态。 */
+    /**
+     * 批量切换添加世界书弹窗中某本候选世界书下全部条目的待添加状态。
+     * @param intent 待批量选中或取消选择的世界书 ID。
+     */
     @UiIntentObserver(GroupChatUiIntent.ToggleAddLorebooksGroup::class)
     private fun onToggleAddLorebooksGroup(intent: GroupChatUiIntent.ToggleAddLorebooksGroup) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
@@ -957,7 +1001,10 @@ class GroupChatViewModel :
         ).setup()
     }
 
-    /** 切换添加世界书弹窗中单个候选条目的待添加状态。 */
+    /**
+     * 切换添加世界书弹窗中单个候选条目的待添加状态。
+     * @param intent 待添加或从弹窗草稿移除的条目 ID。
+     */
     @UiIntentObserver(GroupChatUiIntent.ToggleAddLorebooksEntry::class)
     private fun onToggleAddLorebooksEntry(intent: GroupChatUiIntent.ToggleAddLorebooksEntry) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
@@ -1597,14 +1644,18 @@ class GroupChatViewModel :
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (uiState.page != GroupChatPage.Settings || uiState.dialogState.isBlocking()) return
         if (mGenerationJob?.isCompleted == false) return
-        val editor = uiState.settingsState.summary
+        val editor = mSummaryEditor
         // 恢复内存版本时无需查询；更早的已保存历史按需读取。
         val restored = editor.restoreLocal() ?: editor.current.historyCursor?.let { cursor ->
             withContext(Dispatchers.IO) {
                 mGroupChatRepository.getPreviousSummary(uiState.sessionId, cursor)
             }?.let(editor::restorePersisted)
         }
-        if (restored != null) updateSettingsState { copy(summary = restored) }
+        if (restored != null) {
+            val current = getOrNull<GroupChatUiState.Normal>() ?: return
+            if (current.page != GroupChatPage.Settings || current.dialogState.isBlocking()) return
+            publishSummaryEditor(current, restored)
+        }
         AppViewEvent.PopupToastMessageByResId(
             message = if (restored != null) R.string.summary_restored else R.string.no_previous_summary,
         ).tryEmit()
@@ -1684,7 +1735,9 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.ChangeSummary::class)
     private fun onChangeSummary(intent: GroupChatUiIntent.ChangeSummary) {
         if (!isStateOf<GroupChatUiState.Normal>()) return
-        updateSettingsState { copy(summary = summary.copy(text = intent.value)) }
+        val state = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (state.page != GroupChatPage.Settings || state.dialogState.isBlocking()) return
+        publishSummaryEditor(state, mSummaryEditor.copy(text = intent.value))
     }
 
     /**
@@ -1849,13 +1902,14 @@ class GroupChatViewModel :
      */
     private suspend fun saveSettingsDraft(state: GroupChatUiState.Normal): Boolean {
         val settings = state.settingsState
+        val summary = mSummaryEditor.toCommit()
         state.copy(dialogState = GroupChatDialogState.Saving).setup()
         return try {
             // 在同一事务中应用表单，避免部分设置已经生效时启动生成。
             withContext(Dispatchers.IO) {
                 mGroupChatRepository.saveSettings(
                     sessionId = state.sessionId,
-                    summary = settings.summary.toCommit(),
+                    summary = summary,
                 ) { session ->
                     settings.applyToSession(session)
                 }
@@ -2777,6 +2831,11 @@ class GroupChatViewModel :
         userWritingDraft: String? = null,
         contextMember: (List<GroupChatMemberData>) -> GroupChatMemberData,
     ): PreparedGroupRequest = withContext(Dispatchers.IO) {
+        // 普通接话和续写依赖末条原始图文，即使没有新的触发消息。
+        val isReplyWithoutNewMessage = generationMode == GroupChatGenerationMode.Normal &&
+            triggerUserMessageId == null
+        val needsLatestMessage = generationMode == GroupChatGenerationMode.Continue ||
+            isReplyWithoutNewMessage
         // 加载群聊快照、模型提供商与世界书上下文
         val promptData = mGroupChatRepository.getGroupChatPromptData(
             batchPersona = persona,
@@ -2784,7 +2843,7 @@ class GroupChatViewModel :
             sessionId = sessionId,
             maxHistoryMessages = AppModel.maxPromptHistoryMessages.coerceAtLeast(0),
             protectedUserMessageId = triggerUserMessageId,
-            keepLatestMessage = generationMode == GroupChatGenerationMode.Continue,
+            keepLatestMessage = needsLatestMessage,
         ) ?: error("Group chat no longer exists")
         val data = promptData.data
         val speaker = contextMember(data.members)
@@ -2976,6 +3035,8 @@ class GroupChatViewModel :
                 if (current.page != GroupChatPage.Settings) return
                 current.settingsState
             } else null
+            val summaryEditor = mSummaryEditor.takeIf { manual }
+            val draft = summaryEditor?.toGenerationContext()
             // 同一请求固定摘要模式；Raw 读取最早增量，Classic 读取近期上下文。
             val summaryMode = SummaryMode.fromPersistedValue(AppModel.summaryMode)
             val provider = withContext(Dispatchers.IO) {
@@ -2999,7 +3060,7 @@ class GroupChatViewModel :
                     maxCandidateMessages = initialWindowSize,
                     mode = summaryMode,
                     manual = manual,
-                    draft = settings?.summary?.toGenerationContext(),
+                    draft = draft,
                     editSession = { settings?.applyToSession(it) ?: it },
                 )
             } ?: return
@@ -3024,6 +3085,7 @@ class GroupChatViewModel :
                 mode = summaryMode,
                 manual = manual,
                 settings = settings,
+                draft = draft,
             ) ?: return
             currentCoroutineContext().ensureActive()
             val summaryContent = generateSummaryContent(
@@ -3032,9 +3094,9 @@ class GroupChatViewModel :
                 request = prepared.request,
             ) ?: return
             currentCoroutineContext().ensureActive()
-            if (manual && settings != null) {
+            if (summaryEditor != null) {
                 // 只发布完整草稿，取消、失败或额度截断均不会追加回退版本。
-                val editor = settings.summary.generated(
+                val editor = summaryEditor.generated(
                     content = summaryContent,
                     coveredMessageId = prepared.coveredMessageId,
                     inputSnapshot = prepared.inputSnapshot,
@@ -3050,9 +3112,8 @@ class GroupChatViewModel :
                     }
                 }
                 currentCoroutineContext().ensureActive()
-                getOrNull<GroupChatUiState.Normal>()?.withSettingsDraft {
-                    copy(summary = editor)
-                }?.setup()
+                val current = getOrNull<GroupChatUiState.Normal>() ?: return
+                publishSummaryEditor(current, editor)
                 AppViewEvent.PopupToastMessageByResId(R.string.summary_updated).tryEmit()
             } else withContext(NonCancellable + Dispatchers.IO) {
                 // 自动摘要仍即时持久化，不创建设置页的内存版本。
@@ -3141,6 +3202,7 @@ class GroupChatViewModel :
      * @param mode 本轮固定的摘要历史策略。
      * @param manual 是否允许覆盖末条消息或重做当前摘要。
      * @param settings 手动操作捕获的表单草稿，自动摘要为空。
+     * @param draft 手动操作捕获的摘要草稿，在本轮内固定。
      * @return 可提交的摘要请求，没有稳定候选时返回 null。
      */
     private suspend fun prepareGroupSummaryRequest(
@@ -3152,7 +3214,8 @@ class GroupChatViewModel :
         templates: PromptTemplateSnapshot,
         mode: SummaryMode,
         manual: Boolean,
-        settings: GroupChatSettingsState? = null,
+        settings: GroupChatSettingsState?,
+        draft: SummaryDraftContext?,
     ): PreparedGroupSummaryRequest? {
         if (mode == SummaryMode.Classic) {
             return buildClassicGroupSummaryRequest(
@@ -3163,10 +3226,11 @@ class GroupChatViewModel :
                 templates = templates,
                 manual = manual,
                 settings = settings,
+                draft = draft,
             )
         }
         var generationData = initialData
-        var generationDraft = settings?.summary?.toGenerationContext()
+        var generationDraft = draft
         val replayBoundary = initialData.summaryToUpdate?.coveredMessageId
         val intermediateVersions = mutableListOf<SummaryDraftVersion>()
         // 完整重做可以跨多次请求，各次仍受原有条数和 Token 预算约束。
@@ -3320,6 +3384,7 @@ class GroupChatViewModel :
      * @param templates 本轮预设快照。
      * @param manual 是否允许覆盖末条消息或重做当前摘要。
      * @param settings 手动操作捕获的表单草稿。
+     * @param draft 与初次读取相同的摘要草稿。
      * @return 可以提交的摘要请求；缺少稳定消息或成员时返回 null。
      */
     private suspend fun buildClassicGroupSummaryRequest(
@@ -3329,7 +3394,8 @@ class GroupChatViewModel :
         windowSize: Int,
         templates: PromptTemplateSnapshot,
         manual: Boolean,
-        settings: GroupChatSettingsState? = null,
+        settings: GroupChatSettingsState?,
+        draft: SummaryDraftContext?,
     ): PreparedGroupSummaryRequest? {
         val data = generationData.data
         val boundaryIndex = if (manual) data.messages.lastIndex else data.messages.lastIndex - 1
@@ -3346,7 +3412,7 @@ class GroupChatViewModel :
                 maxCandidateMessages = windowSize,
                 mode = SummaryMode.Classic,
                 manual = manual,
-                draft = settings?.summary?.toGenerationContext(),
+                draft = draft,
                 editSession = { settings?.applyToSession(it) ?: it },
             ) == generationData
         ) { "Summary input changed, retry" }
@@ -3472,7 +3538,7 @@ class GroupChatViewModel :
         val sessionId = mSessionId ?: return
         val preserveImpersonation = generationState is GroupChatGenerationState.Impersonating &&
             generationState === getOrNull<GroupChatUiState.Normal>()?.conversationState?.generationState
-        val next = withContext(Dispatchers.IO) {
+        val loaded = withContext(Dispatchers.IO) {
             loadState(
                 sessionId = sessionId,
                 page = page,
@@ -3492,6 +3558,7 @@ class GroupChatViewModel :
         val current = currentState.conversationState
         // 后台恢复等读取可与代写增量并行，不能用读取前的快照覆盖正文或复活已结束的任务。
         if (generationState is GroupChatGenerationState.Impersonating && current.generationState !is GroupChatGenerationState.Impersonating) return
+        val next = loaded.state
         val conversation =
             if (preserveImpersonation) {
                 next.conversationState.copy(
@@ -3525,6 +3592,7 @@ class GroupChatViewModel :
                 savedSnapshot = draft.savedSnapshot,
             ).withRefreshedPersona(next.settingsState)
         } else {
+            mSummaryEditor = loaded.summaryEditor
             next.settingsState
         }
         next.copy(
@@ -3580,7 +3648,7 @@ class GroupChatViewModel :
      *
      * @param sessionId 群聊会话 ID
      * @param messageLimit 从会话末尾保留的消息窗口大小
-     * @return 组装好的 [GroupChatUiState.Normal]，若群聊不存在返回 null
+     * @return 群聊页面及摘要编辑基线，若群聊不存在返回 null。
      */
     private suspend fun loadState(
         sessionId: Long,
@@ -3593,7 +3661,7 @@ class GroupChatViewModel :
         editingMessageDraft: String = "",
         dialogState: GroupChatDialogState = GroupChatDialogState.None,
         messageLimit: Int = MESSAGE_PAGE_SIZE,
-    ): GroupChatUiState.Normal? {
+    ): LoadedGroupChat? {
         // 查询群聊会话、成员与最近消息窗口
         // 刷新时保留锚点两侧已经加载的数量，避免恢复页面丢失一侧的阅读窗口。
         val olderWindowSize = mSearchAnchorId?.let { anchor ->
@@ -3697,7 +3765,11 @@ class GroupChatViewModel :
                 mProviderSelectionResolver.getCharacterProviderOrNull(member.character) != null
             }
         // 构建并返回群聊完整 UI 状态
-        return GroupChatUiState.Normal(
+        val summaryEditor = SummaryEditorState(
+            saved = data.summary.toSummaryVersion(),
+            latestMessageId = pageData.latestMessageId,
+        )
+        val state = GroupChatUiState.Normal(
             imageState = mImageCoordinator.state,
             sessionId = sessionId,
             title = data.session.title,
@@ -3743,10 +3815,7 @@ class GroupChatViewModel :
                 trimOtherSpeakers = data.session.trimOtherSpeakers,
                 scenarioDraft = data.session.scenario,
                 userNoteDraft = data.session.userNote,
-                summary = SummaryEditorState(
-                    saved = data.summary.toSummaryVersion(),
-                    latestMessageId = pageData.latestMessageId
-                ),
+                summary = summaryEditor.toUiState(),
                 autoSummaryPaused = data.session.autoSummaryPaused,
                 systemPromptDraft = data.session.systemPromptOverride,
                 groupNudgePromptDraft = data.session.groupNudgePromptOverride,
@@ -3760,6 +3829,7 @@ class GroupChatViewModel :
             hasAvailableProvider = hasAvailableProvider,
             dialogState = dialogState,
         )
+        return LoadedGroupChat(state = state, summaryEditor = summaryEditor)
     }
 
     /**
@@ -3929,6 +3999,12 @@ class GroupChatViewModel :
         if (uiState.page != GroupChatPage.Settings) return
         if (uiState.dialogState.isBlocking()) return
         uiState.withSettingsDraft(transform).setup()
+    }
+
+    /** 同步私有摘要版本栈与设置页的渲染状态。 */
+    private fun publishSummaryEditor(state: GroupChatUiState.Normal, editor: SummaryEditorState) {
+        mSummaryEditor = editor
+        state.withSettingsDraft { copy(summary = editor.toUiState()) }.setup()
     }
 
     private companion object {

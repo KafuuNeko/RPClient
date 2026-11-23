@@ -196,6 +196,7 @@ private fun LLMProviderEditNormal(
             ),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            // 预设只在新建时展示，编辑已有配置直接进入字段表单。
             if (state.mode == LLMProviderEditMode.Create) {
                 item {
                     ProviderPresetsSection(
@@ -248,6 +249,7 @@ private fun ProviderPresetsSection(
             contentPadding = PaddingValues(horizontal = 2.dp),
         ) {
             items(ProviderPreset.entries) { preset ->
+                // Gemini 的两个预设共享服务商类型，需要用协议区分当前模板。
                 val isSelected = preset.providerType == selectedType
                     && (preset == ProviderPreset.Custom || (preset.protocol == selectedProtocol && preset.baseUrl == selectedBaseUrl))
                 FilterChip(
@@ -786,6 +788,7 @@ private fun CollapsibleAdvancedPanel(
                 )
             }
 
+            // 高级字段折叠时仍由表单保留草稿，重新展开使用当前值。
             AnimatedVisibility(
                 visible = isExpanded,
                 enter = expandVertically() + fadeIn(),

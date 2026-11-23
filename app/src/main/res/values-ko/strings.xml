@@ -1462,6 +1462,8 @@
     <string name="world_book_selection_empty">활성화된 월드북 항목 없음</string>
     <string name="world_book_selection_summary_subtitle">%1$d / %2$d개의 월드북 활성화됨</string>
     <string name="world_book_selection_tap_to_choose">총 %1$d개의 월드북을 둘러보거나 검색하세요</string>
+    <string name="world_book_summary_group_count">%1$s (%2$d/%3$d)</string>
+    <string name="world_book_summary_more_count">+%1$d</string>
     <string name="group_chat_members_empty_title">선택된 멤버 없음</string>
     <string name="group_chat_members_empty_subtitle">총 %1$d명 중 최소 2명을 선택하세요</string>
     <string name="group_chat_select_members_title">멤버 선택</string>

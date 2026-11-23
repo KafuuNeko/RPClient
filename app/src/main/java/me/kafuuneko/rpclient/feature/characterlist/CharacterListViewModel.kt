@@ -312,7 +312,10 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         requestExport(ids, isArchive = true)
     }
 
-    /** 串行导出所选角色；传输令牌只允许当前任务清理加载状态。 */
+    /**
+     * 串行导出所选角色；传输令牌只允许当前任务清理加载状态。
+     * @param intent 待导出的角色 ID、格式和系统文档地址。
+     */
     @UiIntentObserver(CharacterListUiIntent.ExportSelectedCharacters::class)
     private fun onExportSelectedCharacters(intent: CharacterListUiIntent.ExportSelectedCharacters) {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
@@ -624,7 +627,10 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         ).setup()
     }
 
-    /** 根据单张角色卡的头像配置选择直接导出或询问格式。 */
+    /**
+     * 根据单张角色卡的头像配置选择直接导出或询问格式。
+     * @param intent 用户选择导出的角色 ID。
+     */
     @UiIntentObserver(CharacterListUiIntent.ExportCharacterClick::class)
     private fun onExportCharacterClick(intent: CharacterListUiIntent.ExportCharacterClick) {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return
@@ -651,7 +657,10 @@ class CharacterListViewModel : CoreViewModelWithEvent<CharacterListUiIntent, Cha
         ).setup()
     }
 
-    /** 使用对话框冻结的目标打开文件创建器，避免搜索或刷新影响导出集合。 */
+    /**
+     * 使用对话框冻结的目标打开文件创建器，避免搜索或刷新影响导出集合。
+     * @param intent 用户确认的角色卡文件格式。
+     */
     @UiIntentObserver(CharacterListUiIntent.ChooseExportFormat::class)
     private fun onChooseExportFormat(intent: CharacterListUiIntent.ChooseExportFormat) {
         val uiState = getOrNull<CharacterListUiState.Normal>() ?: return

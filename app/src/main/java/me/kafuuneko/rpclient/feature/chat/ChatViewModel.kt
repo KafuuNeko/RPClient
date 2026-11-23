@@ -126,6 +126,7 @@ import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.model.ChatWritingState
 import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 import me.kafuuneko.rpclient.model.SummaryEditorState
+import me.kafuuneko.rpclient.model.toUiState
 import me.kafuuneko.rpclient.utils.MessageEditPolicy
 import me.kafuuneko.rpclient.utils.formatTimestamp
 import me.kafuuneko.rpclient.utils.takeIfNotBlank
@@ -328,6 +329,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     /** 分页消息执行 Display Regex 与 UI 映射所需的会话快照。 */
     private var mMessageDisplayContext: ChatMessageDisplayContext? = null
 
+    /** 摘要输入快照及版本栈只在 ViewModel 内持有。 */
+    private var mSummaryEditor = SummaryEditorState()
+
+    /** 页面和编辑基线在加载后一起发布。 */
+    private data class LoadedChat(
+        val state: ChatUiState.Normal,
+        val summaryEditor: SummaryEditorState,
+    )
+
     /**
      * 校验会话参数并进入独立加载态，首次读取完成后发布正常页面。
      *
@@ -360,7 +370,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 return@launch
             }
             // 完整会话状态准备好后再开放交互。
-            loaded.setup()
+            mSummaryEditor = loaded.summaryEditor
+            loaded.state.setup()
         }
     }
 
@@ -376,7 +387,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         if (mSummaryJob?.isActive == true || uiState.dialogState == ChatDialogState.Saving) return
         val sessionId = mSessionId ?: return
         // 异步从数据库重新加载最新的正常页面状态（保留当前页面的草稿与展开状态）
-        val refreshed = withContext(Dispatchers.IO) {
+        val loaded = withContext(Dispatchers.IO) {
             loadNormalState(
                 sessionId = sessionId,
                 inputDraft = uiState.conversationState.inputDraft,
@@ -393,18 +404,20 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             )
         }
         // 若会话已被删除，则取消任务并结束页面
-        if (refreshed == null) {
+        if (loaded == null) {
             mGenerationJob?.cancel()
             ChatUiState.finished(uiStateFlow.value).setup()
             return
         }
+        val refreshed = loaded.state
+        val current = getOrNull<ChatUiState.Normal>() ?: return
+        if (current.page != ChatPage.Settings) mSummaryEditor = loaded.summaryEditor
         // 结合当前导出任务状态更新弹窗状态并刷新 UI
         refreshed.copy(
             // 选择图片的回调可能在读取人设和会话期间完成，发布前取最新附件草稿。
             imageState = mImageCoordinator.state,
-            settingsState = if (uiState.page == ChatPage.Settings) {
-                (getOrNull<ChatUiState.Normal>()?.settingsState ?: uiState.settingsState)
-                    .withRefreshedPersona(refreshed.settingsState)
+            settingsState = if (current.page == ChatPage.Settings) {
+                current.settingsState.withRefreshedPersona(refreshed.settingsState)
             } else refreshed.settingsState,
             conversationState = refreshed.conversationState.copy(
                 inputDraft = getOrNull<ChatUiState.Normal>()?.conversationState?.inputDraft
@@ -1022,7 +1035,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         ).setup()
     }
 
-    /** 更新单聊快捷管理对话框中的世界书搜索词与过滤结果。 */
+    /**
+     * 更新单聊快捷管理对话框中的世界书搜索词与过滤结果。
+     * @param intent 用于过滤会话世界书名称、关键词或正文的搜索词。
+     */
     @UiIntentObserver(ChatUiIntent.ChangeSessionLorebookDialogQuery::class)
     private fun onChangeSessionLorebookDialogQuery(
         intent: ChatUiIntent.ChangeSessionLorebookDialogQuery,
@@ -1040,7 +1056,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         ).setup()
     }
 
-    /** 切换单聊快捷管理对话框中的“仅看已启用”筛选状态。 */
+    /**
+     * 切换单聊快捷管理对话框中的“仅看已启用”筛选状态。
+     * @param intent 是否只显示当前会话已勾选的条目。
+     */
     @UiIntentObserver(ChatUiIntent.ToggleSessionLorebookDialogSelectedOnly::class)
     private fun onToggleSessionLorebookDialogSelectedOnly(
         intent: ChatUiIntent.ToggleSessionLorebookDialogSelectedOnly,
@@ -1058,7 +1077,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         ).setup()
     }
 
-    /** 切换单聊快捷管理对话框草稿中的单个条目。 */
+    /**
+     * 切换单聊快捷管理对话框草稿中的单个条目。
+     * @param intent 待切换的会话世界书条目 ID。
+     */
     @UiIntentObserver(ChatUiIntent.ToggleSessionLorebookDialogEntry::class)
     private fun onToggleSessionLorebookDialogEntry(
         intent: ChatUiIntent.ToggleSessionLorebookDialogEntry,
@@ -1086,7 +1108,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         ).setup()
     }
 
-    /** 切换单聊快捷管理对话框草稿中的整个世界书分组。 */
+    /**
+     * 切换单聊快捷管理对话框草稿中的整个世界书分组。
+     * @param intent 待整本切换的会话世界书 ID。
+     */
     @UiIntentObserver(ChatUiIntent.ToggleSessionLorebookDialogGroup::class)
     private fun onToggleSessionLorebookDialogGroup(
         intent: ChatUiIntent.ToggleSessionLorebookDialogGroup,
@@ -1134,7 +1159,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         ).setup()
     }
 
-    /** 更新添加世界书弹窗中的搜索词并按未启用候选池过滤分组与条目。 */
+    /**
+     * 更新添加世界书弹窗中的搜索词并按未启用候选池过滤分组与条目。
+     * @param intent 用于过滤未启用世界书候选项的搜索词。
+     */
     @UiIntentObserver(ChatUiIntent.ChangeAddLorebooksQuery::class)
     private fun onChangeAddLorebooksQuery(intent: ChatUiIntent.ChangeAddLorebooksQuery) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
@@ -1150,7 +1178,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         ).setup()
     }
 
-    /** 切换添加世界书弹窗中的“仅看已选”筛选状态。 */
+    /**
+     * 切换添加世界书弹窗中的“仅看已选”筛选状态。
+     * @param intent 是否只显示弹窗内待添加的条目。
+     */
     @UiIntentObserver(ChatUiIntent.ToggleAddLorebooksSelectedOnly::class)
     private fun onToggleAddLorebooksSelectedOnly(
         intent: ChatUiIntent.ToggleAddLorebooksSelectedOnly,
@@ -1168,7 +1199,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         ).setup()
     }
 
-    /** 批量切换添加世界书弹窗中某本候选世界书下全部条目的待添加状态。 */
+    /**
+     * 批量切换添加世界书弹窗中某本候选世界书下全部条目的待添加状态。
+     * @param intent 待批量选中或取消选择的世界书 ID。
+     */
     @UiIntentObserver(ChatUiIntent.ToggleAddLorebooksGroup::class)
     private fun onToggleAddLorebooksGroup(intent: ChatUiIntent.ToggleAddLorebooksGroup) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
@@ -1196,7 +1230,10 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         ).setup()
     }
 
-    /** 切换添加世界书弹窗中单个候选条目的待添加状态。 */
+    /**
+     * 切换添加世界书弹窗中单个候选条目的待添加状态。
+     * @param intent 待添加或从弹窗草稿移除的条目 ID。
+     */
     @UiIntentObserver(ChatUiIntent.ToggleAddLorebooksEntry::class)
     private fun onToggleAddLorebooksEntry(intent: ChatUiIntent.ToggleAddLorebooksEntry) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
@@ -1504,14 +1541,18 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         if (uiState.page != ChatPage.Settings) return
         if (mGenerationJob?.isCompleted == false || mSummaryJob?.isActive == true) return
         if (uiState.dialogState.isBlocking()) return
-        val editor = uiState.settingsState.summary
+        val editor = mSummaryEditor
         // 连续输入只撤销到本轮编辑前的正文，不按每次击键回退。
         val restored = editor.restoreLocal() ?: editor.current.historyCursor?.let { cursor ->
             withContext(Dispatchers.IO) {
                 mChatRepository.getPreviousSummary(sessionId, cursor)
             }?.let(editor::restorePersisted)
         }
-        if (restored != null) updateSettingsState { copy(summary = restored) }
+        if (restored != null) {
+            val current = getOrNull<ChatUiState.Normal>() ?: return
+            if (current.page != ChatPage.Settings || current.dialogState.isBlocking()) return
+            publishSummaryEditor(current, restored)
+        }
         AppViewEvent.PopupToastMessageByResId(
             message = if (restored != null) R.string.summary_restored else R.string.no_previous_summary,
         ).tryEmit()
@@ -1675,7 +1716,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.ChangeSummary::class)
     private fun onChangeSummary(intent: ChatUiIntent.ChangeSummary) {
-        updateSettingsState { copy(summary = summary.copy(text = intent.value)) }
+        val state = getOrNull<ChatUiState.Normal>() ?: return
+        if (state.page != ChatPage.Settings || state.dialogState.isBlocking()) return
+        publishSummaryEditor(state, mSummaryEditor.copy(text = intent.value))
     }
 
     /**
@@ -1734,13 +1777,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         page: ChatPage = state.page,
     ): Boolean {
         val settings = state.settingsState
+        val summary = mSummaryEditor.toCommit()
         state.copy(dialogState = ChatDialogState.Saving).setup()
         return try {
             // 只将表单字段应用到最新会话，未编辑的摘要与作者备注保留数据库现值。
             withContext(Dispatchers.IO) {
                 mChatRepository.saveSettings(
                     sessionId = state.session.id,
-                    summary = settings.summary.toCommit(),
+                    summary = summary,
                 ) { session ->
                     settings.applyToSession(session)
                 }
@@ -2585,7 +2629,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 if (current.page != ChatPage.Settings) return
                 current.settingsState
             } else null
-            val draft = settings?.summary?.toGenerationContext()
+            val summaryEditor = mSummaryEditor.takeIf { manual }
+            val draft = summaryEditor?.toGenerationContext()
             val promptTemplates = templates ?: mPromptPresets.getActiveSnapshot()
             val summaryMode = SummaryMode.fromPersistedValue(AppModel.summaryMode)
             // 异步组装不会随候选窗口变化的会话、角色和模型配置
@@ -2659,9 +2704,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
 
             currentCoroutineContext().ensureActive()
 
-            if (manual && settings != null) {
+            if (summaryEditor != null) {
                 // 手动结果只进入版本栈，保存前再次校验，期间不会改变当前生效的记忆。
-                val editor = settings.summary.generated(
+                val editor = summaryEditor.generated(
                     content = summaryContent,
                     coveredMessageId = prepared.coveredMessageId,
                     inputSnapshot = prepared.inputSnapshot,
@@ -2678,7 +2723,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 }
                 currentCoroutineContext().ensureActive()
                 val current = getOrNull<ChatUiState.Normal>() ?: return
-                current.copy(settingsState = current.settingsState.copy(summary = editor)).setup()
+                publishSummaryEditor(current, editor)
             } else withContext(NonCancellable) {
                 // 自动摘要仍直接提交；提交与基线同步统一收尾，避免取消留下过期回显。
                 withContext(Dispatchers.IO) {
@@ -2769,18 +2814,24 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         val current = getOrNull<ChatUiState.Normal>() ?: return
         // 摘要操作不能将标题、人设或其他开关草稿视为已保存。
-        current.copy(
-            session = current.session.copy(
-                summarize = data.summary,
-                canResummarize = data.canResummarize,
+        publishSummaryEditor(
+            state = current.copy(
+                session = current.session.copy(
+                    summarize = data.summary,
+                    canResummarize = data.canResummarize,
+                ),
             ),
-            settingsState = current.settingsState.copy(
-                summary = SummaryEditorState(
-                    saved = data.summaryVersion,
-                    latestMessageId = data.latestMessageId,
-                )
+            editor = SummaryEditorState(
+                saved = data.summaryVersion,
+                latestMessageId = data.latestMessageId,
             ),
-        ).setup()
+        )
+    }
+
+    /** 同步私有版本栈与设置页摘要投影。 */
+    private fun publishSummaryEditor(state: ChatUiState.Normal, editor: SummaryEditorState) {
+        mSummaryEditor = editor
+        state.copy(settingsState = state.settingsState.copy(summary = editor.toUiState())).setup()
     }
 
     /**
@@ -3193,7 +3244,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @param editingMessageDraft 正在编辑的消息草稿
      * @param dialogState 当前展示的对话框状态
      * @param messageLimit 从会话末尾保留的消息窗口大小
-     * @return 组装完成的 [ChatUiState.Normal]，若会话或角色不存在返回 null
+     * @return 页面及摘要编辑基线，若会话或角色不存在返回 null。
      */
     private suspend fun loadNormalState(
         sessionId: Long,
@@ -3206,7 +3257,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         editingMessageDraft: String = "",
         dialogState: ChatDialogState = ChatDialogState.None,
         messageLimit: Int = MESSAGE_PAGE_SIZE,
-    ): ChatUiState.Normal? {
+    ): LoadedChat? {
         // 查询会话基础数据、角色人设及最近消息窗口
         val session = mChatRepository.getSessionById(sessionId) ?: return null
         // 先确认背景所属角色，让加载页沿用会话背景而不等待完整消息窗口。
@@ -3255,18 +3306,19 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             messageCount = messagePage.totalMessageCount,
             enabledIds = enabledIds,
         )
-        // 组装并返回 Normal UI 状态
-        return ChatUiState.Normal(
+        val summaryEditor = SummaryEditorState(
+            saved = pageData.summaryVersion,
+            latestMessageId = pageData.latestMessageId,
+        )
+        // 状态与编辑基线一起返回，由主线程决定是否替换当前草稿。
+        val state = ChatUiState.Normal(
             imageState = mImageCoordinator.state,
             page = page,
             loadState = loadState,
             session = sessionItem,
             settingsState = sessionItem.toChatSettingsState(
                 inheritedCreatorNotes = character.creatorNotes,
-                summary = SummaryEditorState(
-                    saved = pageData.summaryVersion,
-                    latestMessageId = pageData.latestMessageId
-                ),
+                summary = summaryEditor.toUiState(),
             ),
             character = character.toChatCharacterItem(
                 userName = persona.name,
@@ -3306,6 +3358,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             hasAvailableProvider = hasAvailableProvider,
             dialogState = dialogState,
         )
+        return LoadedChat(state = state, summaryEditor = summaryEditor)
     }
 
     /**
@@ -3395,7 +3448,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         // 主动发送或继续生成后展示最新输出，搜索历史窗口只用于阅读。
         if (generationState is ChatGenerationState.Requesting || generationState is ChatGenerationState.Streaming) mSearchAnchorId =
             null
-        val nextState = withContext(Dispatchers.IO) {
+        val loaded = withContext(Dispatchers.IO) {
             loadNormalState(
                 sessionId = sessionId,
                 inputDraft = inputDraft,
@@ -3411,6 +3464,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         } ?: return
         val currentState = getOrNull<ChatUiState.Normal>() ?: return
         val currentConversation = currentState.conversationState
+        val nextState = loaded.state
+        if (!preserveSettingsDraft) mSummaryEditor = loaded.summaryEditor
         // 即时世界书操作或后台恢复只刷新持久化数据，保留原表单草稿及其脏检测基线。
         val settingsState = if (preserveSettingsDraft) {
             currentState.settingsState.withRefreshedPersona(nextState.settingsState)

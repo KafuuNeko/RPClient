@@ -17,7 +17,7 @@ import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatSettingsState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatUiIntent
 import me.kafuuneko.rpclient.feature.chat.ui.ChatSettingsPage
-import me.kafuuneko.rpclient.libs.room.model.SummaryInputSnapshot
+import me.kafuuneko.rpclient.model.SummaryEditorUiState
 import me.kafuuneko.rpclient.ui.theme.AppTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -59,12 +59,11 @@ class ChatSummarySettingsTest {
         rule.onNode(field).performClick().assertIsFocused()
         rule.runOnIdle {
             settings.value = settings.value.copy(
-                summary = settings.value.summary.copy(latestMessageId = 5L).generated(
-                    content = "Generated memory",
-                    coveredMessageId = 5L,
-                    inputSnapshot = SummaryInputSnapshot(emptyList(), "baseline"),
-                    sources = emptyList(),
-                )
+                summary = SummaryEditorUiState(
+                    text = "Generated memory",
+                    canResummarize = true,
+                    hasChanges = true,
+                ),
             )
         }
         rule.onNode(field).assertIsFocused().assertTextContains("Generated memory")

@@ -1469,6 +1469,8 @@ Thất bại: %2$d</string>
     <string name="world_book_selection_empty">Chưa bật mục sổ thế giới nào</string>
     <string name="world_book_selection_summary_subtitle">Đang dùng %1$d / %2$d sổ thế giới</string>
     <string name="world_book_selection_tap_to_choose">Chạm để duyệt hoặc tìm trong %1$d sổ thế giới</string>
+    <string name="world_book_summary_group_count">%1$s (%2$d/%3$d)</string>
+    <string name="world_book_summary_more_count">+%1$d</string>
     <string name="group_chat_members_empty_title">Chưa chọn thành viên</string>
     <string name="group_chat_members_empty_subtitle">Chọn ít nhất 2 trong %1$d nhân vật</string>
     <string name="group_chat_select_members_title">Chọn thành viên</string>

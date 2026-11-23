@@ -927,6 +927,7 @@ private fun ParameterPanel(
             }
         }
         RpSettingsDivider(startIndent = false)
+        // 不支持采样参数的协议仍保留共享的输出与上下文设置。
         if (state.supportsSampling) {
             RpSettingsValueTile(
                 icon = Icons.Rounded.Thermostat,

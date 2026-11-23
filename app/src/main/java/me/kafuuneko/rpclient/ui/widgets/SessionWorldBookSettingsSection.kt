@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -87,6 +88,7 @@ data class SessionWorldBookGroupItem(
  * @param enabledGroups 当前会话已启用的世界书分组列表
  * @param onOpenWorldBookManager 点击“世界书管理”入口的回调
  * @param onAddWorldBooks 点击“添加世界书”入口的回调
+ * @param onSearchWorldBooks 打开包含全部会话世界书的条目搜索，可由宿主提供
  * @param onToggleLorebook 切换整本世界书启用状态的回调
  * @param onToggleEntry 切换单个条目启用状态的回调
  */
@@ -98,6 +100,7 @@ internal fun SessionWorldBookSettingsSection(
     onAddWorldBooks: () -> Unit,
     onToggleLorebook: (Long) -> Unit,
     onToggleEntry: (Long) -> Unit,
+    onSearchWorldBooks: (() -> Unit)? = null,
 ) {
     // 展开状态属于局部视觉折叠状态，与会话持久化开关相互独立
     var expandedLorebookIds by remember { mutableStateOf(emptySet<Long>()) }
@@ -117,6 +120,13 @@ internal fun SessionWorldBookSettingsSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
+            onSearchWorldBooks?.let { search ->
+                SettingsActionRow(
+                    icon = Icons.Rounded.Search,
+                    title = stringResource(R.string.search_world_books),
+                    onClick = search,
+                )
+            }
             if (addableLorebookCount > 0) {
                 SettingsActionRow(
                     icon = Icons.Rounded.Add,
@@ -303,6 +313,7 @@ private fun EnabledWorldBookEntryRow(
 private fun SessionWorldBookSettingsSectionPreview() {
     AppTheme(dynamicColor = false) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // 同一本书包含已启用和未启用条目，展开后可比较两种样式。
             SessionWorldBookSettingsSection(
                 totalGroupCount = 4,
                 enabledGroups = listOf(

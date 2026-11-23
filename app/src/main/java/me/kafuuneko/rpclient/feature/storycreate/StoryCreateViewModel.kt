@@ -109,7 +109,10 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         updateReadyForm { copy(title = intent.value) }
     }
 
-    /** 设置新故事使用的人设，并刷新角色宏预览。 */
+    /**
+     * 设置新故事使用的人设，并刷新角色宏预览。
+     * @param intent 用户选择的人设 ID，包含跟随默认人设的选项。
+     */
     @UiIntentObserver(StoryCreateUiIntent.SelectPersona::class)
     private suspend fun onSelectPersona(intent: StoryCreateUiIntent.SelectPersona) {
         val state = readyState() ?: return
@@ -159,7 +162,10 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         ).setup()
     }
 
-    /** 根据角色参考选择器弹窗当前可见窗口按需加载头像缩略图。 */
+    /**
+     * 根据角色参考选择器弹窗当前可见窗口按需加载头像缩略图。
+     * @param intent 选择器视口内的角色 ID 与头像像素尺寸。
+     */
     @UiIntentObserver(StoryCreateUiIntent.VisiblePickerCharactersChanged::class)
     private fun onVisiblePickerCharactersChanged(
         intent: StoryCreateUiIntent.VisiblePickerCharactersChanged,
@@ -172,7 +178,23 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         )
     }
 
-    /** 在角色参考选择器弹窗内后台筛选角色，取消旧任务并保留最新勾选状态。 */
+    /**
+     * 更新表单视口中的已选角色头像，与选择弹窗的视口独立管理。
+     * @param intent 可见角色 ID 和头像显示尺寸。
+     */
+    @UiIntentObserver(StoryCreateUiIntent.VisibleFormCharactersChanged::class)
+    private fun onVisibleFormCharactersChanged(intent: StoryCreateUiIntent.VisibleFormCharactersChanged) {
+        val state = getOrNull<StoryCreateUiState.Normal>() ?: return
+        mAvatarLoader.updatePinnedCharacters(
+            characterIds = intent.characterIds.intersect(state.form.selectedCharacterIds),
+            targetSizePx = intent.targetSizePx,
+        )
+    }
+
+    /**
+     * 在角色参考选择器弹窗内后台筛选角色，取消旧任务并保留最新勾选状态。
+     * @param intent 用于过滤角色名称和内容的搜索词。
+     */
     @UiIntentObserver(StoryCreateUiIntent.ChangeCharacterQuery::class)
     private fun onChangeCharacterQuery(intent: StoryCreateUiIntent.ChangeCharacterQuery) {
         val uiState = readyState() ?: return
@@ -210,7 +232,10 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         }
     }
 
-    /** 切换角色选择器弹窗中的“仅看已选”筛选状态。 */
+    /**
+     * 切换角色选择器弹窗中的“仅看已选”筛选状态。
+     * @param intent 是否只显示已勾选的角色。
+     */
     @UiIntentObserver(StoryCreateUiIntent.ToggleCharacterPickerSelectedOnly::class)
     private fun onToggleCharacterPickerSelectedOnly(
         intent: StoryCreateUiIntent.ToggleCharacterPickerSelectedOnly,
@@ -229,7 +254,10 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         ).setup()
     }
 
-    /** 切换角色选择器草稿中单个角色的选中状态。 */
+    /**
+     * 切换角色选择器草稿中单个角色的选中状态。
+     * @param intent 在选择器草稿中切换的角色 ID。
+     */
     @UiIntentObserver(StoryCreateUiIntent.ToggleCharacterPickerItem::class)
     private fun onToggleCharacterPickerItem(
         intent: StoryCreateUiIntent.ToggleCharacterPickerItem,
@@ -318,14 +346,13 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         updateCharacterSelection(state = uiState, form = nextForm)
     }
 
-    /** 联动角色选择、世界书摘要与主表单的常驻头像。 */
+    /** 联动角色选择与世界书摘要，头像由表单视口按需加载。 */
     private fun updateCharacterSelection(state: StoryCreateUiState.Normal, form: StoryCreateForm) {
         state.copy(
             form = form,
             selectedCharacters = state.characters.filter { it.id in form.selectedCharacterIds },
             selectedWorldBookSummaries = state.lorebookGroups.summarizeSelection(form.selectedLorebookEntryIds),
         ).setup()
-        mAvatarLoader.updatePinnedCharacters(form.selectedCharacterIds)
     }
 
     /** 设置已选角色的激活模式，并在设置新主角时自动清除旧主角。 */
@@ -355,7 +382,10 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         ).setup()
     }
 
-    /** 修改世界书选择器弹窗中的检索关键词，实时过滤分组与条目。 */
+    /**
+     * 修改世界书选择器弹窗中的检索关键词，实时过滤分组与条目。
+     * @param intent 用于匹配世界书名称、关键词或条目正文的搜索词。
+     */
     @UiIntentObserver(StoryCreateUiIntent.ChangeLorebookQuery::class)
     private fun onChangeLorebookQuery(intent: StoryCreateUiIntent.ChangeLorebookQuery) {
         val uiState = readyState() ?: return
@@ -371,7 +401,10 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         ).setup()
     }
 
-    /** 切换世界书选择器弹窗中的“仅看已启用”筛选状态。 */
+    /**
+     * 切换世界书选择器弹窗中的“仅看已启用”筛选状态。
+     * @param intent 是否将选择器限定在已勾选的条目。
+     */
     @UiIntentObserver(StoryCreateUiIntent.ToggleLorebookPickerSelectedOnly::class)
     private fun onToggleLorebookPickerSelectedOnly(
         intent: StoryCreateUiIntent.ToggleLorebookPickerSelectedOnly,
@@ -389,7 +422,10 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         ).setup()
     }
 
-    /** 批量切换世界书选择器草稿中某本世界书下全部条目的选中状态。 */
+    /**
+     * 批量切换世界书选择器草稿中某本世界书下全部条目的选中状态。
+     * @param intent 待批量切换全部条目的世界书 ID。
+     */
     @UiIntentObserver(StoryCreateUiIntent.ToggleLorebook::class)
     private fun onToggleLorebook(intent: StoryCreateUiIntent.ToggleLorebook) {
         val uiState = readyState() ?: return
@@ -416,7 +452,10 @@ class StoryCreateViewModel : CoreViewModelWithEvent<StoryCreateUiIntent, StoryCr
         ).setup()
     }
 
-    /** 切换世界书选择器草稿中单个条目的选中状态。 */
+    /**
+     * 切换世界书选择器草稿中单个条目的选中状态。
+     * @param intent 待切换的世界书条目 ID。
+     */
     @UiIntentObserver(StoryCreateUiIntent.ToggleLorebookEntry::class)
     private fun onToggleLorebookEntry(intent: StoryCreateUiIntent.ToggleLorebookEntry) {
         val uiState = readyState() ?: return

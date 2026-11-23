@@ -362,7 +362,7 @@ class GroupChatRepository(
      * @param sessionId 群聊会话 ID。
      * @param maxHistoryMessages 最多读取的最近历史消息数；0 表示不限制。
      * @param replacingReply 设置页请求替换的末尾角色回复，生成时排除它及覆盖它的摘要。
-     * @param keepLatestMessage 续写时保留已被手动摘要覆盖的末条原文。
+     * @param keepLatestMessage 续写或无新输入接话时保留已被手动摘要覆盖的末条原文。
      * @return 群聊生成快照；会话不存在时返回 null。
      */
     suspend fun getGroupChatPromptData(
@@ -398,7 +398,7 @@ class GroupChatRepository(
             val retained =
                 messages.filter { message -> message.id > (summary?.coveredMessageId ?: 0L) }
                     .toMutableList()
-            // 续写或重试最后一条用户消息时，摘要不能代替生成目标的原文。
+            // 按末条消息接话时保留原文和附件，哪怕手动摘要已覆盖它。
             val latestMessage = messages.lastOrNull()
             if (replacingReply == null && retained.isEmpty() && latestMessage != null &&
                 (keepLatestMessage || latestMessage.id == protectedUserMessageId)
@@ -732,10 +732,14 @@ class GroupChatRepository(
     ): Long = mImages.mutate {
         // 从持久化历史截取完整前缀，分页窗口和其他会话的消息不能作为复制来源。
         val sourceSession = mSessionDao.getSessionById(sourceSessionId) ?: return@mutate 0L
-        val sourceMessages = mMessageDao.getMessages(sourceSessionId)
-        val throughIndex = sourceMessages.indexOfFirst { message -> message.id == throughMessageId }
-        if (throughIndex < 0) return@mutate 0L
-        val branchMessages = sourceMessages.take(throughIndex + 1)
+        val anchor = mMessageDao.getMessageById(throughMessageId)
+            ?.takeIf { message -> message.sessionId == sourceSessionId }
+            ?: return@mutate 0L
+        val branchMessages = mMessageDao.getPrefix(
+            sessionId = sourceSessionId,
+            throughCreateTime = anchor.createTime,
+            throughMessageId = anchor.id,
+        )
         val sourceMembers = mMemberDao.getMembers(sourceSessionId)
         val sourceSummary = mSummaryDao.getLatestAtOrBefore(sourceSessionId, throughMessageId)
         val branchSessionId = mSessionDao.insertOrReplace(

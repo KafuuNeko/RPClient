@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.libs.character
 
 import android.content.Context
 import android.content.ContextWrapper
+import android.database.sqlite.SQLiteException
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -21,6 +22,7 @@ import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.libs.regex.RegexScriptCodec
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
 import me.kafuuneko.rpclient.libs.room.AppDatabase
+import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
@@ -157,6 +159,43 @@ class CharacterCardExportTest {
                 assertArrayEquals(expectedAvatar, mFiles.getFile(restored.avatar)?.readBytes())
             }
         }
+    }
+
+    /** 写入角色失败时，头像索引和内嵌世界书随事务一并回滚。 */
+    @Test
+    fun failedCharacterInsertRollsBackStagedAvatarAndEmbeddedLorebook() = runBlocking {
+        val avatar = avatar(Bitmap.CompressFormat.PNG).inputStream().use { input ->
+            mFiles.prepareStream(ownerId = "import", input = input, mimeType = "image/png")
+        }
+        val parsed = CharacterCardMapper(mGson).parseCharacter("""{"name":"Failed import"}""")
+        val draft = CharacterCardImportDraft(
+            card = parsed.copy(
+                embeddedLorebook = CharacterBookImport(
+                    lorebook = Lorebook(name = "Embedded book"),
+                    entries = emptyList(),
+                ),
+            ),
+            avatarSourceUri = null,
+            avatarMimeType = "image/png",
+            stagedAvatar = avatar,
+        )
+        // 在真实数据库的最后一步拒绝写入，使此前发布的文件和世界书经过回滚路径。
+        mDatabase.openHelper.writableDatabase.execSQL(
+            """
+            CREATE TRIGGER reject_character_import BEFORE INSERT ON character
+            BEGIN SELECT RAISE(ABORT, 'Import test failure'); END
+            """.trimIndent(),
+        )
+        val result = runCatching { mCards.saveImport(draft) }
+        assertTrue(result.exceptionOrNull() is SQLiteException)
+        assertTrue(mDatabase.getLorebookDao().getAllLorebooks().isEmpty())
+        assertEquals(0, mDatabase.getFileDao().countByHash(avatar.file.hash))
+        assertFalse(
+            File(
+                mContext.getDir("repository", Context.MODE_PRIVATE),
+                avatar.file.hash
+            ).exists()
+        )
     }
 
     /** 多个归档的待确认头像总量超过普通堆上限时，草稿仍只持有磁盘凭据并可整批释放。 */

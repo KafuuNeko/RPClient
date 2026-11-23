@@ -354,9 +354,7 @@ internal fun GroupChatSettingsPage(
                 }
             }
             item {
-                val addableCount = remember(state.availableCharacters) {
-                    state.availableCharacters.count { character -> !character.alreadyMember }
-                }
+                val addableCount = state.addableCharacterCount
                 SettingsSection(title = stringResource(R.string.group_chat_members)) {
                     GroupMemberSettingsList(members, emitIntent)
                     // 候选角色较多时通过独立可检索多选弹窗添加，避免设置页平铺全部角色卡
@@ -387,6 +385,7 @@ internal fun GroupChatSettingsPage(
                     enabledGroups = enabledWorldBooks,
                     onOpenWorldBookManager = { emitIntent(GroupChatUiIntent.OpenWorldBookManager) },
                     onAddWorldBooks = { emitIntent(GroupChatUiIntent.ShowAddLorebooksDialog) },
+                    onSearchWorldBooks = { emitIntent(GroupChatUiIntent.ShowSessionLoreDialog) },
                     onToggleLorebook = { lorebookId ->
                         emitIntent(GroupChatUiIntent.ToggleLorebook(lorebookId))
                     },

@@ -540,6 +540,7 @@ private fun StrategySection(
                 )
             }
         }
+        // 只展示当前策略的解释，长说明不会挤压可选项。
         Text(
             text = stringResource(selected.descriptionRes()),
             style = MaterialTheme.typography.bodySmall,

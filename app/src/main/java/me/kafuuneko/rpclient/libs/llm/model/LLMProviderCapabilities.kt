@@ -14,6 +14,7 @@ data class LLMProviderCapabilities(
     companion object {
         /** 按协议给出保守默认值；用户仍可在模型配置页面显式调整发送开关。 */
         fun forProtocol(protocol: LLMProviderProtocol): LLMProviderCapabilities {
+            // 仅为已启用通用采样的协议默认发送对应字段。
             return when (protocol) {
                 LLMProviderProtocol.GeminiInteractions,
                 LLMProviderProtocol.OpenAIResponses -> LLMProviderCapabilities(

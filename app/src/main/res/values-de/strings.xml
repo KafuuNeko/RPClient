@@ -1472,6 +1472,8 @@
     <string name="world_book_selection_empty">Keine Weltenbuch-Einträge aktiviert</string>
     <string name="world_book_selection_summary_subtitle">%1$d von %2$d Weltenbüchern aktiv</string>
     <string name="world_book_selection_tap_to_choose">Tippen, um %1$d Weltenbücher zu durchsuchen</string>
+    <string name="world_book_summary_group_count">%1$s (%2$d/%3$d)</string>
+    <string name="world_book_summary_more_count">+%1$d</string>
     <string name="group_chat_members_empty_title">Keine Mitglieder ausgewählt</string>
     <string name="group_chat_members_empty_subtitle">Mindestens 2 aus %1$d Charakteren wählen</string>
     <string name="group_chat_select_members_title">Mitglieder auswählen</string>

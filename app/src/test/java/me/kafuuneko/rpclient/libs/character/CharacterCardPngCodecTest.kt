@@ -4,14 +4,38 @@ import com.google.gson.JsonParser
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
+import java.io.FilterInputStream
 import java.util.Base64
 import java.util.zip.CRC32
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** 通过独立 chunk 解析验证酒馆 PNG 的双版本元数据、像素保留与校验和。 */
 class CharacterCardPngCodecTest {
+    /** 大文本块跨多个缓冲区复制，读取边界不会随原始块的大小增长。 */
+    @Test
+    fun streamsLargeUnrelatedChunkAndReplacesOldMetadata() {
+        val comment = "a".repeat(128 * 1024)
+        val original = withTextChunk(png(), "Comment", comment)
+        val oldJson = """{"name":"Old"}"""
+        val source = withTextChunk(original, "chara", encode(oldJson))
+        val stream = object : FilterInputStream(source.inputStream()) {
+            override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+                assertTrue(length <= DEFAULT_BUFFER_SIZE)
+                return super.read(buffer, offset, length)
+            }
+        }
+        val target = ByteArrayOutputStream()
+        val json = """{"name":"Current"}"""
+        // 独立解析输出，确保跨缓冲区复制后仍能逐块通过 CRC 校验。
+        CharacterCardPngCodec.writeCharacterJson(stream, target, json)
+        val metadata = textChunks(target.toByteArray())
+        assertEquals(comment, metadata["Comment"])
+        assertEquals(json, decode(metadata.getValue("chara")))
+    }
+
     /** 中文、换行与扩展字段应完整写入两个版本，图片像素及其他文本不受影响。 */
     @Test
     fun writesCompatibleMetadataWithoutChangingImageChunks() {

@@ -58,7 +58,10 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
     private var mActiveExisting: List<SearchHit> = emptyList()
     private var mPendingPartialHits: List<SearchHit>? = null
 
-    /** 初始化页面并观察工作器；恢复后等待显式提交，不自动发起昂贵查询。 */
+    /**
+     * 初始化页面并观察工作器；恢复后等待显式提交，不自动发起昂贵查询。
+     * @param intent 进入搜索页时指定的初始结果分类。
+     */
     @UiIntentObserver(ContentSearchUiIntent.Init::class)
     private fun onInit(intent: ContentSearchUiIntent.Init) {
         if (!isStateOf<ContentSearchUiState.None>()) return
@@ -108,7 +111,10 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
         ).setup()
     }
 
-    /** 编辑立即使旧请求失效，但不在按键时扫描正文。 */
+    /**
+     * 编辑立即使旧请求失效，但不在按键时扫描正文。
+     * @param intent 用户编辑后尚未提交的查询正文。
+     */
     @UiIntentObserver(ContentSearchUiIntent.ChangeQuery::class)
     private fun onChangeQuery(intent: ContentSearchUiIntent.ChangeQuery) {
         val state = interactiveState() ?: return
@@ -124,7 +130,10 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
         ).setup()
     }
 
-    /** 已提交且未编辑时切分类自动重查，其余情况只更新草稿范围。 */
+    /**
+     * 已提交且未编辑时切分类自动重查，其余情况只更新草稿范围。
+     * @param intent 用户切换到的结果分类。
+     */
     @UiIntentObserver(ContentSearchUiIntent.SelectKind::class)
     private fun onSelectKind(intent: ContentSearchUiIntent.SelectKind) {
         val state = interactiveState() ?: return
@@ -137,7 +146,10 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
         updateScope(nextScope)
     }
 
-    /** 切换标题／正文范围保留查询，避免无意触发未提交文本。 */
+    /**
+     * 切换标题／正文范围保留查询，避免无意触发未提交文本。
+     * @param intent 用户选择的标题或正文检索范围。
+     */
     @UiIntentObserver(ContentSearchUiIntent.SelectScope::class)
     private fun onSelectScope(intent: ContentSearchUiIntent.SelectScope) {
         val state = interactiveState() ?: return
@@ -217,7 +229,10 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
         ).setup()
     }
 
-    /** 在同一页面内按单个对象展示命中消息／章节。 */
+    /**
+     * 在同一页面内按单个对象展示命中消息／章节。
+     * @param intent 用于限定后续检索范围的命中对象。
+     */
     @UiIntentObserver(ContentSearchUiIntent.SearchWithin::class)
     private fun onSearchWithin(intent: ContentSearchUiIntent.SearchWithin) {
         val state = stateForResultAction(intent.hit) ?: return
@@ -239,7 +254,10 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
         updateScope(state.scopeState.copy(parentId = null, parentTitle = ""))
     }
 
-    /** 验证目标后分发导航事件；点击标题保留普通打开行为。 */
+    /**
+     * 验证目标后分发导航事件；点击标题保留普通打开行为。
+     * @param intent 用户点击的结果及其打开位置。
+     */
     @UiIntentObserver(ContentSearchUiIntent.Open::class)
     private fun onOpen(intent: ContentSearchUiIntent.Open) {
         val hit = intent.hit

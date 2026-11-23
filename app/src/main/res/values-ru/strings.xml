@@ -1487,6 +1487,8 @@
     <string name="world_book_selection_empty">Записи книг мира не включены</string>
     <string name="world_book_selection_summary_subtitle">Активно %1$d из %2$d книг мира</string>
     <string name="world_book_selection_tap_to_choose">Нажмите, чтобы просмотреть или найти среди %1$d книг мира</string>
+    <string name="world_book_summary_group_count">%1$s (%2$d/%3$d)</string>
+    <string name="world_book_summary_more_count">+%1$d</string>
     <string name="group_chat_members_empty_title">Участники не выбраны</string>
     <string name="group_chat_members_empty_subtitle">Выберите не менее 2 из %1$d персонажей</string>
     <string name="group_chat_select_members_title">Выбор участников</string>

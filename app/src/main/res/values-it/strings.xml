@@ -1457,6 +1457,8 @@ Non riusciti: %2$d</string>
     <string name="world_book_selection_empty">Nessuna voce del libro del mondo attivata</string>
     <string name="world_book_selection_summary_subtitle">%1$d di %2$d libri del mondo attivi</string>
     <string name="world_book_selection_tap_to_choose">Tocca per sfogliare o cercare tra %1$d libri del mondo</string>
+    <string name="world_book_summary_group_count">%1$s (%2$d/%3$d)</string>
+    <string name="world_book_summary_more_count">+%1$d</string>
     <string name="group_chat_members_empty_title">Nessun membro selezionato</string>
     <string name="group_chat_members_empty_subtitle">Scegli almeno 2 tra %1$d personaggi</string>
     <string name="group_chat_select_members_title">Seleziona membri</string>

@@ -7,6 +7,7 @@ import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 import me.kafuuneko.rpclient.libs.room.model.SummaryVersion
 import me.kafuuneko.rpclient.libs.room.model.SummaryInputSnapshot
 import me.kafuuneko.rpclient.model.SummaryEditorState
+import me.kafuuneko.rpclient.model.toUiState
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -73,26 +74,28 @@ class GroupChatSettingsSnapshotTest {
     /** 手动摘要需显式保存，忽略正文首尾空白但不能忽略覆盖位置变化。 */
     @Test
     fun summaryComparisonTracksSavedSummary() {
+        val editor = sampleSummaryEditor()
         val base = sampleSettingsState()
 
         // 即使正文相同，覆盖位置推进也会改变后续上下文。
         val afterManualSummary = base.copy(
-            summary = base.summary.generated(
+            summary = editor.generated(
                 content = "Existing summary",
                 coveredMessageId = 10L,
                 inputSnapshot = SummaryInputSnapshot(emptyList(), "baseline"),
                 sources = emptyList(),
-            )
+            ).toUiState()
         )
         assertTrue(afterManualSummary.hasUnsavedChanges())
 
         // 仅首尾空白差异不视为实质修改，正文改变时触发提示。
         assertFalse(
-            base.copy(summary = base.summary.copy(text = "  Existing summary  "))
+            base.copy(summary = editor.copy(text = "  Existing summary  ").toUiState())
                 .hasUnsavedChanges()
         )
         assertTrue(
-            base.copy(summary = base.summary.copy(text = "Edited summary")).hasUnsavedChanges()
+            base.copy(summary = editor.copy(text = "Edited summary").toUiState())
+                .hasUnsavedChanges()
         )
     }
 
@@ -128,12 +131,7 @@ class GroupChatSettingsSnapshotTest {
             userNoteDraft = "Keep tension",
             userNameDraft = "",
             userDescriptionDraft = "Captain",
-            summary = SummaryEditorState(
-                saved = SummaryVersion(
-                    content = "Existing summary",
-                    coveredMessageId = 5L
-                )
-            ),
+            summary = sampleSummaryEditor().toUiState(),
             autoSummaryPaused = false,
             systemPromptDraft = "System",
             groupNudgePromptDraft = "Nudge",
@@ -141,4 +139,9 @@ class GroupChatSettingsSnapshotTest {
             titleDraft = "Starlight Crew",
         ).withCurrentAsSavedSnapshot()
     }
+
+    /** 与持久化记忆同步的摘要编辑基线。 */
+    private fun sampleSummaryEditor(): SummaryEditorState = SummaryEditorState(
+        saved = SummaryVersion(content = "Existing summary", coveredMessageId = 5L),
+    )
 }

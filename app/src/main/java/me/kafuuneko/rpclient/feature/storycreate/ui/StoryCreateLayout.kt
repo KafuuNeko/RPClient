@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,11 +32,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -75,6 +81,8 @@ import me.kafuuneko.rpclient.ui.widgets.WorldBookSelectionSummaryCard
 import me.kafuuneko.rpclient.ui.model.WorldBookSelectionSummaryItem
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
 
+private val StoryCharacterAvatarSize = 42.dp
+
 /** 新建 Story 页面 Compose 入口。 */
 @Composable
 fun StoryCreateLayout(
@@ -102,6 +110,22 @@ private fun StoryCreateNormal(
     emit: StoryCreateUiIntent.() -> Unit,
 ) {
     val controlsEnabled = state.loadState == StoryCreateLoadState.Ready
+    val listState = rememberLazyListState()
+    val latestEmit by rememberUpdatedState(emit)
+    val avatarSizePx = with(LocalDensity.current) { StoryCharacterAvatarSize.roundToPx() }
+    // 表单滚动只加载当前可见角色，弹窗开关不会清空表单视口。
+    LaunchedEffect(listState, avatarSizePx) {
+        snapshotFlow {
+            listState.layoutInfo.visibleItemsInfo
+                .mapNotNull { item -> item.key as? Long }
+                .toSet()
+        }.collect { characterIds ->
+            StoryCreateUiIntent.VisibleFormCharactersChanged(
+                characterIds = characterIds,
+                targetSizePx = avatarSizePx,
+            ).latestEmit()
+        }
+    }
 
     AppPageScaffold(
         // 缩小整个表单视口，底栏与输入区共同避让键盘
@@ -122,6 +146,7 @@ private fun StoryCreateNormal(
         },
         content = { padding ->
             RpLazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
@@ -220,7 +245,7 @@ private fun LazyListScope.storyCharacterReferenceItems(
         else -> {
             items(
                 items = selectedCharacters,
-                key = { character -> "selected-character-${character.id}" },
+                key = { character -> character.id },
             ) { character ->
                 SelectedStoryCharacterCard(
                     character = character,
@@ -472,7 +497,7 @@ private fun StoryCharacterIdentity(
         RpAvatar(
             text = character.name.firstOrNull()?.uppercase() ?: "?",
             color = getMacaronColor(character.name),
-            modifier = Modifier.size(42.dp),
+            modifier = Modifier.size(StoryCharacterAvatarSize),
             shape = RoundedCornerShape(14.dp),
             image = avatarImage,
         )

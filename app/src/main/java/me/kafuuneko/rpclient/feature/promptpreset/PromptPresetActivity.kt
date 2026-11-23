@@ -56,6 +56,7 @@ class PromptPresetActivity : CoreActivityWithEvent() {
      * @param viewEvent 已由 ViewModel 校验的一次性宿主动作。
      */
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
+        // 预设校验事件在宿主解析本地化占位符，复制操作也由宿主访问系统剪贴板。
         when (viewEvent) {
             is PromptPresetViewEvent.ShowInvalidSummaryFormat -> Toast.makeText(
                 this,

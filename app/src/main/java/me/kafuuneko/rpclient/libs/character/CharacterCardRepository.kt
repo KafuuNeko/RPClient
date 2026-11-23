@@ -2,12 +2,11 @@ package me.kafuuneko.rpclient.libs.character
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import com.google.gson.Gson
 import java.io.BufferedInputStream
-import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.OutputStream
 import java.io.PushbackInputStream
 import java.util.Locale
 import java.util.UUID
@@ -148,63 +147,55 @@ class CharacterCardRepository(
     /**
      * 保存已解析的角色卡，并返回新角色 ID。
      *
-     * 头像与内嵌世界书先保存以建立有效引用；后续步骤失败时会清理本次新增资源。
+     * 原图先暂存，头像索引、内嵌世界书和角色在同一事务中提交。
      * @param draft 已解析的角色卡与待提交头像。
      * @return 新角色 ID。
      */
     suspend fun saveImport(draft: CharacterCardImportDraft): Long = withContext(Dispatchers.IO) {
-        var avatar = ""
-        var lorebookId = 0L
-        try {
-            // ZIP 头像直接发布暂存文件，避免在保存阶段再次读入整张原图。
-            avatar = when {
-                draft.stagedAvatar != null -> mFileRepository.mutate(listOf(draft.stagedAvatar)) {
-                    draft.stagedAvatar.file.uuid
-                }
-
-                draft.avatarSourceUri != null -> mFileRepository.saveFile(
-                    draft.avatarSourceUri,
-                    draft.avatarMimeType
-                )
-
-                else -> ""
-            }
-            val parsed = draft.card
-            lorebookId = parsed.embeddedLorebook?.let { book ->
-                mLorebookRepository.saveImport(
-                    parsed = book.copy(
-                        lorebook = book.lorebook.copy(
-                            name = book.lorebook.name.ifBlank {
-                                "${parsed.character.name}'s Lorebook"
-                            },
-                        ),
-                    ),
-                )
-            } ?: 0L
-            mCharacterRepository.saveCharacter(
-                character = parsed.character.copy(
-                    avatar = avatar,
-                    characterLorebookId = lorebookId,
-                    extensionsJson = mRegexCodec.injectIntoCharacterExtensions(
-                        json = parsed.character.extensionsJson,
-                        scripts = parsed.regexScripts,
-                    ),
-                ),
+        // ZIP 已提供暂存凭据，单卡 URI 也使用相同的文件事务入口。
+        val avatar = draft.stagedAvatar ?: draft.avatarSourceUri?.let { uri ->
+            mFileRepository.prepareFile(
+                ownerId = UUID.randomUUID().toString(),
+                uri = uri,
+                mimeType = draft.avatarMimeType,
+                maxBytes = Long.MAX_VALUE,
             )
-        } catch (error: Exception) {
-            // 导入任务可能已被取消；补偿清理必须脱离已取消的 Job 才能执行挂起操作。
-            withContext(NonCancellable) {
-                if (lorebookId != 0L) {
-                    runCatching { mLorebookRepository.deleteLorebook(lorebookId) }
-                }
-                if (avatar.isNotBlank()) {
-                    runCatching { mFileRepository.deleteFile(avatar) }
-                }
-            }
-            throw error
-        } finally {
-            draft.stagedAvatar?.let { mFileRepository.releasePrepared(it) }
         }
+        try {
+            // 内层仓库继续复用各自的写入规则，由外层事务统一决定是否提交。
+            mFileRepository.mutate(listOfNotNull(avatar)) {
+                persistImportedCharacter(
+                    card = draft.card,
+                    avatarUuid = avatar?.file?.uuid.orEmpty(),
+                )
+            }
+        } finally {
+            avatar?.let { mFileRepository.releasePrepared(it) }
+        }
+    }
+
+    /** 在文件事务内保存内嵌世界书和角色，正则脚本随角色写入。 */
+    private suspend fun persistImportedCharacter(
+        card: CharacterCardImport,
+        avatarUuid: String
+    ): Long {
+        // 先生成世界书 ID，角色引用与世界书条目在同一事务中可见。
+        val lorebookId = card.embeddedLorebook?.let { book ->
+            val name = book.lorebook.name.ifBlank { "${card.character.name}'s Lorebook" }
+            mLorebookRepository.saveImport(
+                parsed = book.copy(lorebook = book.lorebook.copy(name = name)),
+            )
+        } ?: 0L
+        return mCharacterRepository.saveCharacter(
+            character = card.character.copy(
+                avatar = avatarUuid,
+                characterLorebookId = lorebookId,
+                extensionsJson = mRegexCodec.injectIntoCharacterExtensions(
+                    json = card.character.extensionsJson,
+                    scripts = card.regexScripts,
+                ),
+            ),
+        )
     }
 
     /** 读取并导入角色卡；无需在写入前检查解析结果时使用。 */
@@ -242,13 +233,24 @@ class CharacterCardRepository(
      */
     suspend fun exportToUri(characterId: Long, format: CharacterCardExportFormat, uri: Uri) =
         withContext(Dispatchers.IO) {
-            val bytes = when (format) {
-                CharacterCardExportFormat.Png -> exportPng(characterId)
-                CharacterCardExportFormat.Json -> exportJson(characterId).toByteArray(Charsets.UTF_8)
+            val character = mCharacterRepository.getCharacterById(characterId)
+                ?: error("Character not found")
+            val json = encodeCharacter(character)
+            if (format == CharacterCardExportFormat.Json) {
+                val target = mContext.contentResolver.openOutputStream(uri, "wt")
+                    ?: error("Cannot open character export destination")
+                target.bufferedWriter(Charsets.UTF_8).use { it.write(json) }
+                return@withContext
             }
-            mContext.contentResolver.openOutputStream(uri, "wt")?.use { output ->
-                output.write(bytes)
-            } ?: error("Cannot open character export destination")
+
+            // 完成 PNG 校验及元数据写入后再打开目标文档，失败时只清理应用缓存。
+            val png = File.createTempFile("rpclient-character-export-", ".png", mContext.cacheDir)
+            try {
+                png.outputStream().buffered().use { writePng(character.avatar, json, it) }
+                copyExportToUri(png, uri)
+            } finally {
+                png.delete()
+            }
         }
 
     /**
@@ -276,11 +278,7 @@ class CharacterCardRepository(
                     writeArchiveCards(ids, format, zip, limits)
                 }
                 if (archive.length() > limits.archiveBytes) throw CharacterArchiveExportLimitException()
-                currentCoroutineContext().ensureActive()
-                val output = mContext.contentResolver.openOutputStream(uri, "wt")
-                    ?: error("Cannot open character archive destination")
-                output.use { target -> archive.inputStream().use { it.copyTo(target) } }
-                Unit
+                copyExportToUri(archive, uri)
             } finally {
                 archive.delete()
             }
@@ -304,14 +302,6 @@ class CharacterCardRepository(
             // 只对未配置头像的角色回退；已配置但损坏的头像应报错，不能静默生成占位图。
             val entryFormat =
                 if (character.avatar.isBlank()) CharacterCardExportFormat.Json else format
-            val bytes = when (entryFormat) {
-                CharacterCardExportFormat.Png -> encodePng(character, json)
-                CharacterCardExportFormat.Json -> json.toByteArray(Charsets.UTF_8)
-            }
-            totalBytes += bytes.size
-            if (bytes.size > limits.entryBytes || totalBytes > limits.totalEntryBytes) {
-                throw CharacterArchiveExportLimitException()
-            }
             // 同名角色仍分别占用独立条目，文件名变化不会修改角色本身。
             val baseName = safeArchiveEntryName(character.name, id)
             var entryName = "$baseName.${entryFormat.extension}"
@@ -321,7 +311,16 @@ class CharacterCardRepository(
                 suffix++
             }
             zip.putNextEntry(ZipEntry(entryName))
-            zip.write(bytes)
+            // 计量 PNG 重写后的实际字节，条目和整包均在转发给 ZIP 前校验。
+            val entry = ArchiveEntryOutput(
+                mTarget = zip,
+                mMaxBytes = minOf(limits.entryBytes.toLong(), limits.totalEntryBytes - totalBytes),
+            )
+            when (entryFormat) {
+                CharacterCardExportFormat.Png -> writePng(character.avatar, json, entry)
+                CharacterCardExportFormat.Json -> entry.write(json.toByteArray(Charsets.UTF_8))
+            }
+            totalBytes += entry.byteCount
             zip.closeEntry()
         }
     }
@@ -345,46 +344,104 @@ class CharacterCardRepository(
         return sanitized.ifBlank { "character-$characterId" }
     }
 
-    /**
-     * 将角色头像与最新角色数据合成为 PNG 卡片。
-     * @param characterId 已设置头像的角色 ID。
-     * @return 包含 chara／ccv3 元数据的 PNG 文件字节。
-     */
-    suspend fun exportPng(characterId: Long): ByteArray = withContext(Dispatchers.IO) {
-        val character =
-            mCharacterRepository.getCharacterById(characterId) ?: error("Character not found")
-        encodePng(character, encodeCharacter(character))
+    /** 以小缓冲向用户选定的文档写入已生成的临时文件。 */
+    private suspend fun copyExportToUri(file: File, uri: Uri) {
+        currentCoroutineContext().ensureActive()
+        val target = mContext.contentResolver.openOutputStream(uri, "wt")
+            ?: error("Cannot open character export destination")
+        target.use { output -> file.inputStream().use { input -> input.copyTo(output) } }
     }
 
-    /** 从原始头像编码，保留 PNG 像素及其他元数据，替换可能过期的角色卡内容。 */
-    private suspend fun encodePng(character: Character, json: String): ByteArray {
-        require(character.avatar.isNotBlank()) { "Character has no avatar" }
-        val avatar =
-            mFileRepository.getFile(character.avatar) ?: error("Character avatar not found")
-        val pngBytes = avatar.readBytes().toPng()
-        return CharacterCardPngCodec.writeCharacterJson(pngBytes, json)
+    /** 原生 PNG 保留像素及附加块，非 PNG 头像先进行有界解码。 */
+    private suspend fun writePng(avatarUuid: String, json: String, output: OutputStream) {
+        require(avatarUuid.isNotBlank()) { "Character has no avatar" }
+        val context = currentCoroutineContext()
+        val written = mFileRepository.withFileLease(avatarUuid) { avatar ->
+            avatar.inputStream().buffered().use { input ->
+                val signature = ByteArray(PNG_SIGNATURE_BYTES)
+                input.mark(signature.size)
+                val size = input.read(signature)
+                if (size != signature.size || !CharacterCardPngCodec.isPng(signature)) {
+                    return@use false
+                }
+                // 在文件租约内写出原图，删除角色时也不会回收正在导出的文件。
+                input.reset()
+                CharacterCardPngCodec.writeCharacterJson(input, output, json, context::ensureActive)
+                true
+            }
+        }
+        if (!written) writeConvertedAvatar(avatarUuid, json, output)
     }
 
-    /** 非 PNG 头像先转换格式，使用后及时释放位图，防止批量导出累积像素内存。 */
-    private fun ByteArray.toPng(): ByteArray {
-        if (CharacterCardPngCodec.isPng(this)) return this
-        val bitmap = BitmapFactory.decodeByteArray(this, 0, size)
-            ?: error("Cannot decode character avatar")
-        // 转码后的位图不会进入 UI 缓存，成功和失败都需要释放原生像素缓冲。
+    /** 非 PNG 头像使用有界位图转码，缓存文件和位图随本次操作释放。 */
+    private suspend fun writeConvertedAvatar(
+        avatarUuid: String,
+        json: String,
+        output: OutputStream
+    ) {
+        val converted = File.createTempFile("rpclient-character-avatar-", ".png", mContext.cacheDir)
         try {
-            return ByteArrayOutputStream().use { output ->
+            // 转码位图仅在写出像素时持有，注入角色元数据时只需文件输入流。
+            convertAvatarToPng(avatarUuid, converted)
+            val context = currentCoroutineContext()
+            converted.inputStream().buffered().use { input ->
+                CharacterCardPngCodec.writeCharacterJson(input, output, json, context::ensureActive)
+            }
+        } finally {
+            converted.delete()
+        }
+    }
+
+    /** 将普通头像转为内存占用可预期的 PNG。 */
+    private suspend fun convertAvatarToPng(avatarUuid: String, destination: File) {
+        val bitmap = mFileRepository.loadSampledBitmap(
+            uuid = avatarUuid,
+            requestedWidthPx = MAX_CONVERTED_AVATAR_EDGE,
+            requestedHeightPx = MAX_CONVERTED_AVATAR_EDGE,
+        )
+            ?: error("Cannot decode character avatar")
+        try {
+            destination.outputStream().buffered().use { output ->
                 check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)) {
                     "Cannot encode character avatar"
                 }
-                output.toByteArray()
             }
         } finally {
             bitmap.recycle()
         }
     }
 
+    /** 逐条目计量解压大小，整个归档共享总字节预算。 */
+    private class ArchiveEntryOutput(
+        private val mTarget: OutputStream,
+        private val mMaxBytes: Long,
+    ) : OutputStream() {
+        var byteCount: Long = 0
+            private set
+
+        /** 校验单字节写入后转发给当前 ZIP 条目。 */
+        override fun write(value: Int) {
+            reserve(1)
+            mTarget.write(value)
+        }
+
+        /** 校验数据块后转发，限制以磁盘上的未压缩内容计量。 */
+        override fun write(bytes: ByteArray, offset: Int, length: Int) {
+            reserve(length)
+            mTarget.write(bytes, offset, length)
+        }
+
+        /** 超限时由外层丢弃整个临时归档。 */
+        private fun reserve(length: Int) {
+            if (length > mMaxBytes - byteCount) throw CharacterArchiveExportLimitException()
+            byteCount += length
+        }
+    }
+
     private companion object {
         val ZIP_SIGNATURE = byteArrayOf(0x50, 0x4B, 0x03, 0x04)
+        const val PNG_SIGNATURE_BYTES = 8
+        const val MAX_CONVERTED_AVATAR_EDGE = 2048
     }
 }
 
