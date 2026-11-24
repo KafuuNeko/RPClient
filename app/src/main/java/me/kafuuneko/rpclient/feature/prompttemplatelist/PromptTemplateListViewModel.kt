@@ -16,6 +16,7 @@ import me.kafuuneko.rpclient.feature.prompttemplatelist.presentation.PromptTempl
 import me.kafuuneko.rpclient.feature.prompttemplatelist.presentation.PromptTemplateItem
 import me.kafuuneko.rpclient.feature.prompttemplatelist.presentation.PromptTemplateListUiIntent
 import me.kafuuneko.rpclient.feature.prompttemplatelist.presentation.PromptTemplateListUiState
+import me.kafuuneko.rpclient.feature.prompttemplatelist.presentation.PromptTemplateMetadataMode
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
@@ -26,9 +27,9 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
 /**
- * 整套模板的管理状态持有者。
- * - 订阅数据库列表，统一映射显示名称、筛选和激活状态。
- * - 通过 Repository 完成事务，失败时保留用户输入。
+ * 整套系统提示词预设模板的管理状态持有者。
+ * - 订阅数据库列表，统一映射显示名称、覆盖项数量与激活状态。
+ * - 通过 Repository 完成事务写入，失败时保留用户输入草稿。
  */
 class PromptTemplateListViewModel :
     CoreViewModelWithEvent<PromptTemplateListUiIntent, PromptTemplateListUiState>(
@@ -60,16 +61,19 @@ class PromptTemplateListViewModel :
     private fun onBack() {
         val state = getOrNull<PromptTemplateListUiState.Normal>() ?: return
         if (state.busy) return
-        PromptTemplateListUiState.Finished(state).setup()
+        PromptTemplateListUiState.finished(state).setup()
     }
 
     /** 新建空覆盖的默认配置，只需填写名称和简介。 */
     @UiIntentObserver(PromptTemplateListUiIntent.Create::class)
-    private fun onCreate() = showDialog(
-        PromptTemplateDialogState.Metadata(
-            PromptTemplateSnapshot.BUILTIN_ID,
+    private fun onCreate() {
+        showDialog(
+            PromptTemplateDialogState.Metadata(
+                mode = PromptTemplateMetadataMode.Create,
+                sourceId = PromptTemplateSnapshot.BUILTIN_ID,
+            )
         )
-    )
+    }
 
     /** 跳转详情，页面参数只包含稳定模板 ID。 */
     @UiIntentObserver(PromptTemplateListUiIntent.Open::class)
@@ -89,12 +93,14 @@ class PromptTemplateListViewModel :
     /** 复制仅创建草稿，确认名称前不写入数据库。 */
     @UiIntentObserver(PromptTemplateListUiIntent.Copy::class)
     private fun onCopy(intent: PromptTemplateListUiIntent.Copy) {
-        val item = mItems.find { it.id == intent.id } ?: return
+        val item = mItems.find { presetItem -> presetItem.id == intent.id } ?: return
         showDialog(
             PromptTemplateDialogState.Metadata(
+                mode = PromptTemplateMetadataMode.Copy,
                 sourceId = item.id,
+                sourceName = item.name,
                 name = mContext.getString(R.string.prompt_template_copy_name, item.name),
-                description = item.description
+                description = item.description,
             )
         )
     }
@@ -102,9 +108,12 @@ class PromptTemplateListViewModel :
     /** 使用当前 revision 编辑元数据，避免覆盖另一页面的修改。 */
     @UiIntentObserver(PromptTemplateListUiIntent.Rename::class)
     private fun onRename(intent: PromptTemplateListUiIntent.Rename) {
-        val item = mItems.find { it.id == intent.id && !it.isBuiltin } ?: return
+        val item = mItems.find { presetItem ->
+            presetItem.id == intent.id && !presetItem.isBuiltin
+        } ?: return
         showDialog(
             PromptTemplateDialogState.Metadata(
+                mode = PromptTemplateMetadataMode.Edit,
                 sourceId = item.id,
                 targetId = item.id,
                 revision = item.revision,
@@ -117,23 +126,23 @@ class PromptTemplateListViewModel :
     /** 删除当前模板时在弹窗明确展示切回默认的后果。 */
     @UiIntentObserver(PromptTemplateListUiIntent.Delete::class)
     private fun onDelete(intent: PromptTemplateListUiIntent.Delete) {
-        val item = mItems.find { it.id == intent.id && !it.isBuiltin } ?: return
+        val item = mItems.find { presetItem ->
+            presetItem.id == intent.id && !presetItem.isBuiltin
+        } ?: return
         showDialog(PromptTemplateDialogState.Delete(item))
     }
 
-    /** 筛选只在 ViewModel 执行，不增加全文索引。 */
-    @UiIntentObserver(PromptTemplateListUiIntent.Search::class)
-    private fun onSearch(intent: PromptTemplateListUiIntent.Search) = publishItems(intent.value)
-
     /** 更新名称草稿。 */
     @UiIntentObserver(PromptTemplateListUiIntent.ChangeName::class)
-    private fun onChangeName(intent: PromptTemplateListUiIntent.ChangeName) =
+    private fun onChangeName(intent: PromptTemplateListUiIntent.ChangeName) {
         updateMetadata { copy(name = intent.value) }
+    }
 
     /** 更新简介草稿。 */
     @UiIntentObserver(PromptTemplateListUiIntent.ChangeDescription::class)
-    private fun onChangeDescription(intent: PromptTemplateListUiIntent.ChangeDescription) =
+    private fun onChangeDescription(intent: PromptTemplateListUiIntent.ChangeDescription) {
         updateMetadata { copy(description = intent.value) }
+    }
 
     /** 原子创建或保存元数据，成功后再关闭草稿。 */
     @UiIntentObserver(PromptTemplateListUiIntent.SaveMetadata::class)
@@ -141,15 +150,24 @@ class PromptTemplateListViewModel :
         val state = getOrNull<PromptTemplateListUiState.Normal>() ?: return
         val draft = state.dialogState as? PromptTemplateDialogState.Metadata ?: return
         if (draft.name.isBlank()) return
-        // 草稿保留到数据库提交成功，随后再关闭弹窗并打开详情。
+        // 草稿保留到数据库提交成功，随后再关闭弹窗并按模式决定是否进入详情。
         perform {
-            if (draft.targetId == null) {
-                val id = mRepository.create(draft.sourceId, draft.name, draft.description)
+            if (draft.mode == PromptTemplateMetadataMode.Edit && draft.targetId != null) {
+                mRepository.rename(
+                    id = draft.targetId,
+                    revision = draft.revision,
+                    name = draft.name,
+                    description = draft.description,
+                )
+                closeDialog()
+            } else {
+                val id = mRepository.create(
+                    sourceId = draft.sourceId,
+                    name = draft.name,
+                    description = draft.description,
+                )
                 closeDialog()
                 openDetail(id)
-            } else {
-                mRepository.rename(draft.targetId, draft.revision, draft.name, draft.description)
-                closeDialog()
             }
         }
     }
@@ -159,7 +177,10 @@ class PromptTemplateListViewModel :
     private fun onConfirmDelete() {
         val state = getOrNull<PromptTemplateListUiState.Normal>() ?: return
         val dialog = state.dialogState as? PromptTemplateDialogState.Delete ?: return
-        perform { mRepository.delete(dialog.item.id); closeDialog() }
+        perform {
+            mRepository.delete(dialog.item.id)
+            closeDialog()
+        }
     }
 
     /** 取消弹窗不会保存新模板或修改现有内容。 */
@@ -169,59 +190,51 @@ class PromptTemplateListViewModel :
         if (!state.busy) closeDialog()
     }
 
-    /** 使用单条 SQL 的列表投影，避免当前标记与卡片来自不同事务。 */
+    /** 订阅带覆盖项统计的列表流，避免激活态与卡片来自不同事务。 */
     private fun subscribe() {
         mSubscription?.cancel()
         mSubscription = viewModelScope.launch {
             mRepository.observePresets().catch { error ->
                 if (error is CancellationException) throw error
-                getOrNull<PromptTemplateListUiState.Normal>()?.copy(contentState = PromptTemplateContentState.Failed)
+                getOrNull<PromptTemplateListUiState.Normal>()
+                    ?.copy(contentState = PromptTemplateContentState.Failed)
                     ?.setup()
             }.collect { rows ->
                 // 名称与时间在 UI 之外映射，系统默认名称随界面语言变化。
                 val formatter = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
                 mItems = rows.map { row ->
                     val preset = row.preset
+                    val isBuiltin = preset.id == PromptTemplateSnapshot.BUILTIN_ID
                     PromptTemplateItem(
                         id = preset.id,
-                        name = if (preset.id == PromptTemplateSnapshot.BUILTIN_ID) mContext.getString(
-                            R.string.prompt_template_default
-                        ) else preset.name,
+                        name = if (isBuiltin) {
+                            mContext.getString(R.string.prompt_template_default)
+                        } else {
+                            preset.name
+                        },
                         description = preset.description,
-                        isBuiltin = preset.id == PromptTemplateSnapshot.BUILTIN_ID,
+                        isBuiltin = isBuiltin,
                         isActive = row.isActive,
                         revision = preset.revision,
-                        updatedTime = formatter.format(Date(preset.updatedAt)),
+                        updatedTime = if (isBuiltin) "" else formatter.format(Date(preset.updatedAt)),
+                        overrideCount = row.overrideCount,
                     )
                 }
-                val state = getOrNull<PromptTemplateListUiState.Normal>() ?: return@collect
-                publishItems((state.contentState as? PromptTemplateContentState.Ready)?.query.orEmpty())
+                publishItems()
             }
         }
     }
 
-    /** 列表始终保留当前选择摘要，即使搜索结果不包含该模板。 */
-    private fun publishItems(query: String) {
+    /** 校验唯一有效启用项后发布列表，损坏状态不伪装成默认模板。 */
+    private fun publishItems() {
         val state = getOrNull<PromptTemplateListUiState.Normal>() ?: return
-        val active = mItems.singleOrNull { it.isActive }
+        val active = mItems.singleOrNull { presetItem -> presetItem.isActive }
         if (active == null) {
             state.copy(contentState = PromptTemplateContentState.Failed).setup()
             return
         }
-        // 无有效当前选择时显示失败，不能将损坏状态伪装成系统默认。
-        val items = mItems.filter {
-            it.name.contains(
-                query.trim(),
-                true
-            ) || it.description.contains(query.trim(), true)
-        }
         state.copy(
-            contentState = PromptTemplateContentState.Ready(
-                items = items,
-                activeName = active.name,
-                activeId = active.id,
-                query = query,
-            )
+            contentState = PromptTemplateContentState.Ready(items = mItems)
         ).setup()
     }
 
@@ -237,8 +250,11 @@ class PromptTemplateListViewModel :
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                val message =
-                    if (error is PromptPresetConflictException) R.string.prompt_template_conflict else R.string.prompt_template_failed
+                val message = if (error is PromptPresetConflictException) {
+                    R.string.prompt_template_conflict
+                } else {
+                    R.string.prompt_template_failed
+                }
                 AppViewEvent.PopupToastMessageByResId(message).tryEmit()
             } finally {
                 getOrNull<PromptTemplateListUiState.Normal>()?.copy(busy = false)?.setup()
@@ -251,20 +267,25 @@ class PromptTemplateListViewModel :
         if (!state.busy) state.copy(dialogState = dialog).setup()
     }
 
-    private fun updateMetadata(update: PromptTemplateDialogState.Metadata.() -> PromptTemplateDialogState.Metadata) {
+    private fun updateMetadata(
+        update: PromptTemplateDialogState.Metadata.() -> PromptTemplateDialogState.Metadata,
+    ) {
         val state = getOrNull<PromptTemplateListUiState.Normal>() ?: return
         val draft = state.dialogState as? PromptTemplateDialogState.Metadata ?: return
         if (!state.busy) state.copy(dialogState = draft.update()).setup()
     }
 
-    private fun closeDialog() =
-        getOrNull<PromptTemplateListUiState.Normal>()?.copy(dialogState = PromptTemplateDialogState.None)
+    private fun closeDialog() {
+        getOrNull<PromptTemplateListUiState.Normal>()
+            ?.copy(dialogState = PromptTemplateDialogState.None)
             ?.setup()
+    }
 
     /** 页面跳转只携带模板 ID，详情由目标 ViewModel 读取。 */
     private fun openDetail(id: Long) {
         AppViewEvent.StartActivity(
             PromptPresetActivity::class.java,
-            Bundle().apply { putLong(PromptPresetActivity.EXTRA_PRESET_ID, id) }).tryEmit()
+            Bundle().apply { putLong(PromptPresetActivity.EXTRA_PRESET_ID, id) },
+        ).tryEmit()
     }
 }

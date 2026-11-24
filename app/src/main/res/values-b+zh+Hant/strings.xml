@@ -1475,4 +1475,29 @@
     <string name="world_book_add_action">新增世界書（可選 %1$d 本）</string>
     <string name="world_book_all_enabled">所有世界書皆已啟用。</string>
     <string name="story_characters_empty_title">未選擇角色參考</string>
+    <string name="prompt_template_builtin_badge">內建 · 唯讀</string>
+    <string name="prompt_template_builtin_desc">全部使用內建預設提示詞。</string>
+    <string name="prompt_template_all_default">全部預設</string>
+    <string name="prompt_template_copy_source">基於「%1$s」建立副本</string>
+    <string name="prompt_template_copied_not_active">已建立副本並開啟，目前啟用預設未變更。</string>
+    <string name="prompt_template_saved">提示詞已儲存</string>
+    <string name="prompt_template_empty_title">尚無自訂預設</string>
+    <string name="prompt_template_edit_prompts">編輯提示詞</string>
+    <string name="prompt_template_view_prompts">檢視預設</string>
+    <string name="prompt_preset_only_customized">僅看已改 (%1$d)</string>
+    <string name="prompt_preset_expand_all">展開全部</string>
+    <string name="prompt_preset_collapse_all">摺疊全部</string>
+    <string name="prompt_preset_read_only_banner">內建唯讀預設，點擊項目可檢視與複製原文。</string>
+    <string name="prompt_preset_no_custom_title">尚無自訂提示詞</string>
+    <string name="prompt_preset_no_custom_desc">目前場景下的提示詞皆使用系統預設值。</string>
+    <string name="prompt_preset_show_all">顯示全部</string>
+    <string name="prompt_preset_group_custom_count">已改 %1$d/%2$d</string>
+    <string name="prompt_preset_empty_preview">空內容</string>
+    <string name="prompt_preset_view_only_badge">唯讀</string>
+    <string name="prompt_preset_required_macro_hint">必填：%1$s</string>
+    <string name="prompt_editor_undo">復原</string>
+    <string name="prompt_editor_exit_fullscreen">結束全螢幕</string>
+    <plurals name="prompt_template_custom_count">
+        <item quantity="other">已自訂 %1$d 項</item>
+    </plurals>
 </resources>

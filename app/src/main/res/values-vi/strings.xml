@@ -1482,4 +1482,29 @@ Thất bại: %2$d</string>
     <string name="world_book_add_action">Thêm sổ thế giới (còn %1$d)</string>
     <string name="world_book_all_enabled">Tất cả sổ thế giới đã được bật.</string>
     <string name="story_characters_empty_title">Chưa chọn nhân vật tham chiếu</string>
+    <string name="prompt_template_builtin_badge">Mặc định · Chỉ đọc</string>
+    <string name="prompt_template_builtin_desc">Sử dụng prompt mặc định tích hợp cho tất cả các mục.</string>
+    <string name="prompt_template_all_default">Tất cả mặc định</string>
+    <string name="prompt_template_copy_source">Dựa trên \"%1$s\"</string>
+    <string name="prompt_template_copied_not_active">Đã sao chép và mở. Mẫu đang dùng không thay đổi.</string>
+    <string name="prompt_template_saved">Đã lưu prompt</string>
+    <string name="prompt_template_empty_title">Chưa có mẫu tùy chỉnh</string>
+    <string name="prompt_template_edit_prompts">Chỉnh sửa prompt</string>
+    <string name="prompt_template_view_prompts">Xem mặc định</string>
+    <string name="prompt_preset_only_customized">Đã tùy chỉnh (%1$d)</string>
+    <string name="prompt_preset_expand_all">Mở rộng tất cả</string>
+    <string name="prompt_preset_collapse_all">Thu gọn tất cả</string>
+    <string name="prompt_preset_read_only_banner">Mẫu chỉ đọc. Chạm vào mục bất kỳ để xem hoặc sao chép.</string>
+    <string name="prompt_preset_no_custom_title">Không có prompt tùy chỉnh</string>
+    <string name="prompt_preset_no_custom_desc">Tất cả prompt trong phạm vi này đang dùng giá trị mặc định.</string>
+    <string name="prompt_preset_show_all">Hiển thị tất cả</string>
+    <string name="prompt_preset_group_custom_count">Đã sửa %1$d/%2$d</string>
+    <string name="prompt_preset_empty_preview">Trống</string>
+    <string name="prompt_preset_view_only_badge">Chỉ đọc</string>
+    <string name="prompt_preset_required_macro_hint">Bắt buộc: %1$s</string>
+    <string name="prompt_editor_undo">Hoàn tác</string>
+    <string name="prompt_editor_exit_fullscreen">Thoát toàn màn hình</string>
+    <plurals name="prompt_template_custom_count">
+        <item quantity="other">Đã tùy chỉnh %1$d mục</item>
+    </plurals>
 </resources>

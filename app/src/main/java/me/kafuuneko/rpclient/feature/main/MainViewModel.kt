@@ -100,6 +100,7 @@ import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
 import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.libs.search.SearchIndexState
@@ -128,6 +129,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private val mPersonas by inject<UserPersonaRepository>()
     private val mLLMRepository by inject<LLMRepository>()
     private val mLorebookRepository by inject<LorebookRepository>()
+    private val mPromptPresetRepository by inject<PromptPresetRepository>()
     private val mChatRepository by inject<ChatRepository>()
     private val mContentSearchRepository by inject<ContentSearchRepository>()
     private val mCharacterRepository by inject<CharacterRepository>()
@@ -1711,6 +1713,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         return MainSettingsState(
             separateThinkWhenEditing = AppModel.separateThinkWhenEditing,
             impersonationOutput = ImpersonationOutput.fromKey(AppModel.impersonationOutput),
+            activePromptPresetName = mPromptPresetRepository.getActivePresetName(),
             searchIndexState = mContentSearchRepository.indexState.value,
             imageSendState = MainImageSendState.from(ImageSendSettings.decode(AppModel.imageSendSettings)),
             appearanceState = MainAppearanceSettingsState(

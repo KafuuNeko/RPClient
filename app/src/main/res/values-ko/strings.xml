@@ -1475,4 +1475,29 @@
     <string name="world_book_add_action">월드북 추가 (추가 가능 %1$d권)</string>
     <string name="world_book_all_enabled">모든 월드북이 이미 활성화되어 있습니다.</string>
     <string name="story_characters_empty_title">선택된 캐릭터 참조 없음</string>
+    <string name="prompt_template_builtin_badge">기본 내장 · 읽기 전용</string>
+    <string name="prompt_template_builtin_desc">모든 항목에 기본 내장 프롬프트를 사용합니다.</string>
+    <string name="prompt_template_all_default">모두 기본값</string>
+    <string name="prompt_template_copy_source">‘%1$s’에서 복사</string>
+    <string name="prompt_template_copied_not_active">복사하여 열었습니다. 현재 사용 중인 프리셋은 유지됩니다.</string>
+    <string name="prompt_template_saved">프롬프트가 저장되었습니다</string>
+    <string name="prompt_template_empty_title">사용자 지정 프리셋이 없습니다</string>
+    <string name="prompt_template_edit_prompts">프롬프트 편집</string>
+    <string name="prompt_template_view_prompts">기본값 보기</string>
+    <string name="prompt_preset_only_customized">수정됨만 (%1$d)</string>
+    <string name="prompt_preset_expand_all">모두 펼치기</string>
+    <string name="prompt_preset_collapse_all">모두 접기</string>
+    <string name="prompt_preset_read_only_banner">읽기 전용 프리셋입니다. 항목을 탭하여 내용을 보거나 복사할 수 있습니다.</string>
+    <string name="prompt_preset_no_custom_title">수정된 프롬프트 없음</string>
+    <string name="prompt_preset_no_custom_desc">현재 범위의 모든 프롬프트가 기본값을 사용 중입니다.</string>
+    <string name="prompt_preset_show_all">모두 보기</string>
+    <string name="prompt_preset_group_custom_count">%1$d/%2$d 수정됨</string>
+    <string name="prompt_preset_empty_preview">비어 있음</string>
+    <string name="prompt_preset_view_only_badge">읽기 전용</string>
+    <string name="prompt_preset_required_macro_hint">필수: %1$s</string>
+    <string name="prompt_editor_undo">실행 취소</string>
+    <string name="prompt_editor_exit_fullscreen">전체 화면 종료</string>
+    <plurals name="prompt_template_custom_count">
+        <item quantity="other">%1$d개 수정됨</item>
+    </plurals>
 </resources>

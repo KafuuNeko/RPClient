@@ -1491,4 +1491,31 @@
     <string name="world_book_add_action">Ajouter des livres du monde (%1$d disponibles)</string>
     <string name="world_book_all_enabled">Tous les livres du monde sont déjà activés.</string>
     <string name="story_characters_empty_title">Aucune référence de personnage</string>
+    <string name="prompt_template_builtin_badge">Intégré · Lecture seule</string>
+    <string name="prompt_template_builtin_desc">Utilise les prompts par défaut intégrés pour tous les champs.</string>
+    <string name="prompt_template_all_default">Tout par défaut</string>
+    <string name="prompt_template_copy_source">Basé sur « %1$s »</string>
+    <string name="prompt_template_copied_not_active">Copié et ouvert. Le préréglage actif reste inchangé.</string>
+    <string name="prompt_template_saved">Prompt enregistré</string>
+    <string name="prompt_template_empty_title">Aucun préréglage personnalisé</string>
+    <string name="prompt_template_edit_prompts">Modifier les prompts</string>
+    <string name="prompt_template_view_prompts">Voir les valeurs par défaut</string>
+    <string name="prompt_preset_only_customized">Personnalisés (%1$d)</string>
+    <string name="prompt_preset_expand_all">Tout déplier</string>
+    <string name="prompt_preset_collapse_all">Tout replier</string>
+    <string name="prompt_preset_read_only_banner">Préréglage en lecture seule. Touchez un élément pour le voir ou le copier.</string>
+    <string name="prompt_preset_no_custom_title">Aucun prompt personnalisé</string>
+    <string name="prompt_preset_no_custom_desc">Tous les prompts de ce contexte utilisent les valeurs par défaut.</string>
+    <string name="prompt_preset_show_all">Tout afficher</string>
+    <string name="prompt_preset_group_custom_count">%1$d/%2$d modifiés</string>
+    <string name="prompt_preset_empty_preview">Vide</string>
+    <string name="prompt_preset_view_only_badge">Lecture seule</string>
+    <string name="prompt_preset_required_macro_hint">Requis : %1$s</string>
+    <string name="prompt_editor_undo">Annuler</string>
+    <string name="prompt_editor_exit_fullscreen">Quitter le plein écran</string>
+    <plurals name="prompt_template_custom_count">
+        <item quantity="one">%1$d personnalisé</item>
+        <item quantity="many">%1$d personnalisés</item>
+        <item quantity="other">%1$d personnalisés</item>
+    </plurals>
 </resources>

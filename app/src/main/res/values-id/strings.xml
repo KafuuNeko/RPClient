@@ -1482,4 +1482,29 @@ Gagal: %2$d</string>
     <string name="world_book_add_action">Tambah buku dunia (%1$d tersedia)</string>
     <string name="world_book_all_enabled">Semua buku dunia sudah diaktifkan.</string>
     <string name="story_characters_empty_title">Tidak ada referensi karakter</string>
+    <string name="prompt_template_builtin_badge">Bawaan · Hanya baca</string>
+    <string name="prompt_template_builtin_desc">Menggunakan prompt bawaan untuk semua bidang.</string>
+    <string name="prompt_template_all_default">Semua bawaan</string>
+    <string name="prompt_template_copy_source">Berdasarkan \"%1$s\"</string>
+    <string name="prompt_template_copied_not_active">Disalin dan dibuka. Preset aktif tidak berubah.</string>
+    <string name="prompt_template_saved">Prompt disimpan</string>
+    <string name="prompt_template_empty_title">Belum ada preset kustom</string>
+    <string name="prompt_template_edit_prompts">Edit prompt</string>
+    <string name="prompt_template_view_prompts">Lihat bawaan</string>
+    <string name="prompt_preset_only_customized">Kustom (%1$d)</string>
+    <string name="prompt_preset_expand_all">Bentangkan semua</string>
+    <string name="prompt_preset_collapse_all">Ciutkan semua</string>
+    <string name="prompt_preset_read_only_banner">Preset hanya baca. Ketuk item untuk melihat atau menyalin.</string>
+    <string name="prompt_preset_no_custom_title">Tidak ada prompt kustom</string>
+    <string name="prompt_preset_no_custom_desc">Semua prompt dalam cakupan ini menggunakan nilai bawaan.</string>
+    <string name="prompt_preset_show_all">Tampilkan semua</string>
+    <string name="prompt_preset_group_custom_count">%1$d/%2$d diubah</string>
+    <string name="prompt_preset_empty_preview">Kosong</string>
+    <string name="prompt_preset_view_only_badge">Hanya baca</string>
+    <string name="prompt_preset_required_macro_hint">Wajib: %1$s</string>
+    <string name="prompt_editor_undo">Urungkan</string>
+    <string name="prompt_editor_exit_fullscreen">Keluar dari layar penuh</string>
+    <plurals name="prompt_template_custom_count">
+        <item quantity="other">%1$d dikustomisasi</item>
+    </plurals>
 </resources>

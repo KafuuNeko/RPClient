@@ -7,6 +7,7 @@ import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 import me.kafuuneko.rpclient.libs.room.entity.PromptPreset
 import me.kafuuneko.rpclient.libs.room.entity.PromptPresetEntry
+import me.kafuuneko.rpclient.libs.room.model.PromptPresetSummary
 
 /** 自定义预设及差异正文的读写；父表禁止 REPLACE，避免级联删除正文。 */
 @Dao
@@ -14,6 +15,18 @@ interface PromptPresetDao {
     /** 只观察用户创建的预设，默认预设由 Repository 合成。 */
     @Query("SELECT * FROM prompt_presets ORDER BY updatedAt DESC, id")
     fun observePresets(): Flow<List<PromptPreset>>
+
+    /** 观察用户预设及其覆盖条目数量，覆盖表变更时同步触发列表刷新。 */
+    @Query(
+        """
+        SELECT p.*, COUNT(e.promptKey) AS overrideCount
+        FROM prompt_presets AS p
+        LEFT JOIN prompt_preset_entries AS e ON e.presetId = p.id
+        GROUP BY p.id
+        ORDER BY p.updatedAt DESC, p.id
+        """
+    )
+    fun observePresetSummaries(): Flow<List<PromptPresetSummary>>
 
     /** 读取自定义预设元数据。 */
     @Query("SELECT * FROM prompt_presets WHERE id = :id")

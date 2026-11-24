@@ -1495,4 +1495,31 @@ Falhas: %2$d</string>
     <string name="world_book_add_action">Adicionar livros de mundo (%1$d disponíveis)</string>
     <string name="world_book_all_enabled">Todos os livros de mundo já estão ativados.</string>
     <string name="story_characters_empty_title">Nenhuma referência de personagem</string>
+    <string name="prompt_template_builtin_badge">Integrado · Somente leitura</string>
+    <string name="prompt_template_builtin_desc">Usa os prompts padrão integrados em todos os campos.</string>
+    <string name="prompt_template_all_default">Todos padrão</string>
+    <string name="prompt_template_copy_source">Com base em \"%1$s\"</string>
+    <string name="prompt_template_copied_not_active">Cópia criada e aberta. A predefinição ativa não foi alterada.</string>
+    <string name="prompt_template_saved">Prompt salvo</string>
+    <string name="prompt_template_empty_title">Nenhuma predefinição personalizada</string>
+    <string name="prompt_template_edit_prompts">Editar prompts</string>
+    <string name="prompt_template_view_prompts">Ver padrões</string>
+    <string name="prompt_preset_only_customized">Personalizados (%1$d)</string>
+    <string name="prompt_preset_expand_all">Expandir tudo</string>
+    <string name="prompt_preset_collapse_all">Recolher tudo</string>
+    <string name="prompt_preset_read_only_banner">Predefinição somente leitura. Toque em um item para ver ou copiar.</string>
+    <string name="prompt_preset_no_custom_title">Nenhum prompt personalizado</string>
+    <string name="prompt_preset_no_custom_desc">Todos os prompts deste escopo usam os padrões integrados.</string>
+    <string name="prompt_preset_show_all">Mostrar tudo</string>
+    <string name="prompt_preset_group_custom_count">%1$d/%2$d modificados</string>
+    <string name="prompt_preset_empty_preview">Vazio</string>
+    <string name="prompt_preset_view_only_badge">Somente leitura</string>
+    <string name="prompt_preset_required_macro_hint">Obrigatório: %1$s</string>
+    <string name="prompt_editor_undo">Desfazer</string>
+    <string name="prompt_editor_exit_fullscreen">Sair da tela cheia</string>
+    <plurals name="prompt_template_custom_count">
+        <item quantity="one">%1$d personalizado</item>
+        <item quantity="many">%1$d personalizados</item>
+        <item quantity="other">%1$d personalizados</item>
+    </plurals>
 </resources>

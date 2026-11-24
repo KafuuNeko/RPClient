@@ -44,6 +44,8 @@ data class MainSettingsState(
     val separateThinkWhenEditing: Boolean = true,
     /** 扮演用户生成结果写入聊天记录或可编辑输入框。 */
     val impersonationOutput: ImpersonationOutput = ImpersonationOutput.Message,
+    /** 当前启用的自定义提示词预设名称，为空表示使用系统默认预设。 */
+    val activePromptPresetName: String? = null,
 )
 
 /** 应用外观设置面板状态。 */

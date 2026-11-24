@@ -1485,4 +1485,30 @@
     <string name="world_book_add_action">Weltenbücher hinzufügen (%1$d verfügbar)</string>
     <string name="world_book_all_enabled">Alle Weltenbücher sind bereits aktiviert.</string>
     <string name="story_characters_empty_title">Keine Charakterreferenzen</string>
+    <string name="prompt_template_builtin_badge">Integriert · Schreibgeschützt</string>
+    <string name="prompt_template_builtin_desc">Verwendet für alle Felder die integrierten Standard-Prompts.</string>
+    <string name="prompt_template_all_default">Alle Standard</string>
+    <string name="prompt_template_copy_source">Basierend auf „%1$s“</string>
+    <string name="prompt_template_copied_not_active">Kopie erstellt und geöffnet. Aktive Vorlage unverändert.</string>
+    <string name="prompt_template_saved">Prompt gespeichert</string>
+    <string name="prompt_template_empty_title">Noch keine eigenen Vorlagen</string>
+    <string name="prompt_template_edit_prompts">Prompts bearbeiten</string>
+    <string name="prompt_template_view_prompts">Standards ansehen</string>
+    <string name="prompt_preset_only_customized">Angepasst (%1$d)</string>
+    <string name="prompt_preset_expand_all">Alle ausklappen</string>
+    <string name="prompt_preset_collapse_all">Alle einklappen</string>
+    <string name="prompt_preset_read_only_banner">Schreibgeschützte Vorlage. Zum Ansehen oder Kopieren antippen.</string>
+    <string name="prompt_preset_no_custom_title">Keine angepassten Prompts</string>
+    <string name="prompt_preset_no_custom_desc">Alle Prompts in diesem Bereich verwenden die Standardwerte.</string>
+    <string name="prompt_preset_show_all">Alle anzeigen</string>
+    <string name="prompt_preset_group_custom_count">%1$d/%2$d geändert</string>
+    <string name="prompt_preset_empty_preview">Leer</string>
+    <string name="prompt_preset_view_only_badge">Schreibgeschützt</string>
+    <string name="prompt_preset_required_macro_hint">Erforderlich: %1$s</string>
+    <string name="prompt_editor_undo">Rückgängig</string>
+    <string name="prompt_editor_exit_fullscreen">Vollbild beenden</string>
+    <plurals name="prompt_template_custom_count">
+        <item quantity="one">%1$d angepasst</item>
+        <item quantity="other">%1$d angepasst</item>
+    </plurals>
 </resources>

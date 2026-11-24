@@ -1476,4 +1476,29 @@
     <string name="world_book_add_action">ワールドブックを追加（追加可能 %1$d 冊）</string>
     <string name="world_book_all_enabled">すべてのワールドブックが有効になっています。</string>
     <string name="story_characters_empty_title">参照キャラクター未選択</string>
+    <string name="prompt_template_builtin_badge">組み込み · 読み取り専用</string>
+    <string name="prompt_template_builtin_desc">すべての項目で組み込みの既定プロンプトを使用します。</string>
+    <string name="prompt_template_all_default">すべて既定</string>
+    <string name="prompt_template_copy_source">「%1$s」から複製</string>
+    <string name="prompt_template_copied_not_active">複製して開きました。適用中のプリセットは変更されていません。</string>
+    <string name="prompt_template_saved">プロンプトを保存しました</string>
+    <string name="prompt_template_empty_title">カスタムプリセットはまだありません</string>
+    <string name="prompt_template_edit_prompts">プロンプトを編集</string>
+    <string name="prompt_template_view_prompts">既定を表示</string>
+    <string name="prompt_preset_only_customized">変更済みのみ (%1$d)</string>
+    <string name="prompt_preset_expand_all">すべて展開</string>
+    <string name="prompt_preset_collapse_all">すべて折りたたむ</string>
+    <string name="prompt_preset_read_only_banner">読み取り専用プリセットです。項目をタップして内容の確認やコピーができます。</string>
+    <string name="prompt_preset_no_custom_title">変更済みのプロンプトはありません</string>
+    <string name="prompt_preset_no_custom_desc">この範囲のプロンプトはすべて既定値を使用しています。</string>
+    <string name="prompt_preset_show_all">すべて表示</string>
+    <string name="prompt_preset_group_custom_count">%1$d/%2$d 件変更</string>
+    <string name="prompt_preset_empty_preview">空</string>
+    <string name="prompt_preset_view_only_badge">読み取り専用</string>
+    <string name="prompt_preset_required_macro_hint">必須: %1$s</string>
+    <string name="prompt_editor_undo">元に戻す</string>
+    <string name="prompt_editor_exit_fullscreen">全画面を終了</string>
+    <plurals name="prompt_template_custom_count">
+        <item quantity="other">%1$d 件カスタム</item>
+    </plurals>
 </resources>

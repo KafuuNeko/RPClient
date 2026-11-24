@@ -11,7 +11,6 @@ sealed class PromptTemplateListUiIntent {
     data class Copy(val id: Long) : PromptTemplateListUiIntent()
     data class Rename(val id: Long) : PromptTemplateListUiIntent()
     data class Delete(val id: Long) : PromptTemplateListUiIntent()
-    data class Search(val value: String) : PromptTemplateListUiIntent()
     data class ChangeName(val value: String) : PromptTemplateListUiIntent()
     data class ChangeDescription(val value: String) : PromptTemplateListUiIntent()
     data object SaveMetadata : PromptTemplateListUiIntent()

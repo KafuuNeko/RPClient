@@ -223,7 +223,12 @@ internal fun MainSettingsPage(
         item {
             RpSectionHeader(title = stringResource(R.string.prompt_and_memory_section))
         }
-        item { PromptPresetEntryCard(onClick = { MainUiIntent.OpenPromptPreset.emit() }) }
+        item {
+            PromptPresetEntryCard(
+                activePresetName = state.activePromptPresetName,
+                onClick = { MainUiIntent.OpenPromptPreset.emit() },
+            )
+        }
         item { PromptBehaviorPanel(state.promptBehaviorState, emit) }
         item { MainUserWritingSettings(state.impersonationOutput, emit) }
         item { WorldInfoBudgetPanel(state.worldInfoBudgetState, emit) }
@@ -979,13 +984,18 @@ private fun ParameterPanel(
 }
 
 @Composable
-private fun PromptPresetEntryCard(onClick: () -> Unit) {
+private fun PromptPresetEntryCard(
+    activePresetName: String?,
+    onClick: () -> Unit,
+) {
+    val activeLabel = activePresetName ?: stringResource(R.string.prompt_template_default)
     RpSettingsGroup {
         RpSettingsTile(
             icon = Icons.Rounded.AutoAwesome,
             iconColor = AccentVioletColor,
             iconContainerColor = AccentVioletColor.copy(alpha = 0.14f),
             title = stringResource(R.string.prompt_preset_title),
+            subtitle = activeLabel,
             onClick = onClick,
             trailing = {
                 Icon(

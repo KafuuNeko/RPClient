@@ -18,6 +18,12 @@ sealed class PromptPresetUiIntent {
 
     data class SelectScope(val scope: PromptPresetScope) : PromptPresetUiIntent()
 
+    data object ToggleOnlyCustomized : PromptPresetUiIntent()
+
+    data object ClearFilters : PromptPresetUiIntent()
+
+    data object ToggleExpandAll : PromptPresetUiIntent()
+
     data class ToggleCategory(val category: PromptPresetCategory) : PromptPresetUiIntent()
 
     data class EditPromptClick(val type: PromptType) : PromptPresetUiIntent()

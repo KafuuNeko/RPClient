@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import me.kafuuneko.rpclient.R
@@ -84,6 +85,8 @@ fun AppDialogScaffold(
     onConfirm: (() -> Unit)? = null,
     onDismiss: (() -> Unit)? = onDismissRequest,
     properties: DialogProperties = DialogProperties(usePlatformDefaultWidth = true),
+    windowInset: Dp = 0.dp,
+    fillMaxHeight: Boolean = false,
     scrollableContent: Boolean = false,
     subtitleMaxLines: Int = Int.MAX_VALUE,
     content: @Composable ColumnScope.() -> Unit = {},
@@ -92,16 +95,27 @@ fun AppDialogScaffold(
     AppDialogWindow(
         onDismissRequest = onDismissRequest,
         properties = properties,
+        windowInset = windowInset,
     ) {
-        DialogPanelSurface(
-            modifier = modifier
+        val surfaceModifier = if (fillMaxHeight) {
+            modifier.fillMaxSize()
+        } else {
+            modifier
                 .fillMaxWidth()
-                .wrapContentHeight(),
-        ) {
+                .wrapContentHeight()
+        }
+        val columnModifier = if (fillMaxHeight) {
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp, vertical = 18.dp)
+        } else {
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 22.dp)
+        }
+        DialogPanelSurface(modifier = surfaceModifier) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 22.dp),
+                modifier = columnModifier,
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
@@ -113,7 +127,11 @@ fun AppDialogScaffold(
                     badgeTone = badgeTone,
                     compact = compactHeader,
                 )
-                AppDialogContent(scrollableContent, content)
+                AppDialogContent(
+                    scrollable = scrollableContent,
+                    fillHeight = fillMaxHeight,
+                    content = content,
+                )
                 if (onConfirm != null || onDismiss != null) {
                     AppDialogActions(
                         confirmText = confirmText,
@@ -268,16 +286,17 @@ private fun HeroDialogHeader(
 @Composable
 private fun ColumnScope.AppDialogContent(
     scrollable: Boolean,
+    fillHeight: Boolean,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val scrollState = rememberScrollState()
     val contentModifier = Modifier
-        .weight(weight = 1f, fill = false)
+        .weight(weight = 1f, fill = fillHeight)
         .fillMaxWidth()
     val modifier = if (scrollable) {
         // 普通正文由容器滚动，编辑器则使用受约束的内部视口，避免重复滚动。
-        contentModifier
-            .heightIn(max = 380.dp)
+        val scrollableModifier = if (fillHeight) contentModifier else contentModifier.heightIn(max = 380.dp)
+        scrollableModifier
             .draggableScrollIndicator(scrollState)
             .verticalScroll(scrollState)
     } else {

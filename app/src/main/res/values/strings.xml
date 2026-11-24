@@ -1492,4 +1492,30 @@
     <string name="world_book_add_action">Add world books (%1$d available)</string>
     <string name="world_book_all_enabled">All world books are already enabled.</string>
     <string name="story_characters_empty_title">No character references</string>
+    <string name="prompt_template_builtin_badge">Built-in · Read-only</string>
+    <string name="prompt_template_builtin_desc">Uses built-in default prompts for all fields.</string>
+    <string name="prompt_template_all_default">All defaults</string>
+    <string name="prompt_template_copy_source">Based on \"%1$s\"</string>
+    <string name="prompt_template_copied_not_active">Copied and opened. Active preset unchanged.</string>
+    <string name="prompt_template_saved">Prompt saved</string>
+    <string name="prompt_template_empty_title">No custom presets yet</string>
+    <string name="prompt_template_edit_prompts">Edit prompts</string>
+    <string name="prompt_template_view_prompts">View defaults</string>
+    <string name="prompt_preset_only_customized">Customized (%1$d)</string>
+    <string name="prompt_preset_expand_all">Expand all</string>
+    <string name="prompt_preset_collapse_all">Collapse all</string>
+    <string name="prompt_preset_read_only_banner">Read-only preset. Tap any item to view or copy.</string>
+    <string name="prompt_preset_no_custom_title">No customized prompts</string>
+    <string name="prompt_preset_no_custom_desc">All prompts in this scope currently use built-in defaults.</string>
+    <string name="prompt_preset_show_all">Show all</string>
+    <string name="prompt_preset_group_custom_count">%1$d/%2$d modified</string>
+    <string name="prompt_preset_empty_preview">Empty</string>
+    <string name="prompt_preset_view_only_badge">Read-only</string>
+    <string name="prompt_preset_required_macro_hint">Required: %1$s</string>
+    <string name="prompt_editor_undo">Undo</string>
+    <string name="prompt_editor_exit_fullscreen">Exit fullscreen</string>
+    <plurals name="prompt_template_custom_count">
+        <item quantity="one">%1$d customized</item>
+        <item quantity="other">%1$d customized</item>
+    </plurals>
 </resources>

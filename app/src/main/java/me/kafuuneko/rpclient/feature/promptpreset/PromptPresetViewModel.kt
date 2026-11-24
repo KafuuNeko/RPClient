@@ -31,11 +31,14 @@ import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+private const val PREVIEW_MAX_LENGTH = 120
+private val WHITESPACE_COLLAPSE_REGEX = Regex("\\s+")
+
 /**
  * 单套提示词模板的详情与编辑状态持有者。
- * - 默认预设只读，自定义正文逐项保存。
+ * - 系统默认预设提供只读查看与单条原文复制，自定义预设逐项保存差异。
  * - revision 冲突和保存失败保留草稿，未保存退出需明确放弃。
- * - 按用途与适用场景组织展示，筛选不改变模板的生效范围。
+ * - 按用途、适用场景与自定义状态组织展示，筛选不改变模板的生效范围。
  */
 class PromptPresetViewModel :
     CoreViewModelWithEvent<PromptPresetUiIntent, PromptPresetUiState>(PromptPresetUiState.None),
@@ -51,7 +54,7 @@ class PromptPresetViewModel :
         mPresetId = intent.presetId
         PromptPresetUiState.Normal(
             promptValues = emptyMap(),
-            loadState = PromptPresetLoadState.Loading
+            loadState = PromptPresetLoadState.Loading,
         ).setup()
         perform { refresh() }
     }
@@ -62,8 +65,39 @@ class PromptPresetViewModel :
 
     /** 切换显示场景，共用字段仍会出现在相关场景下。 */
     @UiIntentObserver(PromptPresetUiIntent.SelectScope::class)
-    private fun onSelectScope(intent: PromptPresetUiIntent.SelectScope) = updateBrowser {
-        it.copy(scope = intent.scope)
+    private fun onSelectScope(intent: PromptPresetUiIntent.SelectScope) = updateBrowser { browser ->
+        browser.copy(scope = intent.scope)
+    }
+
+    /** 切换是否仅展示已自定义字段，开启时自动展开所有分类方便扫视。 */
+    @UiIntentObserver(PromptPresetUiIntent.ToggleOnlyCustomized::class)
+    private fun onToggleOnlyCustomized() = updateBrowser { browser ->
+        val nextOnlyCustomized = !browser.onlyCustomized
+        browser.copy(
+            onlyCustomized = nextOnlyCustomized,
+            expandedCategories = if (nextOnlyCustomized) {
+                PromptPresetCategory.entries.toSet()
+            } else {
+                browser.expandedCategories
+            },
+        )
+    }
+
+    /** 清空自定义筛选条件，恢复展示当前场景下全部提示词。 */
+    @UiIntentObserver(PromptPresetUiIntent.ClearFilters::class)
+    private fun onClearFilters() = updateBrowser { browser ->
+        browser.copy(onlyCustomized = false)
+    }
+
+    /** 一键展开或折叠当前全部可见分类。 */
+    @UiIntentObserver(PromptPresetUiIntent.ToggleExpandAll::class)
+    private fun onToggleExpandAll() = updateBrowser { browser ->
+        val nextExpanded = if (browser.allExpanded) {
+            emptySet()
+        } else {
+            browser.groups.map { group -> group.category }.toSet()
+        }
+        browser.copy(expandedCategories = nextExpanded)
     }
 
     /** 展开或折叠用途分类。 */
@@ -74,7 +108,9 @@ class PromptPresetViewModel :
             browser.copy(
                 expandedCategories = if (intent.category in expanded) {
                     expanded - intent.category
-                } else expanded + intent.category,
+                } else {
+                    expanded + intent.category
+                },
             )
         }
 
@@ -90,16 +126,12 @@ class PromptPresetViewModel :
         PromptPresetUiState.finished(state).setup()
     }
 
-    /** 读取已保存文本作为草稿；点击默认预设仅提示无法编辑。 */
+    /** 打开编辑或只读查看弹窗；系统默认预设允许查看与复制原文，禁止修改保存。 */
     @UiIntentObserver(PromptPresetUiIntent.EditPromptClick::class)
     private fun onEditPromptClick(intent: PromptPresetUiIntent.EditPromptClick) {
         val state = getOrNull<PromptPresetUiState.Normal>() ?: return
         if (state.busy || state.loadState != PromptPresetLoadState.Ready) return
-        if (state.isBuiltin) {
-            AppViewEvent.PopupToastMessageByResId(R.string.prompt_template_read_only).tryEmit()
-        } else {
-            state.copy(dialogState = editor(state, intent.type)).setup()
-        }
+        state.copy(dialogState = editor(state = state, type = intent.type)).setup()
     }
 
     /** 复制系统模板或当前自定义模板，保存名称前不落库。 */
@@ -114,7 +146,7 @@ class PromptPresetViewModel :
         if (!state.busy) state.copy(dialogState = dialog.copy(name = intent.value)).setup()
     }
 
-    /** 创建独立副本并在当前页面编辑，保持全局选择不变。 */
+    /** 创建独立副本并在当前页面编辑，保持全局选择不变并提示用户。 */
     @UiIntentObserver(PromptPresetUiIntent.ConfirmCopy::class)
     private fun onConfirmCopy() {
         val state = getOrNull<PromptPresetUiState.Normal>() ?: return
@@ -123,10 +155,12 @@ class PromptPresetViewModel :
         perform {
             mPresetId = mRepository.create(mPresetId, dialog.name, state.description)
             refresh()
+            AppViewEvent.PopupToastMessageByResId(R.string.prompt_template_copied_not_active)
+                .tryEmit()
         }
     }
 
-    /** 剪贴板操作交给宿主，复制内容来自未保存草稿。 */
+    /** 剪贴板操作交给宿主，复制内容来自当前草稿或只读原文。 */
     @UiIntentObserver(PromptPresetUiIntent.CopyPromptDraft::class)
     private fun onCopyPromptDraft() {
         val state = getOrNull<PromptPresetUiState.Normal>() ?: return
@@ -134,19 +168,27 @@ class PromptPresetViewModel :
         PromptPresetViewEvent.CopyText(dialog.draftText).tryEmit()
     }
 
-    /** 更新草稿原文，不裁剪空白或替换宏。 */
+    /** 更新草稿原文并实时计算必填宏校验状态，不裁剪空白或替换宏。 */
     @UiIntentObserver(PromptPresetUiIntent.ChangePromptDraft::class)
     private fun onChangePromptDraft(intent: PromptPresetUiIntent.ChangePromptDraft) {
         val state = getOrNull<PromptPresetUiState.Normal>() ?: return
         val dialog = state.dialogState as? PromptPresetDialogState.EditPrompt ?: return
-        if (!state.busy) state.copy(dialogState = dialog.copy(draftText = intent.value)).setup()
+        if (state.busy || dialog.readOnly) return
+        val invalidRequiredMacro = isMissingRequiredMacro(dialog.type, intent.value)
+        state.copy(
+            dialogState = dialog.copy(
+                draftText = intent.value,
+                hasInvalidRequiredMacro = invalidRequiredMacro,
+            ),
+        ).setup()
     }
 
-    /** 正文和版本在同一事务保存，成功后才关闭编辑器。 */
+    /** 正文和版本在同一事务保存，无改动时跳过写入，成功后关闭编辑器并提示。 */
     @UiIntentObserver(PromptPresetUiIntent.SavePrompt::class)
     private fun onSavePrompt() {
         val state = getOrNull<PromptPresetUiState.Normal>() ?: return
         val dialog = state.dialogState as? PromptPresetDialogState.EditPrompt ?: return
+        if (dialog.readOnly || !dialog.hasChanges) return
         // 提前提示无效的素材占位符，避免生成摘要时回退默认格式。
         val contentMacro = dialog.type.requiredRawSummaryMacro()
         if (contentMacro != null && dialog.type.splitRawSummaryFormat(dialog.draftText) == null) {
@@ -156,20 +198,30 @@ class PromptPresetViewModel :
         perform {
             mRepository.savePrompt(mPresetId, state.revision, dialog.type, dialog.draftText)
             refresh()
+            AppViewEvent.PopupToastMessageByResId(R.string.prompt_template_saved).tryEmit()
         }
     }
 
-    /** 关闭前比较原文；失败草稿不会因返回而静默丢失。 */
+    /** 关闭前比较原文；无改动或取消副本弹窗时直接关闭，不再触发多余刷新。 */
     @UiIntentObserver(PromptPresetUiIntent.DismissPromptDialog::class)
     private fun onDismissPromptDialog() {
         val state = getOrNull<PromptPresetUiState.Normal>() ?: return
         if (state.busy) return
         val dialog = state.dialogState
-        if (dialog is PromptPresetDialogState.EditPrompt && dialog.draftText != dialog.originalText) {
-            state.copy(dialogState = PromptPresetDialogState.Discard(dialog)).setup()
-        } else if (dialog is PromptPresetDialogState.Discard) {
-            state.copy(dialogState = dialog.editor).setup()
-        } else perform { refresh() }
+        // 仅在草稿有实质改动时进入放弃确认，其余情况直接收起弹窗避免重复读库。
+        when {
+            dialog is PromptPresetDialogState.EditPrompt && dialog.hasChanges -> {
+                state.copy(dialogState = PromptPresetDialogState.Discard(dialog)).setup()
+            }
+
+            dialog is PromptPresetDialogState.Discard -> {
+                state.copy(dialogState = dialog.editor).setup()
+            }
+
+            else -> {
+                state.copy(dialogState = PromptPresetDialogState.None).setup()
+            }
+        }
     }
 
     /** 用户明确放弃草稿后重新加载，解决其他页面编辑导致的版本冲突。 */
@@ -182,14 +234,27 @@ class PromptPresetViewModel :
         val detail = mRepository.getDetail(mPresetId)
         val state = getOrNull<PromptPresetUiState.Normal>() ?: return
         val builtin = detail.preset.id == PromptTemplateSnapshot.BUILTIN_ID
+        val normalizedBrowser = if (builtin) {
+            state.browserState.copy(onlyCustomized = false)
+        } else {
+            state.browserState
+        }
         state.copy(
             promptValues = detail.snapshot.values,
-            name = if (builtin) mContext.getString(R.string.prompt_template_default) else detail.preset.name,
+            name = if (builtin) {
+                mContext.getString(R.string.prompt_template_default)
+            } else {
+                detail.preset.name
+            },
             description = detail.preset.description,
             revision = detail.preset.revision,
             isBuiltin = builtin,
             loadState = PromptPresetLoadState.Ready,
-            browserState = buildBrowser(state.browserState, detail.snapshot.values),
+            browserState = buildBrowser(
+                browser = normalizedBrowser,
+                values = detail.snapshot.values,
+                isBuiltin = builtin,
+            ),
             dialogState = PromptPresetDialogState.None,
         ).setup()
     }
@@ -198,36 +263,47 @@ class PromptPresetViewModel :
     private fun updateBrowser(update: (PromptPresetBrowserState) -> PromptPresetBrowserState) {
         val state = getOrNull<PromptPresetUiState.Normal>() ?: return
         if (state.busy || state.loadState != PromptPresetLoadState.Ready) return
-        state.copy(browserState = buildBrowser(update(state.browserState), state.promptValues))
-            .setup()
+        state.copy(
+            browserState = buildBrowser(
+                browser = update(state.browserState),
+                values = state.promptValues,
+                isBuiltin = state.isBuiltin,
+            ),
+        ).setup()
     }
 
-    /** 先按实际作用范围筛选，再组织用途分组，正文仍以原始值映射为准。 */
+    /** 先按实际作用范围筛选，再统计自定义项并组织用途分组。 */
     private fun buildBrowser(
         browser: PromptPresetBrowserState,
         values: Map<PromptType, String>,
+        isBuiltin: Boolean,
     ): PromptPresetBrowserState {
         // 场景归属允许重叠；同一字段只有一个目录项，不创建额外覆盖值。
-        val visible = promptPresetFields.filter { field ->
+        val scopedFields = promptPresetFields.filter { field ->
             browser.scope == PromptPresetScope.All || browser.scope in field.scopes
-        }.groupBy { it.section }
+        }
+        val scopedStates = scopedFields.map { field ->
+            val value = values[field.type] ?: field.type.defaultValue
+            PromptPresetFieldState(
+                field = field,
+                isCustomized = !isBuiltin && value != field.type.defaultValue,
+                isEmpty = value.isBlank(),
+                previewText = formatPreview(value),
+            )
+        }
+        val scopedCustomCount = scopedStates.count { fieldState -> fieldState.isCustomized }
+        // 自定义过滤只影响当前列表可见项，保留同场景总计数以便展示徽标。
+        val effectiveOnlyCustomized = !isBuiltin && browser.onlyCustomized
+        val visibleBySection = scopedStates
+            .filter { fieldState -> !effectiveOnlyCustomized || fieldState.isCustomized }
+            .groupBy { fieldState -> fieldState.field.section }
         // 按固定用途顺序组织字段，筛选和保存后保留原有展开选择。
         val groups = PromptPresetCategory.entries.mapNotNull { category ->
-            val sections = PromptPresetSection.entries.filter { it.category == category }
+            val sections = PromptPresetSection.entries
+                .filter { section -> section.category == category }
                 .mapNotNull sectionLoop@{ section ->
-                    val fields = visible[section] ?: return@sectionLoop null
-                    PromptPresetSectionState(
-                        section = section,
-                        items = fields.map { field ->
-                            PromptPresetFieldState(
-                                field = field,
-                                statusRes = contentStatus(
-                                    field.type,
-                                    values[field.type] ?: field.type.defaultValue
-                                ),
-                            )
-                        },
-                    )
+                    val items = visibleBySection[section] ?: return@sectionLoop null
+                    PromptPresetSectionState(section = section, items = items)
                 }
             if (sections.isEmpty()) return@mapNotNull null
             PromptPresetGroupState(
@@ -236,26 +312,46 @@ class PromptPresetViewModel :
                 sections = sections,
             )
         }
-        return browser.copy(groups = groups)
+        return browser.copy(
+            onlyCustomized = effectiveOnlyCustomized,
+            groups = groups,
+            scopedTotalCount = scopedStates.size,
+            scopedCustomCount = scopedCustomCount,
+        )
     }
 
-    /** 空内容是有效配置，不能把默认空值或显式清空误报为未设置。 */
-    private fun contentStatus(type: PromptType, value: String): Int = when {
-        value == type.defaultValue && value.isBlank() -> R.string.prompt_status_default_empty
-        value == type.defaultValue -> R.string.prompt_status_default
-        value.isBlank() -> R.string.prompt_status_custom_empty
-        else -> R.string.prompt_status_custom
+    /** 将多行提示词折叠为紧凑单行摘要，避免列表排版抖动。 */
+    private fun formatPreview(content: String): String {
+        val collapsed = content.trim().replace(WHITESPACE_COLLAPSE_REGEX, " ")
+        if (collapsed.length <= PREVIEW_MAX_LENGTH) return collapsed
+        return collapsed.take(PREVIEW_MAX_LENGTH)
     }
 
-    /** 用已保存原文建立草稿，空串保持为空，默认文本只供显式重置。 */
-    private fun editor(state: PromptPresetUiState.Normal, type: PromptType) =
-        PromptPresetDialogState.EditPrompt(
+    /** 判断草稿是否缺少 Raw 摘要格式要求的唯一占位宏。 */
+    private fun isMissingRequiredMacro(type: PromptType, text: String): Boolean {
+        val required = type.requiredRawSummaryMacro() ?: return false
+        return type.splitRawSummaryFormat(text) == null && required.isNotEmpty()
+    }
+
+    /** 用已保存原文建立草稿或只读视图，空串保持为空，默认文本只供显式重置。 */
+    private fun editor(
+        state: PromptPresetUiState.Normal,
+        type: PromptType,
+    ): PromptPresetDialogState.EditPrompt {
+        // 打开瞬间即计算必填宏校验态，避免等到点击保存才发现格式缺宏。
+        val currentText = state.promptValues[type].orEmpty()
+        val requiredKey = type.requiredRawSummaryMacro()
+        return PromptPresetDialogState.EditPrompt(
             type = type,
-            draftText = state.promptValues[type].orEmpty(),
+            draftText = currentText,
             defaultText = type.defaultValue,
             availableMacros = availableMacros(type),
-            originalText = state.promptValues[type].orEmpty(),
+            readOnly = state.isBuiltin,
+            requiredMacro = requiredKey?.let { key -> "{{$key}}" },
+            hasInvalidRequiredMacro = !state.isBuiltin && isMissingRequiredMacro(type, currentText),
+            originalText = currentText,
         )
+    }
 
     /** 工具栏复制时先确认副本名称。 */
     private fun showCopyDialog() {
@@ -263,11 +359,8 @@ class PromptPresetViewModel :
         if (state.busy || state.loadState != PromptPresetLoadState.Ready) return
         state.copy(
             dialogState = PromptPresetDialogState.CopyTemplate(
-                mContext.getString(
-                    R.string.prompt_template_copy_name,
-                    state.name
-                )
-            )
+                mContext.getString(R.string.prompt_template_copy_name, state.name),
+            ),
         ).setup()
     }
 
@@ -284,10 +377,15 @@ class PromptPresetViewModel :
                 throw error
             } catch (error: Exception) {
                 val current = getOrNull<PromptPresetUiState.Normal>() ?: return@launch
-                if (current.loadState != PromptPresetLoadState.Ready) current.copy(loadState = PromptPresetLoadState.Failed)
-                    .setup()
-                AppViewEvent.PopupToastMessageByResId(if (error is PromptPresetConflictException) R.string.prompt_template_conflict else R.string.prompt_template_failed)
-                    .tryEmit()
+                if (current.loadState != PromptPresetLoadState.Ready) {
+                    current.copy(loadState = PromptPresetLoadState.Failed).setup()
+                }
+                val messageRes = if (error is PromptPresetConflictException) {
+                    R.string.prompt_template_conflict
+                } else {
+                    R.string.prompt_template_failed
+                }
+                AppViewEvent.PopupToastMessageByResId(messageRes).tryEmit()
             } finally {
                 getOrNull<PromptPresetUiState.Normal>()?.copy(busy = false)?.setup()
             }

@@ -1500,4 +1500,32 @@
     <string name="world_book_add_action">Добавить книги мира (доступно: %1$d)</string>
     <string name="world_book_all_enabled">Все книги мира уже включены.</string>
     <string name="story_characters_empty_title">Ссылки на персонажей не выбраны</string>
+    <string name="prompt_template_builtin_badge">Встроенный · Только чтение</string>
+    <string name="prompt_template_builtin_desc">Использует встроенные промпты по умолчанию для всех полей.</string>
+    <string name="prompt_template_all_default">Все по умолчанию</string>
+    <string name="prompt_template_copy_source">На основе «%1$s»</string>
+    <string name="prompt_template_copied_not_active">Копия создана и открыта. Активный пресет не изменен.</string>
+    <string name="prompt_template_saved">Промпт сохранен</string>
+    <string name="prompt_template_empty_title">Пользовательских пресетов пока нет</string>
+    <string name="prompt_template_edit_prompts">Редактировать промпты</string>
+    <string name="prompt_template_view_prompts">Посмотреть стандартные</string>
+    <string name="prompt_preset_only_customized">Измененные (%1$d)</string>
+    <string name="prompt_preset_expand_all">Развернуть все</string>
+    <string name="prompt_preset_collapse_all">Свернуть все</string>
+    <string name="prompt_preset_read_only_banner">Пресет только для чтения. Нажмите на пункт для просмотра или копирования.</string>
+    <string name="prompt_preset_no_custom_title">Нет измененных промптов</string>
+    <string name="prompt_preset_no_custom_desc">Все промпты в этой области используют значения по умолчанию.</string>
+    <string name="prompt_preset_show_all">Показать все</string>
+    <string name="prompt_preset_group_custom_count">Изм. %1$d/%2$d</string>
+    <string name="prompt_preset_empty_preview">Пусто</string>
+    <string name="prompt_preset_view_only_badge">Только чтение</string>
+    <string name="prompt_preset_required_macro_hint">Обязательно: %1$s</string>
+    <string name="prompt_editor_undo">Отменить</string>
+    <string name="prompt_editor_exit_fullscreen">Выйти из полноэкранного режима</string>
+    <plurals name="prompt_template_custom_count">
+        <item quantity="one">Изменен %1$d</item>
+        <item quantity="few">Изменено: %1$d</item>
+        <item quantity="many">Изменено: %1$d</item>
+        <item quantity="other">Изменено: %1$d</item>
+    </plurals>
 </resources>

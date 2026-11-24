@@ -19,6 +19,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
@@ -72,7 +73,7 @@ fun <T> RpSegmentedTabs(
                     shape = RoundedCornerShape(12.dp),
                 ) {
                     Box(
-                        modifier = Modifier.padding(vertical = 10.dp),
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 10.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
@@ -80,6 +81,8 @@ fun <T> RpSegmentedTabs(
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }

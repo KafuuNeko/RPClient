@@ -70,6 +70,7 @@ fun AppInputDialog(
     confirmEnabled: Boolean = value.isNotBlank(),
     isConfirmLoading: Boolean = false,
     keyboardType: KeyboardType = KeyboardType.Text,
+    imeAction: ImeAction = if (singleLine) ImeAction.Done else ImeAction.Default,
     onConfirm: () -> Unit,
     extraContent: @Composable ColumnScope.() -> Unit = {},
 ) {
@@ -165,10 +166,10 @@ fun AppInputDialog(
                     shape = RoundedCornerShape(16.dp),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = keyboardType,
-                        imeAction = if (singleLine) ImeAction.Done else ImeAction.Default,
+                        imeAction = imeAction,
                     ),
                     onKeyboardAction = KeyboardActionHandler { performDefaultAction ->
-                        if (enabled && confirmEnabled && !isConfirmLoading) {
+                        if (imeAction == ImeAction.Done && enabled && confirmEnabled && !isConfirmLoading) {
                             onConfirm()
                         } else {
                             performDefaultAction()

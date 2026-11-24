@@ -1470,4 +1470,31 @@ Non riusciti: %2$d</string>
     <string name="world_book_add_action">Aggiungi libri del mondo (%1$d disponibili)</string>
     <string name="world_book_all_enabled">Tutti i libri del mondo sono già attivati.</string>
     <string name="story_characters_empty_title">Nessun riferimento personaggio</string>
+    <string name="prompt_template_builtin_badge">Integrato · Sola lettura</string>
+    <string name="prompt_template_builtin_desc">Usa i prompt predefiniti integrati per tutti i campi.</string>
+    <string name="prompt_template_all_default">Tutti predefiniti</string>
+    <string name="prompt_template_copy_source">Basato su «%1$s»</string>
+    <string name="prompt_template_copied_not_active">Copiato e aperto. Il preset attivo non è cambiato.</string>
+    <string name="prompt_template_saved">Prompt salvato</string>
+    <string name="prompt_template_empty_title">Nessun preset personalizzato</string>
+    <string name="prompt_template_edit_prompts">Modifica prompt</string>
+    <string name="prompt_template_view_prompts">Visualizza predefiniti</string>
+    <string name="prompt_preset_only_customized">Personalizzati (%1$d)</string>
+    <string name="prompt_preset_expand_all">Espandi tutto</string>
+    <string name="prompt_preset_collapse_all">Comprimi tutto</string>
+    <string name="prompt_preset_read_only_banner">Preset di sola lettura. Tocca una voce per visualizzarla o copiarla.</string>
+    <string name="prompt_preset_no_custom_title">Nessun prompt personalizzato</string>
+    <string name="prompt_preset_no_custom_desc">Tutti i prompt in questo ambito usano i valori predefiniti.</string>
+    <string name="prompt_preset_show_all">Mostra tutto</string>
+    <string name="prompt_preset_group_custom_count">%1$d/%2$d modificati</string>
+    <string name="prompt_preset_empty_preview">Vuoto</string>
+    <string name="prompt_preset_view_only_badge">Sola lettura</string>
+    <string name="prompt_preset_required_macro_hint">Obbligatorio: %1$s</string>
+    <string name="prompt_editor_undo">Annulla</string>
+    <string name="prompt_editor_exit_fullscreen">Esci da schermo intero</string>
+    <plurals name="prompt_template_custom_count">
+        <item quantity="one">%1$d personalizzato</item>
+        <item quantity="many">%1$d personalizzati</item>
+        <item quantity="other">%1$d personalizzati</item>
+    </plurals>
 </resources>

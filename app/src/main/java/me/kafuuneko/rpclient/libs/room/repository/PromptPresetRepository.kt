@@ -21,12 +21,33 @@ class PromptPresetRepository(private val mDatabase: AppDatabase) {
 
     /**
      * 合并自定义列表与轻量选择状态，默认预设不需要数据库记录。
-     * @return 包含内置预设及启用标记的列表流。
+     * @return 包含内置预设、启用标记及自定义项计数的列表流。
      */
-    fun observePresets() = combine(mDao.observePresets(), mActiveId) { presets, selected ->
-        val active = selected.takeIf { id -> presets.any { it.id == id } }
+    fun observePresets() = combine(mDao.observePresetSummaries(), mActiveId) { summaries, selected ->
+        val active = selected.takeIf { id -> summaries.any { it.preset.id == id } }
             ?: PromptTemplateSnapshot.BUILTIN_ID
-        (listOf(defaultPreset()) + presets).map { PromptPresetListing(it, it.id == active) }
+        val builtin = PromptPresetListing(
+            preset = defaultPreset(),
+            isActive = active == PromptTemplateSnapshot.BUILTIN_ID,
+            overrideCount = 0,
+        )
+        listOf(builtin) + summaries.map { summary ->
+            PromptPresetListing(
+                preset = summary.preset,
+                isActive = summary.preset.id == active,
+                overrideCount = summary.overrideCount,
+            )
+        }
+    }
+
+    /**
+     * 读取当前启用预设的名称，内置默认或记录不存在时返回空以交由界面展示默认文案。
+     * @return 自定义预设名称，使用系统默认时返回 null。
+     */
+    suspend fun getActivePresetName(): String? {
+        val selected = AppModel.activePromptPresetId
+        if (selected == PromptTemplateSnapshot.BUILTIN_ID) return null
+        return mDao.getPreset(selected)?.name
     }
 
     /**
@@ -185,8 +206,12 @@ class PromptPresetRepository(private val mDatabase: AppDatabase) {
     }
 }
 
-/** 列表投影由 Repository 合并 SP 选择后生成。 */
-data class PromptPresetListing(val preset: PromptPreset, val isActive: Boolean)
+/** 列表投影由 Repository 合并 SP 选择与覆盖项统计后生成。 */
+data class PromptPresetListing(
+    val preset: PromptPreset,
+    val isActive: Boolean,
+    val overrideCount: Int = 0,
+)
 
 /** 已解析默认值的预设详情，页面不需要直接访问 DAO。 */
 data class PromptPresetDetail(val preset: PromptPreset, val snapshot: PromptTemplateSnapshot)
