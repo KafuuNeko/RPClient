@@ -456,7 +456,8 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
      * 处理返回按键/退出事件。
      *
      * 分级拦截与保护逻辑：
-     * - 若处于设置/加载子页面：取消摘要任务并切回正文编辑主页；
+     * - 若处于设置/加载子页面：沿用设置页的摘要取消与未保存确认流程；
+     * - 若处于大纲页：先处理弹窗，再关闭大纲；
      * - 若展示对话框：关闭对话框；
      * - 若正在进行流式生成：中断生成并落库已接收到的局部文本；
      * - 若有未处理的可恢复生成失败内容：提示用户先处理局部生成；
@@ -469,14 +470,19 @@ class StoryEditorViewModel : CoreViewModelWithEvent<StoryEditorUiIntent, StoryEd
             onDismissDialog()
             return
         }
-        // 设置页返回拦截
-        if (uiState.pageState != StoryEditorPageState.Editor) {
-            cancelSummaryJob()
-            val settings = uiState.pageState as? StoryEditorPageState.Settings
-            if (settings?.isSaving == true) return
-            getOrNull<StoryEditorUiState.Normal>()
-                ?.copy(pageState = StoryEditorPageState.Editor)
-                ?.setup()
+        // 所有返回入口共用设置页退出保护，避免绕过未保存修改确认。
+        if (uiState.pageState == StoryEditorPageState.LoadingSettings ||
+            uiState.pageState is StoryEditorPageState.Settings
+        ) {
+            onCloseStorySettings()
+            return
+        }
+        if (uiState.pageState == StoryEditorPageState.Outline) {
+            if (uiState.dialogState != StoryEditorDialogState.None) {
+                onDismissDialog()
+                return
+            }
+            onCloseStoryOutline()
             return
         }
         // 弹窗返回拦截

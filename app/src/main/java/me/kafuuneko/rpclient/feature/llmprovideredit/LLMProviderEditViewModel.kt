@@ -185,7 +185,9 @@ class LLMProviderEditViewModel :
      * @param intent 用户选择的目标协议。
      */
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeProtocol::class)
-    private fun onChangeProtocol(intent: LLMProviderEditUiIntent.ChangeProtocol) =
+    private fun onChangeProtocol(intent: LLMProviderEditUiIntent.ChangeProtocol) {
+        val uiState = getOrNull<LLMProviderEditUiState.Normal>() ?: return
+        if (uiState.form.protocol == intent.value) return
         updateForm(invalidateModelCatalog = true) {
             val capabilities = LLMProviderCapabilities.forProtocol(intent.value)
             val geminiPresets = listOf(ProviderPreset.Gemini, ProviderPreset.GeminiInteractions)
@@ -204,11 +206,13 @@ class LLMProviderEditViewModel :
                 baseUrl = nextPreset?.baseUrl
                     ?.takeIf { switchesGeminiProtocol && usesDefaultBaseUrl } ?: baseUrl,
                 requestBodyPatchJson = nextPreset?.defaultRequestBodyPatchJson
-                    ?.takeIf { switchesGeminiProtocol && usesDefaultPatch } ?: requestBodyPatchJson,
+                    ?.takeIf { switchesGeminiProtocol && usesDefaultPatch }
+                    ?.let { formatJsonPretty(it).ifBlank { "{}" } } ?: requestBodyPatchJson,
                 sendTemperature = capabilities.defaultSendTemperature,
                 sendTopP = capabilities.defaultSendTopP,
             )
         }
+    }
 
     /** 修改接口基础地址（Base URL）。 */
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeBaseUrl::class)

@@ -3114,9 +3114,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val promptTemplates = templates ?: mPromptPresets.getActiveSnapshot()
         // 加载会话实体与角色人设数据
         val session = sessionOverride ?: mChatRepository.getSessionById(sessionId)
-        ?: error(mContext.getString(R.string.session_not_found))
+        ?: error("Chat session does not exist")
         val character = mCharacterRepository.getCharacterById(session.characterId)
-            ?: error(mContext.getString(R.string.character_not_found))
+            ?: error("Character does not exist")
         val persona = personaOverride ?: mPersonas.resolve(session)
         val generationHistory = historyOverride ?: mChatRepository.getPromptHistoryContext(
             sessionId = sessionId,

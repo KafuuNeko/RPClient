@@ -145,8 +145,6 @@ sealed class GroupChatUiIntent {
 
     data class ToggleLorebookEntry(val entryId: Long) : GroupChatUiIntent()
 
-    data class AddMember(val characterId: Long) : GroupChatUiIntent()
-
     data class RemoveMember(val characterId: Long) : GroupChatUiIntent()
 
     data class MoveMember(val characterId: Long, val offset: Int) : GroupChatUiIntent()

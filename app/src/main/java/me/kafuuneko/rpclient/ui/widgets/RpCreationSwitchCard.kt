@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
  * @param subtitle 可选的选项说明。
  * @param icon 选项图标。
  * @param checked 当前是否开启。
+ * @param enabled 是否允许修改；创建提交期间禁用整卡及开关。
  * @param onCheckedChange 回传用户选择的目标状态。
  */
 @Composable
@@ -31,13 +32,14 @@ fun RpCreationSwitchCard(
     subtitle: String? = null,
     icon: ImageVector,
     checked: Boolean,
+    enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     // 与角色卡使用相同的 surface 底色；不额外叠乘 alpha，透明度和模糊由页面配置统一控制。
     AppSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = { onCheckedChange(!checked) }),
+            .clickable(enabled = enabled, onClick = { onCheckedChange(!checked) }),
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surface,
     ) {
@@ -72,7 +74,7 @@ fun RpCreationSwitchCard(
                     )
                 }
             }
-            PageSwitch(checked = checked, onCheckedChange = onCheckedChange)
+            PageSwitch(checked = checked, enabled = enabled, onCheckedChange = onCheckedChange)
         }
     }
 }

@@ -139,6 +139,7 @@ private fun ChatCreateNormal(
                         BasicForm(
                             form = state.form,
                             showCharacterExamplesSwitch = state.showCharacterExamplesSwitch,
+                            enabled = controlsEnabled,
                             emit = emit,
                         )
                     }
@@ -154,7 +155,11 @@ private fun ChatCreateNormal(
                         controlsEnabled = controlsEnabled,
                         emit = emit
                     )
-                    chatOpeningPreviewItems(state = state, emit = emit)
+                    chatOpeningPreviewItems(
+                        state = state,
+                        enabled = controlsEnabled,
+                        emit = emit,
+                    )
                     // 世界书摘要区：展示已启用计数与活跃书目概览，点击打开检索选择器
                     item {
                         RpSectionHeader(title = stringResource(R.string.enabled_world_book_entries))
@@ -177,6 +182,7 @@ private fun ChatCreateNormal(
 /** 在已选角色下方展示可用开场白及当前选择。 */
 private fun LazyListScope.chatOpeningPreviewItems(
     state: ChatCreateUiState.Normal,
+    enabled: Boolean,
     emit: ChatCreateUiIntent.() -> Unit,
 ) {
     // 角色开场白紧随角色摘要展示，切换角色后可立即预览并选择
@@ -188,6 +194,7 @@ private fun LazyListScope.chatOpeningPreviewItems(
             FirstMessageOption(
                 message = message,
                 selected = state.form.selectedFirstMessageIndex == index,
+                enabled = enabled,
                 onClick = { ChatCreateUiIntent.SelectFirstMessage(index).emit() },
             )
         }
@@ -330,6 +337,7 @@ private fun ChatCreateLorebookGroupItem.toSessionLorebookDialogGroup(): SessionL
 private fun BasicForm(
     form: ChatCreateForm,
     showCharacterExamplesSwitch: Boolean,
+    enabled: Boolean,
     emit: ChatCreateUiIntent.() -> Unit,
 ) {
     // 创建页只维护表单草稿，提交时才将这些设置写入会话
@@ -339,6 +347,7 @@ private fun BasicForm(
                 .fillMaxWidth()
                 .generalContentBackground(shape = RoundedCornerShape(12.dp), hasLabel = true),
             value = form.title,
+            enabled = enabled,
             onValueChange = { text -> ChatCreateUiIntent.ChangeTitle(text).emit() },
             label = { Text(stringResource(R.string.chat_title)) },
             leadingIcon = {
@@ -353,6 +362,7 @@ private fun BasicForm(
         RpScrollableOutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
             value = form.userNote,
+            enabled = enabled,
             onValueChange = { text -> ChatCreateUiIntent.ChangeUserNote(text).emit() },
             label = { Text(stringResource(R.string.default_user_note)) },
             minLines = 3,
@@ -365,6 +375,7 @@ private fun BasicForm(
                 title = stringResource(R.string.chat_include_character_examples),
                 icon = Icons.Rounded.FormatQuote,
                 checked = form.includeCharacterExamples,
+                enabled = enabled,
                 onCheckedChange = { enabled ->
                     ChatCreateUiIntent.ToggleIncludeCharacterExamples(enabled).emit()
                 },
@@ -498,13 +509,14 @@ private fun CharacterSelectionPromptCard(
 private fun FirstMessageOption(
     message: String,
     selected: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit,
 ) {
     // 整张开场白卡片接收选择操作，长文本仍可在原位置对比。
     AppCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(
             width = if (selected) 2.dp else 1.dp,
@@ -520,7 +532,7 @@ private fun FirstMessageOption(
             modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            RadioButton(selected = selected, onClick = onClick)
+            RadioButton(selected = selected, enabled = enabled, onClick = onClick)
             Spacer(modifier = Modifier.width(8.dp))
             RpIconBubble(Icons.Rounded.FormatQuote)
             Spacer(modifier = Modifier.width(12.dp))

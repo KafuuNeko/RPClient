@@ -174,8 +174,9 @@ private fun SessionLorebookPickerContent(
     onManageWorldBooks: (() -> Unit)?,
 ) {
     val isSearching = query.isNotBlank()
-    // 搜索短暂无结果时保留展开项及列表位置，恢复结果后继续浏览。
+    // 搜索时临时收起分组不影响常规展开状态，关键词变化后重新展开匹配结果。
     var expandedGroupIds by remember { mutableStateOf(emptySet<Long>()) }
+    var collapsedInSearchIds by remember(query) { mutableStateOf(emptySet<Long>()) }
     val listState = rememberLazyListState()
     // 搜索和筛选操作保持在列表上方，列表独立滚动，避免长世界书挤出操作区。
     Column(
@@ -215,7 +216,14 @@ private fun SessionLorebookPickerContent(
                 isSearching = isSearching,
                 listState = listState,
                 expandedGroupIds = expandedGroupIds,
-                onToggleExpanded = { id -> expandedGroupIds = expandedGroupIds.toggle(id) },
+                collapsedInSearchIds = collapsedInSearchIds,
+                onToggleExpanded = { id ->
+                    if (isSearching) {
+                        collapsedInSearchIds = collapsedInSearchIds.toggle(id)
+                    } else {
+                        expandedGroupIds = expandedGroupIds.toggle(id)
+                    }
+                },
                 onToggleGroup = onToggleGroup,
                 onToggleEntry = onToggleEntry,
             )
@@ -275,6 +283,7 @@ private fun SessionLorebookGroupList(
     isSearching: Boolean,
     listState: LazyListState,
     expandedGroupIds: Set<Long>,
+    collapsedInSearchIds: Set<Long>,
     onToggleExpanded: (Long) -> Unit,
     onToggleGroup: (Long) -> Unit,
     onToggleEntry: (Long) -> Unit,
@@ -290,7 +299,11 @@ private fun SessionLorebookGroupList(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         visibleGroups.forEach { group ->
-            val expanded = isSearching || group.id in expandedGroupIds
+            val expanded = if (isSearching) {
+                group.id !in collapsedInSearchIds
+            } else {
+                group.id in expandedGroupIds
+            }
             item(key = "group-${group.id}") {
                 // 整本开关作用于完整分组，即使搜索结果只显示其中部分条目。
                 val completeEntries = (completeGroupsById[group.id] ?: group).entries

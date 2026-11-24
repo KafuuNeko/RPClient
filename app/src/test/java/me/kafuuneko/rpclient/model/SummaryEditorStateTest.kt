@@ -133,6 +133,54 @@ class SummaryEditorStateTest {
         assertNull(cleared.toGenerationContext().current.inputSnapshot)
     }
 
+    /** 清空后生成再恢复，手写摘要不能重新依赖清空前的生成输入。 */
+    @Test
+    fun restoringClearedCheckpointKeepsHandwrittenSummaryIndependent() {
+        val state = SummaryEditorState(saved = mSaved, latestMessageId = 4L)
+            .generate("B", 4L)
+            .copy(text = " \n")
+            .generated("C", 4L, mInput.copy(summaryVersion = "cleared"), emptyList())
+        val restored = requireNotNull(state.restoreLocal())
+        assertTrue(restored.text.isBlank())
+        // 空白检查点恢复后的新手稿不应重新激活旧输入或旧摘要依赖。
+        val handwritten = restored.copy(text = "Manual memory")
+        val commit = requireNotNull(handwritten.toCommit())
+        assertNull(commit.inputSnapshot)
+        assertTrue(commit.sources.isEmpty())
+        val context = handwritten.toGenerationContext()
+        assertNull(context.current.inputSnapshot)
+        assertTrue(context.current.sources.isEmpty())
+        assertEquals(4L, commit.summary.coveredMessageId)
+    }
+
+    /** 重新摘要会取前一份低覆盖位置的检查点，清空稿必须切断旧分支依赖。 */
+    @Test
+    fun replayBaseAfterClearingHasNoOldDependencies() {
+        val state = SummaryEditorState(saved = mSaved, latestMessageId = 4L)
+            .generate("B", 4L)
+            .copy(text = "")
+            .generated("C", 4L, mInput.copy(summaryVersion = "cleared"), emptyList())
+        val checkpoint = state.toGenerationContext().previous.last()
+        assertEquals("", checkpoint.summary.content)
+        assertEquals(0L, checkpoint.summary.coveredMessageId)
+        assertNull(checkpoint.inputSnapshot)
+        assertTrue(checkpoint.sources.isEmpty())
+    }
+
+    /** 已保存摘要的手工改写是新草稿，保留历史游标但不能冒用持久化主键。 */
+    @Test
+    fun manuallyEditedCheckpointHasNoPersistedId() {
+        val state = SummaryEditorState(saved = mSaved, latestMessageId = 4L)
+            .copy(text = "Edited A")
+            .generate("B", 4L)
+        val restored = requireNotNull(state.restoreLocal())
+        assertEquals("Edited A", restored.text)
+        assertNull(restored.current.summary.id)
+        assertEquals(mSaved.id, restored.current.historyCursor)
+        assertEquals(listOf(mSaved), restored.current.sources)
+        assertNull(requireNotNull(state.toCommit()).history.single().summary.id)
+    }
+
     /** 恢复旧稿后再生成和撤销，历史游标仍指向旧稿之前而非打开表单时的最新稿。 */
     @Test
     fun restoredHistoryKeepsItsCursorAndOriginalSaveBaseline() {

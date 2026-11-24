@@ -1405,7 +1405,9 @@ class GroupChatViewModel :
             AppViewEvent.PopupToastMessageByResId(R.string.group_chat_select_speaker).tryEmit()
             return
         }
-        if (state.page == GroupChatPage.Settings && !saveSettingsDraft(state)) return
+        if (state.page == GroupChatPage.Settings &&
+            !saveSettingsDraft(state, page = GroupChatPage.Conversation)
+        ) return
         clearReplyRetry()
         val current = getOrNull<GroupChatUiState.Normal>() ?: return
         val output = ImpersonationOutput.fromKey(AppModel.impersonationOutput)
@@ -1609,8 +1611,7 @@ class GroupChatViewModel :
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (uiState.dialogState.isBlocking()) return
         if (mGenerationJob?.isCompleted == false) return
-        if (!ensureProviderConfigured()) return
-        // 快捷入口先展示编辑器，生成结果仍由用户显式保存。
+        // 快捷入口先展示编辑器，由摘要流程统一校验独立配置的摘要模型。
         if (uiState.page == GroupChatPage.Conversation) onOpenSettings()
         val settingsUiState = getOrNull<GroupChatUiState.Normal>() ?: return
         // 准备请求也属于阻塞操作，避免读取期间离开设置或继续修改本轮草稿。
@@ -1892,15 +1893,19 @@ class GroupChatViewModel :
         if (uiState.page != GroupChatPage.Settings) return
         if (uiState.dialogState.isBlocking()) return
         if (mGenerationJob?.isCompleted == false) return
-        if (saveSettingsDraft(uiState)) refreshState(page = GroupChatPage.Conversation)
+        saveSettingsDraft(uiState, page = GroupChatPage.Conversation)
     }
 
     /**
      * 保存设置后才允许离开表单或使用新配置生成回复，写入失败时保留草稿。
      * @param state 发起操作时的群聊页面状态。
-     * @return 设置与摘要是否成功保存。
+     * @param page 保存成功后展示的页面。
+     * @return 设置与摘要是否成功保存并刷新基线。
      */
-    private suspend fun saveSettingsDraft(state: GroupChatUiState.Normal): Boolean {
+    private suspend fun saveSettingsDraft(
+        state: GroupChatUiState.Normal,
+        page: GroupChatPage = state.page,
+    ): Boolean {
         val settings = state.settingsState
         val summary = mSummaryEditor.toCommit()
         state.copy(dialogState = GroupChatDialogState.Saving).setup()
@@ -1914,6 +1919,12 @@ class GroupChatViewModel :
                     settings.applyToSession(session)
                 }
             }
+            // 持续显示保存进度，刷新标题、策略与摘要基线后才切换到后续操作。
+            refreshState(
+                page = page,
+                dialogState = GroupChatDialogState.Saving,
+                preserveSettingsDraft = false,
+            )
             true
         } catch (error: CancellationException) {
             throw error
@@ -1926,7 +1937,9 @@ class GroupChatViewModel :
             false
         } finally {
             val current = getOrNull<GroupChatUiState.Normal>()
-            current?.copy(dialogState = GroupChatDialogState.None)?.setup()
+            if (current?.dialogState == GroupChatDialogState.Saving) {
+                current.copy(dialogState = GroupChatDialogState.None).setup()
+            }
         }
     }
 
@@ -2045,23 +2058,6 @@ class GroupChatViewModel :
     } catch (_: SQLiteException) {
         AppViewEvent.PopupToastMessageByResId(R.string.story_save_failed_short).tryEmit()
         false
-    }
-
-    /**
-     * 向群聊中添加新成员角色。
-     *
-     * @param intent 包含待添加角色 ID 的意图
-     */
-    @UiIntentObserver(GroupChatUiIntent.AddMember::class)
-    private suspend fun onAddMember(intent: GroupChatUiIntent.AddMember) {
-        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
-        withContext(Dispatchers.IO) {
-            mGroupChatRepository.addMember(uiState.sessionId, intent.characterId)
-        }
-        refreshState(
-            page = uiState.page,
-            preserveSettingsDraft = uiState.page == GroupChatPage.Settings,
-        )
     }
 
     /**
@@ -2451,9 +2447,19 @@ class GroupChatViewModel :
         }
         // 用原发言者和设置草稿生成，成功后才替换原回复。
         val speaker = findReplySpeaker(state.sessionId, latest) ?: return
-        if (!saveSettingsDraft(state)) return
+        if (!saveSettingsDraft(state, page = GroupChatPage.Conversation)) return
         val current = getOrNull<GroupChatUiState.Normal>() ?: return
-        current.copy(page = GroupChatPage.Conversation).setup()
+        // 请求准备阶段也锁定生成操作，避免界面短暂恢复空闲状态。
+        current.copy(
+            page = GroupChatPage.Conversation,
+            conversationState = current.conversationState.copy(
+                generationState = GroupChatGenerationState.Generating(
+                    speakerName = speaker.character.name,
+                    current = 1,
+                    total = 1,
+                ),
+            ),
+        ).setup()
         launchGeneration(
             sessionId = state.sessionId,
             speakers = listOf(speaker),
@@ -2484,9 +2490,20 @@ class GroupChatViewModel :
         }
         val speaker = findReplySpeaker(uiState.sessionId, last) ?: return
         // 设置页和输入栏共用同一次续写，从设置页发起时把生成进度显示在对话中。
-        if (uiState.page == GroupChatPage.Settings && !saveSettingsDraft(uiState)) return
+        if (uiState.page == GroupChatPage.Settings &&
+            !saveSettingsDraft(uiState, page = GroupChatPage.Conversation)
+        ) return
         val current = getOrNull<GroupChatUiState.Normal>() ?: return
-        current.copy(page = GroupChatPage.Conversation).setup()
+        current.copy(
+            page = GroupChatPage.Conversation,
+            conversationState = current.conversationState.copy(
+                generationState = GroupChatGenerationState.Generating(
+                    speakerName = speaker.character.name,
+                    current = 1,
+                    total = 1,
+                ),
+            ),
+        ).setup()
         launchGeneration(
             sessionId = uiState.sessionId,
             speakers = listOf(speaker),

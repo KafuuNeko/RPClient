@@ -130,7 +130,8 @@ private fun WorldBookEditNormal(
             actions = {
                 if (selectionMode) {
                     BatchSelectionActions(
-                        allSelected = state.entryListState.visibleEntries.all { it.id in state.entryListState.selectedEntryIds },
+                        allSelected = state.entryListState.visibleEntries.isNotEmpty() &&
+                            state.entryListState.visibleEntries.all { it.id in state.entryListState.selectedEntryIds },
                         canSelectAll = state.entryListState.visibleEntries.isNotEmpty(),
                         enabled = enabled,
                         onToggleAll = { WorldBookEditUiIntent.ToggleVisibleEntrySelection.emit() },

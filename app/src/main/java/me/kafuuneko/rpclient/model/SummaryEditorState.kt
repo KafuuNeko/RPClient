@@ -98,8 +98,14 @@ data class SummaryEditorState(
         if (generated.hasSameMemory(effectiveSummary) && intermediateVersions.isEmpty()) return this
         // 一轮手工改写只保留编辑前和编辑后的两份，不按击键记录历史。
         val edited = !effectiveSummary.hasSameMemory(current.summary)
+        // 手工检查点尚未持久化；清空后开启的新分支不能沿用旧生成依赖。
+        val editedCheckpoint = current.copy(
+            summary = effectiveSummary.copy(id = null),
+            inputSnapshot = current.inputSnapshot.takeIf { text.isNotBlank() },
+            sources = current.sources.takeIf { text.isNotBlank() }.orEmpty(),
+        )
         val history = previous + current + if (edited) {
-            listOf(current.copy(summary = effectiveSummary))
+            listOf(editedCheckpoint)
         } else emptyList()
         return copy(
             current = SummaryDraftVersion(

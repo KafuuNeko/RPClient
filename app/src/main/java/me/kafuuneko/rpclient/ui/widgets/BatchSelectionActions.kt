@@ -37,10 +37,11 @@ fun BatchSelectionActions(
     canDelete: Boolean = true,
 ) {
     // 全选与导出沿用普通操作色，删除使用主题错误色提示其破坏性。
+    val showDeselectAll = allSelected && canSelectAll
     IconButton(onClick = onToggleAll, enabled = enabled && canSelectAll) {
         Icon(
-            imageVector = if (allSelected) Icons.Rounded.CheckBox else Icons.Rounded.SelectAll,
-            contentDescription = stringResource(if (allSelected) R.string.selection_deselect_all else R.string.selection_select_all),
+            imageVector = if (showDeselectAll) Icons.Rounded.CheckBox else Icons.Rounded.SelectAll,
+            contentDescription = stringResource(if (showDeselectAll) R.string.selection_deselect_all else R.string.selection_select_all),
         )
     }
     if (onExport != null) {

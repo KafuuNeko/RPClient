@@ -217,6 +217,7 @@ internal fun ChatSettingsPage(
                                 stringResource(R.string.using_character_default_or_empty)
                             })
                         },
+                        alwaysMinimizeLabel = true,
                         minLines = 3,
                         maxLines = 8,
                         onValueChange = { ChatUiIntent.ChangeCreatorNotes(it).emit() },
@@ -233,6 +234,7 @@ internal fun ChatSettingsPage(
                     enabledGroups = enabledWorldBooks,
                     onOpenWorldBookManager = { ChatUiIntent.OpenWorldBookManager.emit() },
                     onAddWorldBooks = { ChatUiIntent.ShowAddLorebooksDialog.emit() },
+                    onSearchWorldBooks = { ChatUiIntent.ShowSessionLoreDialog.emit() },
                     onToggleLorebook = { lorebookId ->
                         ChatUiIntent.ToggleSessionLorebook(lorebookId).emit()
                     },
