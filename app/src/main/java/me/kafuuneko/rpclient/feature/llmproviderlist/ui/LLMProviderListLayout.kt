@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -358,41 +359,46 @@ private fun ProviderListCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                AppSurface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (provider.isEnabled)
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-                    else
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                    border = BorderStroke(
-                        width = 0.5.dp,
-                        color = if (provider.isEnabled)
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                        else
-                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
-                    ),
+                // 模型标签按文本宽度包裹，超出剩余空间时单行省略
+                Box(
                     modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.CenterStart,
                 ) {
-                    Text(
-                        text = provider.model.ifBlank { stringResource(R.string.pending_config) },
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Medium,
+                    AppSurface(
+                        shape = RoundedCornerShape(8.dp),
                         color = if (provider.isEnabled)
-                            MaterialTheme.colorScheme.onPrimaryContainer
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
                         else
-                            MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                        border = BorderStroke(
+                            width = 0.5.dp,
+                            color = if (provider.isEnabled)
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                            else
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
+                        ),
+                    ) {
+                        Text(
+                            text = provider.model.ifBlank { stringResource(R.string.pending_config) },
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = if (provider.isEnabled)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
 
+                // 协议标签上限受控并可省略，状态圆点始终保留独立空间
                 Row(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.widthIn(max = 184.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
                 ) {
-                    // 协议标签可省略，状态圆点始终保留独立空间。
                     Box(modifier = Modifier.weight(weight = 1f, fill = false)) {
                         RpMetaPill(
                             text = when (provider.protocol) {
@@ -405,7 +411,7 @@ private fun ProviderListCard(
                     }
                     ProviderStatusDot(
                         isEnabled = provider.isEnabled,
-                        isConfigured = provider.isConfigured
+                        isConfigured = provider.isConfigured,
                     )
                 }
             }
