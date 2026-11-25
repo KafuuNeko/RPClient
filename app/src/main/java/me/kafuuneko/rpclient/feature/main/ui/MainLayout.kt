@@ -54,6 +54,7 @@ import me.kafuuneko.rpclient.ui.dialog.AppPromptEditorDialog
 import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
 import me.kafuuneko.rpclient.ui.dialog.NumericEditDialog
 import me.kafuuneko.rpclient.ui.dialog.NumericEditQuickOption
+import me.kafuuneko.rpclient.ui.dialog.PrivacyNoticeDialog
 import me.kafuuneko.rpclient.ui.dialog.SliderConfig
 import me.kafuuneko.rpclient.ui.widgets.AppPageScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
@@ -231,6 +232,13 @@ private fun DialogSwitch(
     // 索引进度仅由设置页展示，并与其他业务窗口互斥。
     when (dialogState) {
         MainDialogState.None -> SearchIndexProgressDialog(searchIndexState, emit)
+
+        MainDialogState.PrivacyNotice -> PrivacyNoticeDialog(
+            onDismissRequest = { MainUiIntent.DismissDialog.emit() },
+            onOpenDiscord = { MainUiIntent.OpenPrivacyNoticeDiscord.emit() },
+            onOpenRepository = { MainUiIntent.OpenPrivacyNoticeRepository.emit() },
+            isFirstLaunch = true,
+        )
 
         MainDialogState.EnableSearchIndex -> AppConfirmDialog(
             onDismissRequest = { MainUiIntent.DismissDialog.emit() },

@@ -64,6 +64,9 @@ internal fun MainUiState.Normal.canOpenDialog(): Boolean {
 sealed class MainDialogState {
     data object None : MainDialogState()
 
+    /** 首次启动或隐私协议版本不匹配时展示的隐私与本地数据说明弹窗。 */
+    data object PrivacyNotice : MainDialogState()
+
     data object EnableSearchIndex : MainDialogState()
 
     data object DisableSearchIndex : MainDialogState()

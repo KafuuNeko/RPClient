@@ -10,7 +10,11 @@ import android.widget.Toast
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.pm.PackageInfoCompat
 import androidx.core.net.toUri
@@ -20,6 +24,8 @@ import me.kafuuneko.rpclient.feature.about.presentation.AboutUiState
 import me.kafuuneko.rpclient.feature.about.ui.AboutLayout
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.core.CoreActivity
+import me.kafuuneko.rpclient.ui.dialog.PrivacyNoticeDialog
+import me.kafuuneko.rpclient.utils.safeOpenExternalUrl
 
 /** 关于页面宿主，负责提供版本、社区反馈和项目联系信息。 */
 class AboutActivity : CoreActivity() {
@@ -29,7 +35,7 @@ class AboutActivity : CoreActivity() {
     /** 提供安装包元数据，并将页面操作交给宿主执行。 */
     @Composable
     override fun ViewContent() {
-        // - 读取应用包信息与静态链接，构造页面展示状态
+        // 读取应用包信息与静态链接，构造页面展示状态。
         val uiState = remember {
             val packageInfo = packageManager.getPackageInfo(packageName, 0)
             AboutUiState(
@@ -39,22 +45,34 @@ class AboutActivity : CoreActivity() {
                     isDevelopmentBuild = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0,
                 ),
                 githubRepoUrl = AppModel.GITHUB_REPO,
-                githubRepoName = "KafuuNeko/RPClient",
+                githubRepoName = AppModel.GITHUB_REPO_NAME,
                 developerEmail = AppModel.EMAIL,
                 githubIssuesUrl = "${AppModel.GITHUB_REPO}/issues",
             )
         }
+        var showPrivacyNotice by rememberSaveable { mutableStateOf(false) }
 
-        // - 渲染关于界面并绑定外部跳转交互
+        // 渲染关于界面并绑定外部跳转及隐私说明弹窗交互。
         Surface(modifier = Modifier.fillMaxSize()) {
             AboutLayout(
                 uiState = uiState,
                 onBack = { finish() },
                 onCopyDeveloperEmail = { copyDeveloperEmail(uiState.developerEmail) },
-                onOpenRepository = { safeOpenUrl(uiState.githubRepoUrl) },
+                onOpenRepository = { openExternalLink(uiState.githubRepoUrl) },
                 onRateApp = { openGooglePlay() },
-                onOpenFeedback = { safeOpenUrl(uiState.githubIssuesUrl) },
-                onOpenDiscord = { safeOpenUrl("https://discord.gg/xAwBTbtbe") },
+                onOpenFeedback = { openExternalLink(uiState.githubIssuesUrl) },
+                onOpenDiscord = { openExternalLink(AppModel.DISCORD_INVITE_URL) },
+                onOpenPrivacyNotice = { showPrivacyNotice = true },
+            )
+        }
+
+        // 支持用户随时重新查看隐私与本地数据说明。
+        if (showPrivacyNotice) {
+            PrivacyNoticeDialog(
+                onDismissRequest = { showPrivacyNotice = false },
+                onOpenDiscord = { openExternalLink(AppModel.DISCORD_INVITE_URL) },
+                onOpenRepository = { openExternalLink(uiState.githubRepoUrl) },
+                isFirstLaunch = false,
             )
         }
     }
@@ -90,19 +108,16 @@ class AboutActivity : CoreActivity() {
             try {
                 startActivity(Intent(Intent.ACTION_VIEW, "market://details?id=$pkg".toUri()))
             } catch (_: ActivityNotFoundException) {
-                safeOpenUrl("https://play.google.com/store/apps/details?id=$pkg")
+                openExternalLink("https://play.google.com/store/apps/details?id=$pkg")
             }
         }
     }
 
-    /** 安全打开外部超链接，若无可用浏览器则回退至复制链接到剪贴板。 */
-    private fun safeOpenUrl(url: String) {
-        try {
-            startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
-        } catch (_: ActivityNotFoundException) {
-            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.about), url))
-            Toast.makeText(this, R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show()
-        }
+    /** 以关于页标签为兜底复制标识，安全打开外部超链接。 */
+    private fun openExternalLink(url: String) {
+        safeOpenExternalUrl(
+            url = url,
+            clipboardLabel = getString(R.string.about),
+        )
     }
 }

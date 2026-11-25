@@ -1534,4 +1534,18 @@
     <string name="prompt_inspector_expand">展開</string>
     <string name="prompt_inspector_collapse">收合</string>
     <string name="prompt_inspector_empty_content">（無文字內容）</string>
+    <!-- Privacy & Local Data Notice -->
+    <string name="privacy_notice_title">隱私與資料聲明</string>
+    <string name="privacy_notice_subtitle">RPClient 為開源本地用戶端，請了解資料處理方式。</string>
+    <string name="privacy_notice_local_title">本地儲存 · 無帳號</string>
+    <string name="privacy_notice_local_desc">無伺服器、無帳號且零遙測。所有資料僅儲存在本機，清除應用程式資料或解除安裝即可徹底刪除。</string>
+    <string name="privacy_notice_provider_title">直連第三方模型服務</string>
+    <string name="privacy_notice_provider_desc">提示詞、上下文與 API Key 將直接傳送至您設定的模型服務商，並受其隱私權政策規範。</string>
+    <string name="privacy_notice_local_model_title">支援本地模型後端</string>
+    <string name="privacy_notice_local_model_desc">使用 Ollama、vLLM 等本地或區域網路後端時，資料不會離開本地網路。</string>
+    <string name="privacy_notice_revisit_hint">可隨時於「設定 → 關於」中再次查看。</string>
+    <string name="privacy_notice_confirm">我已知曉</string>
+    <string name="about_privacy_notice">隱私與資料聲明</string>
+    <string name="about_privacy_notice_desc">本地儲存、零遙測與資料流向</string>
+    <string name="about_privacy_notice_action">查看</string>
 </resources>

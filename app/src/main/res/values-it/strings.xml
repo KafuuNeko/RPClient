@@ -1531,4 +1531,18 @@ Non riusciti: %2$d</string>
     <string name="prompt_inspector_expand">Espandi</string>
     <string name="prompt_inspector_collapse">Comprimi</string>
     <string name="prompt_inspector_empty_content">(Nessun contenuto testuale)</string>
+    <!-- Privacy & Local Data Notice -->
+    <string name="privacy_notice_title">Informativa su privacy e dati</string>
+    <string name="privacy_notice_subtitle">Open source e locale. Scopri come vengono gestiti i tuoi dati.</string>
+    <string name="privacy_notice_local_title">Solo locale · Nessun account</string>
+    <string name="privacy_notice_local_desc">Nessun server centrale, nessun account e zero telemetria. Tutti i dati restano sul dispositivo; cancella i dati o disinstalla l\'app per eliminarli definitivamente.</string>
+    <string name="privacy_notice_provider_title">Richieste dirette al provider</string>
+    <string name="privacy_notice_provider_desc">Prompt, contesto e chiavi API vengono inviati direttamente al provider configurato, secondo la sua informativa sulla privacy.</string>
+    <string name="privacy_notice_local_model_title">Backend di modelli locali</string>
+    <string name="privacy_notice_local_model_desc">Con backend locali o LAN (es. Ollama, vLLM), nessun dato lascia la tua rete locale.</string>
+    <string name="privacy_notice_revisit_hint">Sempre disponibile in Impostazioni → Info.</string>
+    <string name="privacy_notice_confirm">Ho capito</string>
+    <string name="about_privacy_notice">Informativa su privacy e dati</string>
+    <string name="about_privacy_notice_desc">Archiviazione locale, zero telemetria e flusso dati</string>
+    <string name="about_privacy_notice_action">Visualizza</string>
 </resources>

@@ -1552,4 +1552,18 @@
     <string name="prompt_inspector_expand">Déplier</string>
     <string name="prompt_inspector_collapse">Replier</string>
     <string name="prompt_inspector_empty_content">(Aucun contenu texte)</string>
+    <!-- Privacy & Local Data Notice -->
+    <string name="privacy_notice_title">Avis de confidentialité et données</string>
+    <string name="privacy_notice_subtitle">Open source et local. Aperçu du traitement de vos données.</string>
+    <string name="privacy_notice_local_title">Stockage local · Sans compte</string>
+    <string name="privacy_notice_local_desc">Aucun serveur, aucun compte, zéro télémétrie. Vos données restent sur l\'appareil ; effacez les données ou désinstallez l\'app pour les supprimer définitivement.</string>
+    <string name="privacy_notice_provider_title">Requêtes directes au fournisseur</string>
+    <string name="privacy_notice_provider_desc">Les prompts, le contexte et les clés API sont envoyés directement au fournisseur configuré, selon sa politique de confidentialité.</string>
+    <string name="privacy_notice_local_model_title">Serveurs locaux pris en charge</string>
+    <string name="privacy_notice_local_model_desc">Avec un serveur local ou LAN (Ollama, vLLM, etc.), aucune donnée ne quitte votre réseau local.</string>
+    <string name="privacy_notice_revisit_hint">Consultable à tout moment dans Paramètres → À propos.</string>
+    <string name="privacy_notice_confirm">J\'ai compris</string>
+    <string name="about_privacy_notice">Avis de confidentialité et données</string>
+    <string name="about_privacy_notice_desc">Stockage local, zéro télémétrie et flux de données</string>
+    <string name="about_privacy_notice_action">Voir</string>
 </resources>

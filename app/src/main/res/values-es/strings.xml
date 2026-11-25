@@ -1553,4 +1553,18 @@
     <string name="prompt_inspector_expand">Expandir</string>
     <string name="prompt_inspector_collapse">Contraer</string>
     <string name="prompt_inspector_empty_content">(Sin contenido de texto)</string>
+    <!-- Privacy & Local Data Notice -->
+    <string name="privacy_notice_title">Aviso de privacidad y datos</string>
+    <string name="privacy_notice_subtitle">Código abierto y local. Consulta cómo se gestionan tus datos.</string>
+    <string name="privacy_notice_local_title">Solo local · Sin cuentas</string>
+    <string name="privacy_notice_local_desc">Sin servidores centrales, sin cuentas y cero telemetría. Tus datos permanecen en el dispositivo; borra los datos o desinstala la app para eliminarlos.</string>
+    <string name="privacy_notice_provider_title">Solicitudes directas al proveedor</string>
+    <string name="privacy_notice_provider_desc">Prompts, contexto y claves API se envían directamente al proveedor que configures, bajo su política de privacidad.</string>
+    <string name="privacy_notice_local_model_title">Backends de modelos locales</string>
+    <string name="privacy_notice_local_model_desc">Con backends locales o LAN (p. ej., Ollama o vLLM), ningún dato sale de tu red local.</string>
+    <string name="privacy_notice_revisit_hint">Disponible siempre en Ajustes → Acerca de.</string>
+    <string name="privacy_notice_confirm">Entendido</string>
+    <string name="about_privacy_notice">Aviso de privacidad y datos</string>
+    <string name="about_privacy_notice_desc">Almacenamiento local, cero telemetría y flujo de datos</string>
+    <string name="about_privacy_notice_action">Ver</string>
 </resources>

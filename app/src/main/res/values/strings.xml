@@ -1552,4 +1552,18 @@
     <string name="prompt_inspector_expand">Expand</string>
     <string name="prompt_inspector_collapse">Collapse</string>
     <string name="prompt_inspector_empty_content">(No text content)</string>
+    <!-- Privacy & Local Data Notice -->
+    <string name="privacy_notice_title">Privacy &amp; Data Notice</string>
+    <string name="privacy_notice_subtitle">Open-source and local-first. Review how your data is handled.</string>
+    <string name="privacy_notice_local_title">Local Only · No Accounts</string>
+    <string name="privacy_notice_local_desc">Zero telemetry and no central servers. All data stays on your device—clear app data or uninstall to delete it permanently.</string>
+    <string name="privacy_notice_provider_title">Direct Provider Requests</string>
+    <string name="privacy_notice_provider_desc">Prompts, context, and API keys go directly to the model provider you configure, under their privacy policy.</string>
+    <string name="privacy_notice_local_model_title">Local Model Backends</string>
+    <string name="privacy_notice_local_model_desc">With local or LAN backends (e.g., Ollama, vLLM), no data leaves your local network.</string>
+    <string name="privacy_notice_revisit_hint">Available anytime in Settings → About.</string>
+    <string name="privacy_notice_confirm">I Understand</string>
+    <string name="about_privacy_notice">Privacy &amp; Data Notice</string>
+    <string name="about_privacy_notice_desc">Local storage, zero telemetry, and data flow</string>
+    <string name="about_privacy_notice_action">View</string>
 </resources>

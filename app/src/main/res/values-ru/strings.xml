@@ -1562,4 +1562,18 @@
     <string name="prompt_inspector_expand">Развернуть</string>
     <string name="prompt_inspector_collapse">Свернуть</string>
     <string name="prompt_inspector_empty_content">(Нет текстового содержимого)</string>
+    <!-- Privacy & Local Data Notice -->
+    <string name="privacy_notice_title">Уведомление о конфиденциальности</string>
+    <string name="privacy_notice_subtitle">Клиент с открытым исходным кодом. Как обрабатываются ваши данные:</string>
+    <string name="privacy_notice_local_title">Только локально · Без аккаунтов</string>
+    <string name="privacy_notice_local_desc">Без серверов, аккаунтов и телеметрии. Все данные хранятся на устройстве — очистите данные или удалите приложение для полного удаления.</string>
+    <string name="privacy_notice_provider_title">Прямые запросы провайдеру</string>
+    <string name="privacy_notice_provider_desc">Промпты, контекст и API-ключи отправляются напрямую выбранному вами провайдеру по его политике конфиденциальности.</string>
+    <string name="privacy_notice_local_model_title">Локальные модели</string>
+    <string name="privacy_notice_local_model_desc">При использовании локальных или LAN-серверов (Ollama, vLLM и др.) данные не покидают вашу локальную сеть.</string>
+    <string name="privacy_notice_revisit_hint">Доступно в любое время: Настройки → О приложении.</string>
+    <string name="privacy_notice_confirm">Понятно</string>
+    <string name="about_privacy_notice">Уведомление о конфиденциальности</string>
+    <string name="about_privacy_notice_desc">Локальное хранение, без телеметрии и передача данных</string>
+    <string name="about_privacy_notice_action">Открыть</string>
 </resources>

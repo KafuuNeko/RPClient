@@ -18,6 +18,7 @@ import me.kafuuneko.rpclient.libs.core.CoreActivityWithEvent
 import me.kafuuneko.rpclient.libs.core.GetContentWithMimeTypes
 import me.kafuuneko.rpclient.libs.core.IViewEvent
 import me.kafuuneko.rpclient.libs.room.entity.UserPersona
+import me.kafuuneko.rpclient.utils.safeOpenExternalUrl
 
 /** 应用主页面宿主，承载首页与全局设置。 */
 class MainActivity : CoreActivityWithEvent() {
@@ -93,7 +94,7 @@ class MainActivity : CoreActivityWithEvent() {
         mViewModel.emit(MainUiIntent.Resume)
     }
 
-    /** 将图片和归档选择请求交给系统选择器。 */
+    /** 将图片、归档选择与外部链接跳转请求交给系统处理。 */
     override suspend fun onReceivedViewEvent(viewEvent: IViewEvent) {
         super.onReceivedViewEvent(viewEvent)
         when (viewEvent) {
@@ -112,6 +113,8 @@ class MainActivity : CoreActivityWithEvent() {
                     "application/octet-stream",
                 ),
             )
+
+            is MainViewEvent.OpenExternalUrl -> safeOpenExternalUrl(url = viewEvent.url)
         }
     }
 }

@@ -1541,4 +1541,18 @@ Thất bại: %2$d</string>
     <string name="prompt_inspector_expand">Mở rộng</string>
     <string name="prompt_inspector_collapse">Thu gọn</string>
     <string name="prompt_inspector_empty_content">(Không có nội dung văn bản)</string>
+    <!-- Privacy & Local Data Notice -->
+    <string name="privacy_notice_title">Thông báo Quyền riêng tư &amp; Dữ liệu</string>
+    <string name="privacy_notice_subtitle">Mã nguồn mở, ưu tiên cục bộ. Xem cách dữ liệu của bạn được xử lý.</string>
+    <string name="privacy_notice_local_title">Chỉ lưu cục bộ · Không tài khoản</string>
+    <string name="privacy_notice_local_desc">Không máy chủ trung tâm, không tài khoản và không theo dõi. Mọi dữ liệu nằm trên thiết bị; xóa dữ liệu ứng dụng hoặc gỡ cài đặt để xóa vĩnh viễn.</string>
+    <string name="privacy_notice_provider_title">Gửi trực tiếp đến nhà cung cấp</string>
+    <string name="privacy_notice_provider_desc">Prompt, ngữ cảnh và khóa API được gửi trực tiếp tới nhà cung cấp mô hình bạn cấu hình, theo chính sách quyền riêng tư của họ.</string>
+    <string name="privacy_notice_local_model_title">Hỗ trợ mô hình cục bộ</string>
+    <string name="privacy_notice_local_model_desc">Khi dùng máy chủ cục bộ hoặc mạng LAN (như Ollama, vLLM), dữ liệu không rời khỏi mạng nội bộ của bạn.</string>
+    <string name="privacy_notice_revisit_hint">Xem lại bất cứ lúc nào tại Cài đặt → Giới thiệu.</string>
+    <string name="privacy_notice_confirm">Tôi đã hiểu</string>
+    <string name="about_privacy_notice">Thông báo Quyền riêng tư &amp; Dữ liệu</string>
+    <string name="about_privacy_notice_desc">Lưu trữ cục bộ, không theo dõi và luồng dữ liệu</string>
+    <string name="about_privacy_notice_action">Xem</string>
 </resources>

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Forum
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Numbers
+import androidx.compose.material.icons.rounded.VerifiedUser
 import androidx.compose.material.icons.rounded.ViewInAr
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.about.presentation.AboutAppInfoState
 import me.kafuuneko.rpclient.feature.about.presentation.AboutUiState
+import me.kafuuneko.rpclient.ui.theme.AccentEmeraldColor
 import me.kafuuneko.rpclient.ui.theme.AccentSkyColor
 import me.kafuuneko.rpclient.ui.theme.AccentVioletColor
 import me.kafuuneko.rpclient.ui.theme.AppTheme
@@ -48,6 +50,7 @@ fun AboutLayout(
     onRateApp: () -> Unit,
     onOpenFeedback: () -> Unit,
     onOpenDiscord: () -> Unit,
+    onOpenPrivacyNotice: () -> Unit,
 ) {
     // 装饰与正文共享背景，系统栏和内容避让仍由 Scaffold 处理。
     Box(modifier = Modifier.fillMaxSize()) {
@@ -63,6 +66,7 @@ fun AboutLayout(
                     onRateApp = onRateApp,
                     onOpenFeedback = onOpenFeedback,
                     onOpenDiscord = onOpenDiscord,
+                    onOpenPrivacyNotice = onOpenPrivacyNotice,
                     modifier = Modifier.padding(paddingValues),
                 )
             },
@@ -78,6 +82,7 @@ private fun AboutViewContent(
     onRateApp: () -> Unit,
     onOpenFeedback: () -> Unit,
     onOpenDiscord: () -> Unit,
+    onOpenPrivacyNotice: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
@@ -105,6 +110,7 @@ private fun AboutViewContent(
                 developerEmail = uiState.developerEmail,
                 onCopyDeveloperEmail = onCopyDeveloperEmail,
                 onOpenRepository = onOpenRepository,
+                onOpenPrivacyNotice = onOpenPrivacyNotice,
             )
             AboutAppInfoSection(uiState.appInfo)
             AboutFooter()
@@ -158,9 +164,19 @@ private fun AboutSupportSection(
     developerEmail: String,
     onCopyDeveloperEmail: () -> Unit,
     onOpenRepository: () -> Unit,
+    onOpenPrivacyNotice: () -> Unit,
 ) {
-    // 邮箱置于副标题，尾部仅保留短操作标签，避免小屏被长地址挤压。
+    // 优先提供本地数据与隐私说明入口，邮箱与开源声明紧随其后。
     AboutSection(stringResource(R.string.section_about)) {
+        AboutActionRow(
+            icon = Icons.Rounded.VerifiedUser,
+            accent = AccentEmeraldColor,
+            title = stringResource(R.string.about_privacy_notice),
+            subtitle = stringResource(R.string.about_privacy_notice_desc),
+            action = stringResource(R.string.about_privacy_notice_action),
+            onClick = onOpenPrivacyNotice,
+        )
+        AboutDivider()
         AboutActionRow(
             icon = Icons.Rounded.Email,
             accent = AccentSkyColor,
@@ -255,5 +271,6 @@ private fun AboutPreviewContent() {
         onRateApp = {},
         onOpenFeedback = {},
         onOpenDiscord = {},
+        onOpenPrivacyNotice = {},
     )
 }

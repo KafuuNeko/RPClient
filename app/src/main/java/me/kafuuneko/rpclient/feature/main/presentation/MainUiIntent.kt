@@ -211,5 +211,9 @@ sealed class MainUiIntent {
 
     data object ConfirmDeleteSelected : MainUiIntent()
 
+    data object OpenPrivacyNoticeDiscord : MainUiIntent()
+
+    data object OpenPrivacyNoticeRepository : MainUiIntent()
+
     data object DismissDialog : MainUiIntent()
 }

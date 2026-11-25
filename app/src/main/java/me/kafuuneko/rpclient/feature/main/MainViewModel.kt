@@ -77,6 +77,7 @@ import me.kafuuneko.rpclient.feature.storyeditor.StoryEditorActivity
 import me.kafuuneko.rpclient.feature.tokenusage.TokenUsageActivity
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.PrivacyNoticeModel
 import me.kafuuneko.rpclient.model.HomeRecentMode
 import me.kafuuneko.rpclient.libs.chat.ChatArchive
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
@@ -175,15 +176,23 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     /** 名称立即回显，持久化任务按提交顺序串行完成。 */
     private var mUserNameSaveJob: Job? = null
 
-    /** 初始化主页与设置页全量状态。 */
+    /** 初始化主页与设置页全量状态，并在隐私协议版本不匹配时挂载首次提示弹窗。 */
     @UiIntentObserver(MainUiIntent.Init::class)
     private suspend fun onInit(intent: MainUiIntent.Init) {
         if (!isStateOf<MainUiState.None>()) return
+        // 读取模型供应商配置，解析当前激活项。
         val allProviders = mLLMRepository.getAllProviders()
         val providers = allProviders.filter { it.isEnabled }
         val currentId = AppModel.currentLLMProvider
         val selectedProvider =
             providers.firstOrNull { it.id == currentId } ?: providers.firstOrNull()
+        // 检查独立隐私偏好版本；需展示时立即同步写入当前版本，避免异常退出后反复弹出。
+        val showPrivacyNotice = withContext(Dispatchers.IO) {
+            val required = PrivacyNoticeModel.shouldShowNotice()
+            if (required) PrivacyNoticeModel.markCurrentVersionShown()
+            required
+        }
+        // 装配首页与设置全量状态，并按版本检查结果挂载隐私说明弹窗。
         MainUiState.Normal(
             selectedPage = when (intent.route) {
                 Route.Main -> MainPage.Home
@@ -191,6 +200,11 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             },
             homeState = buildHomeState(),
             settingsState = buildSettingsState(providers, selectedProvider, allProviders),
+            dialogState = if (showPrivacyNotice) {
+                MainDialogState.PrivacyNotice
+            } else {
+                MainDialogState.None
+            },
         ).setup()
         // 订阅应用级任务；旋转页面不会重复启动构建或丢失清理进度。
         observeSearchIndex()
@@ -408,6 +422,22 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
             val currentDialog = current.dialogState as? MainDialogState.RenameItem ?: return
             current.copy(dialogState = currentDialog.copy(isSaving = false)).setup()
         }
+    }
+
+    /** 在隐私说明弹窗中打开 Discord 社区链接，保持当前弹窗处于打开状态。 */
+    @UiIntentObserver(MainUiIntent.OpenPrivacyNoticeDiscord::class)
+    private fun onOpenPrivacyNoticeDiscord() {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        if (uiState.dialogState != MainDialogState.PrivacyNotice) return
+        MainViewEvent.OpenExternalUrl(AppModel.DISCORD_INVITE_URL).tryEmit()
+    }
+
+    /** 在隐私说明弹窗中打开开源仓库链接，保持当前弹窗处于打开状态。 */
+    @UiIntentObserver(MainUiIntent.OpenPrivacyNoticeRepository::class)
+    private fun onOpenPrivacyNoticeRepository() {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        if (uiState.dialogState != MainDialogState.PrivacyNotice) return
+        MainViewEvent.OpenExternalUrl(AppModel.GITHUB_REPO).tryEmit()
     }
 
     /** 关闭当前活跃的弹窗并清理临时暂存对象。 */

@@ -1556,4 +1556,18 @@ Falhas: %2$d</string>
     <string name="prompt_inspector_expand">Expandir</string>
     <string name="prompt_inspector_collapse">Recolher</string>
     <string name="prompt_inspector_empty_content">(Sem conteúdo de texto)</string>
+    <!-- Privacy & Local Data Notice -->
+    <string name="privacy_notice_title">Aviso de privacidade e dados</string>
+    <string name="privacy_notice_subtitle">Código aberto e local. Veja como seus dados são tratados.</string>
+    <string name="privacy_notice_local_title">Apenas local · Sem contas</string>
+    <string name="privacy_notice_local_desc">Sem servidores centrais, sem contas e zero telemetria. Seus dados ficam no dispositivo; limpe os dados ou desinstale o app para excluí-los permanentemente.</string>
+    <string name="privacy_notice_provider_title">Requisições diretas ao provedor</string>
+    <string name="privacy_notice_provider_desc">Prompts, contexto e chaves de API vão diretamente ao provedor configurado, sob a política de privacidade dele.</string>
+    <string name="privacy_notice_local_model_title">Backends de modelos locais</string>
+    <string name="privacy_notice_local_model_desc">Com backends locais ou LAN (ex.: Ollama, vLLM), nenhum dado sai da sua rede local.</string>
+    <string name="privacy_notice_revisit_hint">Disponível a qualquer momento em Configurações → Sobre.</string>
+    <string name="privacy_notice_confirm">Entendi</string>
+    <string name="about_privacy_notice">Aviso de privacidade e dados</string>
+    <string name="about_privacy_notice_desc">Armazenamento local, zero telemetria e fluxo de dados</string>
+    <string name="about_privacy_notice_action">Ver</string>
 </resources>

@@ -1541,4 +1541,18 @@ Gagal: %2$d</string>
     <string name="prompt_inspector_expand">Perluas</string>
     <string name="prompt_inspector_collapse">Ciutkan</string>
     <string name="prompt_inspector_empty_content">(Tidak ada konten teks)</string>
+    <!-- Privacy & Local Data Notice -->
+    <string name="privacy_notice_title">Pemberitahuan Privasi &amp; Data</string>
+    <string name="privacy_notice_subtitle">Sumber terbuka dan lokal. Pelajari cara data Anda ditangani.</string>
+    <string name="privacy_notice_local_title">Hanya Lokal · Tanpa Akun</string>
+    <string name="privacy_notice_local_desc">Tanpa server pusat, tanpa akun, dan tanpa telemetri. Semua data tersimpan di perangkat; hapus data aplikasi atau copot pemasangan untuk menghapus permanen.</string>
+    <string name="privacy_notice_provider_title">Permintaan Langsung ke Penyedia</string>
+    <string name="privacy_notice_provider_desc">Prompt, konteks, dan kunci API dikirim langsung ke penyedia model yang Anda atur, sesuai kebijakan privasinya.</string>
+    <string name="privacy_notice_local_model_title">Backend Model Lokal</string>
+    <string name="privacy_notice_local_model_desc">Dengan backend lokal atau LAN (seperti Ollama, vLLM), tidak ada data yang keluar dari jaringan lokal Anda.</string>
+    <string name="privacy_notice_revisit_hint">Tersedia kapan saja di Pengaturan → Tentang.</string>
+    <string name="privacy_notice_confirm">Saya Mengerti</string>
+    <string name="about_privacy_notice">Pemberitahuan Privasi &amp; Data</string>
+    <string name="about_privacy_notice_desc">Penyimpanan lokal, tanpa telemetri, dan alur data</string>
+    <string name="about_privacy_notice_action">Lihat</string>
 </resources>

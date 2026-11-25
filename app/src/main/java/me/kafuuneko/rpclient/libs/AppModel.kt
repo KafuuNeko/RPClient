@@ -19,6 +19,12 @@ object AppModel : KotprefModel() {
     // 仓库地址。
     const val GITHUB_REPO = "https://github.com/KafuuNeko/RPClient"
 
+    // 仓库展示名称。
+    const val GITHUB_REPO_NAME = "KafuuNeko/RPClient"
+
+    // Discord 社区永久邀请地址。
+    const val DISCORD_INVITE_URL = "https://discord.gg/xAwBTbtbe"
+
     /** 普通生成默认最多读取的最近历史消息数。 */
     const val DEFAULT_MAX_PROMPT_HISTORY_MESSAGES = 500
 

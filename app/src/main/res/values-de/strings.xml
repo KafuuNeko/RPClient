@@ -1545,4 +1545,18 @@
     <string name="prompt_inspector_expand">Aufklappen</string>
     <string name="prompt_inspector_collapse">Einklappen</string>
     <string name="prompt_inspector_empty_content">(Kein Textinhalt)</string>
+    <!-- Privacy & Local Data Notice -->
+    <string name="privacy_notice_title">Datenschutz- &amp; Datenhinweis</string>
+    <string name="privacy_notice_subtitle">Quelloffen und lokal. Überblick über den Umgang mit Ihren Daten.</string>
+    <string name="privacy_notice_local_title">Nur lokal · Keine Konten</string>
+    <string name="privacy_notice_local_desc">Keine Server, keine Konten, keine Telemetrie. Alle Daten bleiben auf dem Gerät; App-Daten löschen oder deinstallieren entfernt sie dauerhaft.</string>
+    <string name="privacy_notice_provider_title">Direkte Modellanfragen</string>
+    <string name="privacy_notice_provider_desc">Prompts, Kontext und API-Schlüssel gehen direkt an Ihren konfigurierten Anbieter und unterliegen dessen Datenschutzrichtlinie.</string>
+    <string name="privacy_notice_local_model_title">Lokale Modell-Backends</string>
+    <string name="privacy_notice_local_model_desc">Mit lokalen oder LAN-Backends (z. B. Ollama, vLLM) verlassen keine Daten Ihr lokales Netzwerk.</string>
+    <string name="privacy_notice_revisit_hint">Jederzeit abrufbar unter Einstellungen → Über.</string>
+    <string name="privacy_notice_confirm">Verstanden</string>
+    <string name="about_privacy_notice">Datenschutz- &amp; Datenhinweis</string>
+    <string name="about_privacy_notice_desc">Lokale Speicherung, keine Telemetrie, Datenfluss</string>
+    <string name="about_privacy_notice_action">Ansehen</string>
 </resources>

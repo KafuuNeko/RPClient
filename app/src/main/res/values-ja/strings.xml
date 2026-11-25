@@ -1535,4 +1535,18 @@
     <string name="prompt_inspector_expand">展開</string>
     <string name="prompt_inspector_collapse">折りたたむ</string>
     <string name="prompt_inspector_empty_content">（テキストなし）</string>
+    <!-- Privacy & Local Data Notice -->
+    <string name="privacy_notice_title">プライバシーとデータに関する声明</string>
+    <string name="privacy_notice_subtitle">オープンソースのローカルクライアントです。データの取り扱いをご確認ください。</string>
+    <string name="privacy_notice_local_title">ローカル保存 · アカウント不要</string>
+    <string name="privacy_notice_local_desc">サーバー・アカウント・テレメトリは一切ありません。データは端末内にのみ保存され、データ消去やアンインストールで完全に削除されます。</string>
+    <string name="privacy_notice_provider_title">モデル提供元への直接送信</string>
+    <string name="privacy_notice_provider_desc">プロンプト、コンテキスト、API キーは設定したモデル提供元へ直接送信され、提供元のプライバシーポリシーが適用されます。</string>
+    <string name="privacy_notice_local_model_title">ローカルモデル対応</string>
+    <string name="privacy_notice_local_model_desc">Ollama や vLLM などのローカル／LAN 接続先を使用する場合、データはローカルネットワーク外へ送信されません。</string>
+    <string name="privacy_notice_revisit_hint">「設定 → アプリについて」からいつでも確認できます。</string>
+    <string name="privacy_notice_confirm">確認しました</string>
+    <string name="about_privacy_notice">プライバシーとデータに関する声明</string>
+    <string name="about_privacy_notice_desc">ローカル保存・ゼロテレメトリ・データ送信経路</string>
+    <string name="about_privacy_notice_action">表示</string>
 </resources>
