@@ -168,15 +168,6 @@ internal fun ChatNormalPage(
                 )
             },
         )
-        // 图片请求失败且允许重试时在输入区上方展示轻量重试入口。
-        if ((conversation.generationState as? ChatGenerationState.Failed)?.canRetryReply == true) {
-            TextButton(
-                onClick = { ChatUiIntent.RetryImageReply.emit() },
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-            ) {
-                Text(stringResource(R.string.image_retry))
-            }
-        }
         MessageImageViewerDialog(
             state = state.imageState,
             emit = { action -> ChatUiIntent.ImageAction(action).emit() },
@@ -186,6 +177,7 @@ internal fun ChatNormalPage(
             writingState = conversation.writingState,
             isGenerating = conversation.generationState.isGenerating(),
             hasAssistantMessage = conversation.hasAssistantMessage,
+            canRegenerateLatestReply = conversation.canRegenerateLatestReply,
             imageState = state.imageState,
             emit = emit,
         )
@@ -520,6 +512,7 @@ private fun ChatInputBar(
     writingState: ChatWritingState?,
     isGenerating: Boolean,
     hasAssistantMessage: Boolean,
+    canRegenerateLatestReply: Boolean,
     imageState: MessageImageState,
     emit: ChatUiIntent.() -> Unit,
 ) {
@@ -559,7 +552,7 @@ private fun ChatInputBar(
             ConversationQuickAction(
                 icon = Icons.Rounded.Refresh,
                 label = stringResource(R.string.regenerate_latest_reply),
-                enabled = hasAssistantMessage && !isGenerating,
+                enabled = canRegenerateLatestReply && !isGenerating,
                 onClick = { ChatUiIntent.RegenerateLast.emit() },
             )
             ConversationQuickAction(
@@ -587,7 +580,7 @@ private fun ChatGenerationState.label(streamEnabled: Boolean): String {
 
         ChatGenerationState.Requesting -> stringResource(R.string.requesting_model)
         is ChatGenerationState.Streaming -> stringResource(R.string.generating)
-        is ChatGenerationState.Failed -> message
+        is ChatGenerationState.Failed -> stringResource(R.string.generation_failed)
     }
 }
 

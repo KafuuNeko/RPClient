@@ -637,6 +637,8 @@
     <string name="group_chat_turn_order">Порядок: %1$s</string>
     <string name="group_chat_cast_ready">Участники готовы</string>
     <string name="group_chat_speaker_replying">%1$s отвечает (%2$d/%3$d)</string>
+    <string name="group_chat_reply_failed_speaker">Не удалось получить ответ от %1$s</string>
+    <string name="group_chat_reply_failed_speakers">Не удалось получить ответ от %1$s · осталось: %2$d</string>
     <string name="mute">Отключить</string>
     <string name="unmute">Включить</string>
     <string name="group_chat_room_ready">Чат готов</string>
@@ -1131,7 +1133,6 @@
     <string name="image_error_count">Запрос содержит слишком много изображений (не более 12).</string>
     <string name="image_prepare_failed">Не удалось обработать изображение: оно отсутствует или превышает ограничение. Выберите статическое изображение ещё раз (не более четырёх; по 32 МиБ / 48 мегапикселей каждое).</string>
     <string name="image_edit_ended">Редактирование уже завершено. Откройте редактор сообщения заново, прежде чем выбирать изображения.</string>
-    <string name="image_retry">Повторить ответ</string>
     <string name="image_summary_paused">Не удалось создать сводку по изображению. Автоматические сводки приостановлены; смените модель сводок и возобновите в настройках.</string>
     <string name="image_token_estimator">Оценка токенов изображения</string>
     <string name="image_estimator_generic">Общая приблизительная оценка</string>

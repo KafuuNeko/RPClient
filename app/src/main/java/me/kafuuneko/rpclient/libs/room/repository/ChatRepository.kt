@@ -94,6 +94,7 @@ data class ChatMessagePage(
 data class ChatPageData(
     val page: ChatMessagePage,
     val hasCharacterMessage: Boolean,
+    val canRegenerateLatestReply: Boolean = hasCharacterMessage,
     val summary: String,
     val canResummarize: Boolean,
     val summaryVersion: SummaryVersion,
@@ -768,15 +769,21 @@ class ChatRepository(
                 limit = pageSize + 1,
             ) else emptyList()
             val summary = mChatMessageDao.getLatestSummaryBySessionId(sessionId)
-            // 搜索定位可能只显示历史窗口，摘要动作仍以会话末尾为准。
-            val latestMessageId = if (anchored == null) rows.firstOrNull()?.id
-            else mChatMessageDao.getLatestMessageBySessionId(sessionId)?.id
+            // 搜索定位可能只显示历史窗口，摘要与重生成能力仍以会话末尾为准。
+            val latestMessage = if (anchored == null) rows.firstOrNull()
+            else mChatMessageDao.getLatestMessageBySessionId(sessionId)
+            val latestMessageId = latestMessage?.id
+            val totalMessageCount =
+                anchored?.totalMessageCount ?: mChatMessageDao.getMessageCountBySessionId(sessionId)
+            val page = anchored ?: rows.toChatMessagePage(
+                pageSize = pageSize,
+                totalMessageCount = totalMessageCount,
+            )
             ChatPageData(
-                page = anchored ?: rows.toChatMessagePage(
-                    pageSize = pageSize,
-                    totalMessageCount = mChatMessageDao.getMessageCountBySessionId(sessionId),
-                ),
+                page = page,
                 hasCharacterMessage = mChatMessageDao.hasCharacterMessageBySessionId(sessionId),
+                canRegenerateLatestReply = latestMessage?.source == ChatMessage.Source.Char
+                    && totalMessageCount > 1,
                 summary = summary?.content.orEmpty(),
                 canResummarize = summary.coversLatestMessage(latestMessageId),
                 summaryVersion = summary.toSummaryVersion(),
@@ -928,11 +935,21 @@ class ChatRepository(
                     totalMessageCount = totalMessageCount,
                 )
             }
-            // 续写和回复待回答消息需要原文，手动摘要覆盖末条后仍保留这个生成目标。
-            val history =
-                if (keepLatestMessage && messagesAfterSummary.isEmpty() && excludedMessageId == null) {
+            // 续写和回复待回答消息需要原文，手动摘要覆盖末条后仍保留这个生成目标（原位重试时取被排除残缺消息之前的一条）。
+            val history = if (keepLatestMessage && messagesAfterSummary.isEmpty()) {
+                if (excludedMessageId == null) {
                     listOfNotNull(mChatMessageDao.getLatestMessageBySessionId(sessionId))
-                } else messagesAfterSummary
+                } else {
+                    listOfNotNull(
+                        mChatMessageDao.getLatestMessagePageBySessionId(
+                            sessionId = sessionId,
+                            limit = 2,
+                        ).firstOrNull { message -> message.id != excludedMessageId },
+                    )
+                }
+            } else {
+                messagesAfterSummary
+            }
             ChatPromptHistoryContext(
                 summary = latestSummary?.content.orEmpty(),
                 messages = getMessagesWithImages(history.map { message -> message.id }),

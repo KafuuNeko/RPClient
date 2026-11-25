@@ -3,12 +3,14 @@ package me.kafuuneko.rpclient.feature.groupchat.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.window.DialogProperties
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMemberItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMessageItem
@@ -32,6 +34,7 @@ import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
 import me.kafuuneko.rpclient.ui.dialog.CharacterPickerDialog
 import me.kafuuneko.rpclient.ui.dialog.CharacterPickerDialogItem
 import me.kafuuneko.rpclient.ui.dialog.CharacterPickerMode
+import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
 import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialog
@@ -179,13 +182,34 @@ private fun DialogSwitch(
             onConfirm = { emitIntent(GroupChatUiIntent.OpenSummarySettings) },
         )
 
+        is GroupChatDialogState.GenerationFailure -> AppConfirmDialog(
+            onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
+            title = dialogState.title,
+            message = dialogState.message,
+            badgeIcon = Icons.Rounded.ErrorOutline,
+            badgeTone = DialogBadgeTone.Danger,
+            confirmText = stringResource(if (dialogState.canRetry) R.string.retry else R.string.close),
+            dismissText = if (dialogState.canRetry) stringResource(R.string.cancel) else null,
+            onConfirm = {
+                if (dialogState.canRetry) {
+                    emitIntent(GroupChatUiIntent.RetryGeneration)
+                } else {
+                    emitIntent(GroupChatUiIntent.DismissDialog)
+                }
+            },
+            properties = DialogProperties(dismissOnClickOutside = false),
+        )
+
         is GroupChatDialogState.ModelSettingsGuide -> AppConfirmDialog(
             onDismissRequest = { emitIntent(GroupChatUiIntent.DismissDialog) },
             title = dialogState.title,
             message = dialogState.message,
+            badgeIcon = Icons.Rounded.ErrorOutline,
+            badgeTone = DialogBadgeTone.Danger,
             confirmText = stringResource(R.string.go_to_model_settings),
             dismissText = stringResource(R.string.cancel),
             onConfirm = { emitIntent(GroupChatUiIntent.OpenProviderSettings) },
+            properties = DialogProperties(dismissOnClickOutside = false),
         )
 
         is GroupChatDialogState.PromptInspector -> PromptInspectorDialog(

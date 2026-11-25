@@ -398,9 +398,9 @@ class GroupChatRepository(
             val retained =
                 messages.filter { message -> message.id > (summary?.coveredMessageId ?: 0L) }
                     .toMutableList()
-            // 按末条消息接话时保留原文和附件，哪怕手动摘要已覆盖它。
+            // 按末条消息接话或原位重试残缺回复时保留原文和附件，哪怕手动摘要已覆盖它。
             val latestMessage = messages.lastOrNull()
-            if (replacingReply == null && retained.isEmpty() && latestMessage != null &&
+            if (retained.isEmpty() && latestMessage != null &&
                 (keepLatestMessage || latestMessage.id == protectedUserMessageId)
             ) {
                 retained.add(latestMessage)

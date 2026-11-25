@@ -53,6 +53,7 @@ import me.kafuuneko.rpclient.feature.groupchat.utils.macroContext
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.main.MainActivity
 import me.kafuuneko.rpclient.feature.main.model.Route
+import me.kafuuneko.rpclient.model.GenerationFailureAction
 import me.kafuuneko.rpclient.model.noProviderModelSettingsGuide
 import me.kafuuneko.rpclient.model.toGenerationFailurePresentation
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
@@ -191,44 +192,147 @@ class GroupChatViewModel :
 
     private var mReplyRetryContext: ReplyRetryContext? = null
 
-    /** 从失败角色恢复剩余轮次，已完成回复及用户图片继续保留。 */
-    @UiIntentObserver(GroupChatUiIntent.RetryImageReply::class)
-    private suspend fun onRetryImageReply() {
+    /** 从失败角色恢复剩余轮次；若流式中断留下残缺回复则原位覆盖首位角色，已完成回复及用户图片继续保留。 */
+    @UiIntentObserver(GroupChatUiIntent.RetryGeneration::class)
+    private suspend fun onRetryGeneration() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if ((uiState.conversationState.generationState as? GroupChatGenerationState.Failed)?.canRetryReply != true) return
         if (mGenerationJob?.isCompleted == false) return
-        val retry = mReplyRetryContext ?: return
-        // 目标在按钮显示后被删除时，移除入口并给出受控提示。
-        val trigger = retry.triggerUserMessageId?.let { mGroupChatRepository.getMessageById(it) }
-        if (retry.sessionId != uiState.sessionId
-            || (retry.triggerUserMessageId != null && trigger?.sessionId != uiState.sessionId)
-        ) {
-            clearReplyRetry()
-            refreshState(generationState = GroupChatGenerationState.Failed(mContext.getString(R.string.message_deleted)))
-            return
+        val retry = mReplyRetryContext?.takeIf { context ->
+            context.sessionId == uiState.sessionId && context.speakers.isNotEmpty()
+        } ?: return
+        // 目标在弹窗展示期间被删除时，移除上下文并给出受控提示。
+        val trigger = retry.triggerUserMessageId?.let { id ->
+            withContext(Dispatchers.IO) { mGroupChatRepository.getMessageById(id) }
         }
-        // 用户编辑目标或追加新消息后，旧的重生成请求不再适用。
-        val original = retry.replacingReply
-        if (original != null && mGroupChatRepository.getLatestMessage(retry.sessionId) != original) {
+        if (retry.triggerUserMessageId != null && trigger?.sessionId != uiState.sessionId) {
             clearReplyRetry()
             refreshState(
-                generationState = GroupChatGenerationState.Failed(
-                    mContext.getString(R.string.no_latest_assistant_reply_to_regenerate)
-                )
+                generationState = GroupChatGenerationState.Idle,
+                dialogState = GroupChatDialogState.GenerationFailure(
+                    title = mContext.getString(R.string.generation_failed),
+                    message = mContext.getString(R.string.message_deleted),
+                    canRetry = false,
+                ),
             )
             return
         }
+        // 用户编辑目标或追加新消息后，旧的原位替换请求不再适用。
+        val original = retry.replacingReply
+        val latest = if (original != null) {
+            withContext(Dispatchers.IO) { mGroupChatRepository.getLatestMessage(retry.sessionId) }
+        } else {
+            null
+        }
+        if (original != null && latest != original) {
+            clearReplyRetry()
+            refreshState(
+                generationState = GroupChatGenerationState.Idle,
+                dialogState = GroupChatDialogState.GenerationFailure(
+                    title = mContext.getString(R.string.generation_failed),
+                    message = mContext.getString(R.string.no_latest_assistant_reply_to_regenerate),
+                    canRetry = false,
+                ),
+            )
+            return
+        }
+        // 立即关闭失败弹窗并切入生成态，避免点击重试后弹窗停留一帧。
+        uiState.copy(
+            dialogState = GroupChatDialogState.None,
+            conversationState = uiState.conversationState.copy(
+                generationState = GroupChatGenerationState.Generating(
+                    speakerName = retry.speakers.first().character.name,
+                    current = 1,
+                    total = retry.speakers.size,
+                ),
+            ),
+        ).setup()
         launchGeneration(
-            retry.sessionId,
-            retry.speakers,
-            retry.generationMode,
-            retry.triggerUserMessageId,
+            sessionId = retry.sessionId,
+            speakers = retry.speakers,
+            generationMode = retry.generationMode,
+            triggerUserMessageId = retry.triggerUserMessageId,
             initialPersona = retry.persona,
             replacingReply = retry.replacingReply,
+            isPartialReplacement = retry.isPartialReplacement,
         )
     }
 
-    /** 丢弃旧恢复目标，同时撤下仍显示在失败状态中的重试入口。 */
+    /**
+     * 将群聊生成异常映射为统一的失败对话框状态，并按失败类型决定是否保留断点重试上下文。
+     *
+     * - 模型配置类错误引导前往模型设置并清理重试快照；
+     * - 瞬时/运行错误在仍有待发言角色时开放弹窗内「重试」按钮，标题注明中断角色与剩余人数；
+     * - 内容/附件约束仅展示说明并提供关闭按钮。
+     *
+     * @param sessionId 当前群聊 ID
+     * @param throwable 捕获到的生成异常
+     * @param fallbackMessageResId 兜底失败标题及默认提示资源 ID
+     */
+    private suspend fun presentGenerationFailure(
+        sessionId: Long,
+        throwable: Throwable,
+        fallbackMessageResId: Int,
+    ) {
+        val failure = throwable.toGenerationFailurePresentation(
+            context = mContext,
+            fallbackMessageResId = fallbackMessageResId,
+        ) ?: return
+        // 仅瞬时/运行失败且当前批次仍有未完成角色时开放弹窗重试，其余失败立即清理。
+        val retry = mReplyRetryContext?.takeIf { context ->
+            failure.action == GenerationFailureAction.Retry
+                && context.sessionId == sessionId
+                && context.speakers.isNotEmpty()
+        }
+        val canRetry = retry != null
+        if (!canRetry) {
+            mReplyRetryContext = null
+        }
+        val dialogTitle = if (retry != null) {
+            val speakerName = retry.speakers.first().character.name
+            if (retry.speakers.size > 1) {
+                mContext.getString(
+                    R.string.group_chat_reply_failed_speakers,
+                    speakerName,
+                    retry.speakers.size,
+                )
+            } else {
+                mContext.getString(R.string.group_chat_reply_failed_speaker, speakerName)
+            }
+        } else {
+            mContext.getString(fallbackMessageResId)
+        }
+        val dialogState = when (failure.action) {
+            GenerationFailureAction.ConfigureModel ->
+                failure.modelSettingsGuide?.toGroupChatDialogState()
+                    ?: GroupChatDialogState.GenerationFailure(
+                        title = dialogTitle,
+                        message = failure.message,
+                        canRetry = false,
+                    )
+
+            GenerationFailureAction.Retry -> GroupChatDialogState.GenerationFailure(
+                title = dialogTitle,
+                message = failure.message,
+                canRetry = canRetry,
+            )
+
+            GenerationFailureAction.DismissOnly -> GroupChatDialogState.GenerationFailure(
+                title = dialogTitle,
+                message = failure.message,
+                canRetry = false,
+            )
+        }
+        refreshState(
+            generationState = GroupChatGenerationState.Failed(
+                message = failure.message,
+                canRetryReply = canRetry,
+            ),
+            dialogState = dialogState,
+        )
+    }
+
+    /** 丢弃旧恢复目标，同时撤下仍显示在失败状态中的重试标记。 */
     private fun clearReplyRetry() {
         mReplyRetryContext = null
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
@@ -237,8 +341,8 @@ class GroupChatViewModel :
         uiState.copy(
             conversationState = uiState.conversationState.copy(
                 generationState = failed.copy(
-                    canRetryReply = false
-                )
+                    canRetryReply = false,
+                ),
             ),
         ).setup()
     }
@@ -1110,7 +1214,19 @@ class GroupChatViewModel :
     private fun onOpenProviderSettings() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (uiState.dialogState.isBlocking() || mGenerationJob?.isCompleted == false) return
-        uiState.copy(dialogState = GroupChatDialogState.None).setup()
+        mReplyRetryContext = null
+        val nextGenerationState =
+            if (uiState.conversationState.generationState is GroupChatGenerationState.Failed) {
+                GroupChatGenerationState.Idle
+            } else {
+                uiState.conversationState.generationState
+            }
+        uiState.copy(
+            dialogState = GroupChatDialogState.None,
+            conversationState = uiState.conversationState.copy(
+                generationState = nextGenerationState,
+            ),
+        ).setup()
         AppViewEvent.StartActivity(LLMProviderListActivity::class.java).tryEmit()
     }
 
@@ -1484,15 +1600,11 @@ class GroupChatViewModel :
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            val failure =
-                error.toGenerationFailurePresentation(mContext, R.string.impersonation_failed)
-                    ?: return
-            val guide = failure.modelSettingsGuide?.toGroupChatDialogState()
-            refreshState(
-                generationState = GroupChatGenerationState.Failed(failure.message),
-                dialogState = guide ?: GroupChatDialogState.None,
+            presentGenerationFailure(
+                sessionId = sessionId,
+                throwable = error,
+                fallbackMessageResId = R.string.impersonation_failed,
             )
-            if (guide == null) AppViewEvent.PopupToastMessage(failure.message).tryEmit()
         } finally {
             mWritingReasoning = ""
         }
@@ -2448,7 +2560,11 @@ class GroupChatViewModel :
         withContext(Dispatchers.IO) {
             mGroupChatRepository.deleteMessage(dialog.messageId)
         }
-        if (mReplyRetryContext?.triggerUserMessageId == dialog.messageId) clearReplyRetry()
+        if (mReplyRetryContext?.triggerUserMessageId == dialog.messageId
+            || mReplyRetryContext?.replacingReply?.id == dialog.messageId
+        ) {
+            clearReplyRetry()
+        }
         refreshState(
             editingMessageId = null,
             editingMessageDraft = "",
@@ -2624,7 +2740,7 @@ class GroupChatViewModel :
     }
 
     /**
-     * 关闭当前展示的弹窗对话框。
+     * 关闭当前展示的弹窗对话框；关闭失败或模型配置弹窗时一并放弃本次重试批次并回到空闲状态。
      */
     @UiIntentObserver(GroupChatUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
@@ -2634,7 +2750,24 @@ class GroupChatViewModel :
         }
         mAddMembersSearchJob?.cancel()
         mAddMembersAvatarLoader.clearVisibleCharacters()
-        uiState.copy(dialogState = GroupChatDialogState.None).setup()
+        val shouldResetFailure = uiState.dialogState is GroupChatDialogState.GenerationFailure
+            || uiState.dialogState is GroupChatDialogState.ModelSettingsGuide
+        if (shouldResetFailure) {
+            mReplyRetryContext = null
+        }
+        val nextGenerationState = if (shouldResetFailure
+            && uiState.conversationState.generationState is GroupChatGenerationState.Failed
+        ) {
+            GroupChatGenerationState.Idle
+        } else {
+            uiState.conversationState.generationState
+        }
+        uiState.copy(
+            dialogState = GroupChatDialogState.None,
+            conversationState = uiState.conversationState.copy(
+                generationState = nextGenerationState,
+            ),
+        ).setup()
     }
 
     /**
@@ -2662,6 +2795,7 @@ class GroupChatViewModel :
         triggerUserMessageId: Long? = null,
         initialPersona: UserPersona? = null,
         replacingReply: GroupChatMessage? = null,
+        isPartialReplacement: Boolean = false,
     ) {
         clearReplyRetry()
         mGenerationJob = viewModelScope.launch {
@@ -2674,6 +2808,8 @@ class GroupChatViewModel :
                 var pendingSpeakers = speakers
                 var nextGenerationMode = generationMode
                 var batchTriggerMessageId = triggerUserMessageId
+                var batchReplacingReply = replacingReply
+                var batchIsPartialReplacement = isPartialReplacement
                 // 循环处理待发言角色列表（支持单批次及 AutoMode 自动追加的多轮批次）
                 while (pendingSpeakers.isNotEmpty()) {
                     completedTemplates = generateReplyBatch(
@@ -2683,19 +2819,23 @@ class GroupChatViewModel :
                             persona = batchPersona,
                             generationMode = nextGenerationMode,
                             triggerUserMessageId = batchTriggerMessageId,
-                            replacingReply = replacingReply,
+                            replacingReply = batchReplacingReply,
+                            isPartialReplacement = batchIsPartialReplacement,
                         ),
                     )
-                    // 用户触发批次已完成，AutoMode 下一轮恢复普通历史窗口和生成模式。
+                    // 用户触发批次已完成，AutoMode 下一轮恢复普通历史窗口、新建模式和生成模式。
                     batchTriggerMessageId = null
+                    batchReplacingReply = null
+                    batchIsPartialReplacement = false
                     nextGenerationMode = GroupChatGenerationMode.Normal
                     // 加载最新群聊快照
                     val nextData = withContext(Dispatchers.IO) {
                         mGroupChatRepository.getSpeakerSelectionData(sessionId)
                     } ?: break
-                    // 自动模式下重新选出下一轮发言角色
+                    // 自动模式下重新选出下一轮发言角色（设置页显式重生成不延续 AutoMode，流式残缺重试保留）
                     pendingSpeakers = if (
-                        replacingReply == null && generationMode != GroupChatGenerationMode.Continue
+                        (replacingReply == null || isPartialReplacement)
+                        && generationMode != GroupChatGenerationMode.Continue
                         && nextData.session.autoModeEnabled
                         && nextData.session.activationStrategy !=
                         GroupChatSession.ActivationStrategy.Manual
@@ -2722,35 +2862,39 @@ class GroupChatViewModel :
                 // 恢复 UI 为空闲状态
                 refreshState(generationState = GroupChatGenerationState.Idle)
             }.onFailure { throwable ->
-                // 异常处理：收尾当前流式消息并更新失败状态
-                val failure = throwable.toGenerationFailurePresentation(
-                    context = mContext,
-                    fallbackMessageResId = if (generationMode == GroupChatGenerationMode.Continue) R.string.continue_generation_failed
-                    else R.string.generation_failed,
-                ) ?: return@onFailure
-                val guideDialog = failure.modelSettingsGuide?.toGroupChatDialogState()
-                persistOrDeleteStreamingMessage()
-                refreshState(
-                    generationState = GroupChatGenerationState.Failed(failure.message),
-                    dialogState = guideDialog ?: GroupChatDialogState.None,
-                )
-                if (guideDialog == null) {
-                    AppViewEvent.PopupToastMessage(failure.message).tryEmit()
+                // 异常处理：收尾当前流式消息，若已落库半截正文则绑定到首位角色以便原位覆盖重试。
+                val persistedPartial = persistOrDeleteStreamingMessage()
+                if (persistedPartial != null && mReplyRetryContext?.sessionId == sessionId) {
+                    mReplyRetryContext = mReplyRetryContext?.copy(
+                        replacingReply = persistedPartial,
+                        isPartialReplacement = true,
+                    )
                 }
+                val fallbackResId = when (generationMode) {
+                    GroupChatGenerationMode.Continue -> R.string.continue_generation_failed
+                    GroupChatGenerationMode.Regenerate -> R.string.regenerate_failed
+                    else -> R.string.generation_failed
+                }
+                presentGenerationFailure(
+                    sessionId = sessionId,
+                    throwable = throwable,
+                    fallbackMessageResId = fallbackResId,
+                )
             }
         }
     }
 
-    /** 顺序执行同一用户触发的发言批次，每完成一个角色就推进恢复快照。 */
+    /** 顺序执行同一用户触发的发言批次，每完成一个角色就推进恢复快照并清空首位原位覆盖目标。 */
     private suspend fun generateReplyBatch(batch: ReplyRetryContext): PromptTemplateSnapshot {
         val templates = mPromptPresets.getActiveSnapshot()
         val batchId = UUID.randomUUID().toString()
         var mode = batch.generationMode
         mReplyRetryContext = batch
         preflightImageSpeakers(batch.sessionId, batch.speakers, batch.triggerUserMessageId)
-        // 特殊模式只属于首位角色，恢复快照始终描述下一次实际要执行的操作。
+        // 特殊模式与原位覆盖目标只属于当前队列首位角色，推进后续角色时必须清空。
         batch.speakers.forEachIndexed { index, speaker ->
             currentCoroutineContext().ensureActive()
+            val activeReplacingReply = if (index == 0) batch.replacingReply else null
             generateSpeakerReply(
                 persona = batch.persona,
                 templates = templates,
@@ -2761,13 +2905,18 @@ class GroupChatViewModel :
                 total = batch.speakers.size,
                 generationMode = mode,
                 triggerUserMessageId = batch.triggerUserMessageId,
-                replacingReply = batch.replacingReply,
+                replacingReply = activeReplacingReply,
             )
             mode = GroupChatGenerationMode.Normal
             mReplyRetryContext =
                 batch.speakers.drop(index + 1).takeIf { items -> items.isNotEmpty() }
                     ?.let { items ->
-                        batch.copy(speakers = items, generationMode = mode)
+                        batch.copy(
+                            speakers = items,
+                            generationMode = mode,
+                            replacingReply = null,
+                            isPartialReplacement = false,
+                        )
                     }
         }
         // 必须在 AutoMode 选取下一批之前解除保护，不能等整个 Job 结束。
@@ -2881,7 +3030,7 @@ class GroupChatViewModel :
         mStreamingContent = regexedPart
         mStreamingRegexApplied = true
         // 持久化最终内容并更新世界书激活快照
-        val persisted = persistOrDeleteStreamingMessage(completed = true)
+        val persisted = persistOrDeleteStreamingMessage(completed = true) != null
         if (persisted && regexedPart.isNotBlank()) {
             withContext(Dispatchers.IO) {
                 mGroupChatRepository.updateWorldInfoState(
@@ -3044,30 +3193,35 @@ class GroupChatViewModel :
      *
      * @param completed 是否已成功接收并清洗完整正文。
      *
-     * @return 是否成功持久化了非空消息
+     * @return 成功持久化后落库的消息快照；未保存或清理空占位时返回空。
      */
-    private suspend fun persistOrDeleteStreamingMessage(completed: Boolean = false): Boolean {
-        val messageId = mStreamingMessageId ?: return false
+    private suspend fun persistOrDeleteStreamingMessage(completed: Boolean = false): GroupChatMessage? {
+        val messageId = mStreamingMessageId ?: return null
         // 确保已执行 Source 阶段正则
         applyStreamingAiRegex()
         val content = mStreamingContent
         val original = mStreamingOriginalReply
         // 只有完整且仍匹配原目标的重生成结果才能覆盖历史，普通回复保留已有的部分输出。
-        val persisted = withContext(Dispatchers.IO) {
+        val persistedMessage = withContext(Dispatchers.IO) {
             when {
-                original != null -> completed && mGroupChatRepository.replaceLatestReply(
-                    original,
-                    content
-                )
+                original != null -> if (completed && mGroupChatRepository.replaceLatestReply(
+                        original,
+                        content,
+                    )
+                ) {
+                    mGroupChatRepository.getMessageById(original.id)
+                } else {
+                    null
+                }
 
                 content.isBlank() -> {
                     mGroupChatRepository.deleteMessage(messageId)
-                    false
+                    null
                 }
 
                 else -> {
                     mGroupChatRepository.updateMessageContent(messageId, content)
-                    true
+                    mGroupChatRepository.getMessageById(messageId)
                 }
             }
         }
@@ -3078,8 +3232,10 @@ class GroupChatViewModel :
         mStreamingRegexScripts = emptyList()
         mStreamingRegexMacros = emptyMap()
         mStreamingRegexApplied = false
-        check(original == null || !completed || persisted) { "Could not replace the latest group reply" }
-        return persisted
+        check(original == null || !completed || persistedMessage != null) {
+            "Could not replace the latest group reply"
+        }
+        return persistedMessage
     }
 
     /**
@@ -3908,7 +4064,10 @@ class GroupChatViewModel :
                 selectedSpeakerId = effectiveSpeakerId,
                 inputDraft = inputDraft,
                 generationState = if (generationState is GroupChatGenerationState.Failed) {
-                    generationState.copy(canRetryReply = mReplyRetryContext?.sessionId == sessionId)
+                    val retry = mReplyRetryContext?.takeIf { context ->
+                        context.sessionId == sessionId && context.speakers.isNotEmpty()
+                    }
+                    generationState.copy(canRetryReply = retry != null)
                 } else generationState,
                 expandedThinkBlockIds = expandedThinkBlockIds,
                 editingMessageId = editingMessageId,

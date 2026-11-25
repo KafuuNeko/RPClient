@@ -271,8 +271,10 @@ class ImageConversationFlowTest {
                 await { ((vm.uiStateFlow.value as? ChatUiState.Normal)?.conversationState?.generationState as? ChatGenerationState.Failed)?.canRetryReply == true }
                 val committed = repository.getMessagesWithImages(
                     repository.getAllChatMessagesBySessionId(id).map { message -> message.id })
-                vm.emit(ChatUiIntent.DismissDialog)
-                vm.emit(ChatUiIntent.RetryImageReply)
+                val failureDialog =
+                    (vm.uiStateFlow.value as ChatUiState.Normal).dialogState as? ChatDialogState.GenerationFailure
+                assertTrue(failureDialog?.canRetry == true)
+                vm.emit(ChatUiIntent.RetryGeneration)
                 await {
                     repository.getAllChatMessagesBySessionId(id)
                         .any { message -> message.source == ChatMessage.Source.Char }
@@ -463,8 +465,8 @@ class ImageConversationFlowTest {
                 val session = repository.getSessionById(id)!!
                 fixture.db.getGroupChatSessionDao().update(session.copy(autoModeEnabled = true))
                 fixture.server.stallAtRequest = 4
-                vm.emit(GroupChatUiIntent.RetryImageReply)
-                vm.emit(GroupChatUiIntent.RetryImageReply)
+                vm.emit(GroupChatUiIntent.RetryGeneration)
+                vm.emit(GroupChatUiIntent.RetryGeneration)
                 // 同一 Job 中 B 恢复成功后进入 AutoMode，第四个请求必须已释放旧图保护。
                 await { fixture.server.requests.size == 4 }
                 assertEquals(
@@ -501,7 +503,7 @@ class ImageConversationFlowTest {
                     val failedRequest =
                         JSONObject(fixture.server.requests.last()).getJSONArray(historyField)
                             .toString()
-                    vm.emit(GroupChatUiIntent.RetryImageReply)
+                    vm.emit(GroupChatUiIntent.RetryGeneration)
                     await { (vm.uiStateFlow.value as? GroupChatUiState.Normal)?.conversationState?.generationState == GroupChatGenerationState.Idle }
                     assertEquals(
                         failedRequest,
@@ -690,7 +692,7 @@ class ImageConversationFlowTest {
                     vm.emit(GroupChatUiIntent.RegenerateLast)
                     await { state()?.conversationState?.generationState is GroupChatGenerationState.Failed }
                     assertEquals("Original before retry", group.getMessageById(latest.id)?.content)
-                    vm.emit(GroupChatUiIntent.RetryImageReply)
+                    vm.emit(GroupChatUiIntent.RetryGeneration)
                     await { state()?.conversationState?.generationState == GroupChatGenerationState.Idle }
                     assertEquals(2, group.getMessageCount(id))
                     assertEquals(
@@ -1226,7 +1228,7 @@ class ImageConversationFlowTest {
                         val mimeType =
                             if (streaming && !failure) "text/event-stream" else "application/json"
                         client.getOutputStream().apply {
-                            val status = if (failure) "400 Bad Request" else "200 OK"
+                            val status = if (failure) "503 Service Unavailable" else "200 OK"
                             write("HTTP/1.1 $status\r\nContent-Type: $mimeType\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n".toByteArray())
                             write(bytes)
                             flush()

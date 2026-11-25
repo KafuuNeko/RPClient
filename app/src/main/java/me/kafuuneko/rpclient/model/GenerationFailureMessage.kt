@@ -15,10 +15,23 @@ internal data class ModelSettingsGuideContent(
     val message: String
 )
 
-/** 一次生成失败的脱敏提示及可选模型配置引导。 */
+/** 生成失败在对话弹窗中推荐的下一步处理方向。 */
+internal enum class GenerationFailureAction {
+    /** 瞬时或运行期波动，适合在弹窗中提供一次原地重试。 */
+    Retry,
+
+    /** 模型选型、凭据、路由或模型级参数不匹配，需前往模型配置修改。 */
+    ConfigureModel,
+
+    /** 附件或历史内容约束，关闭弹窗后由用户直接调整消息或附件。 */
+    DismissOnly,
+}
+
+/** 一次生成失败的脱敏提示、推荐处理动作及可选模型配置引导。 */
 internal data class GenerationFailurePresentation(
     val message: String,
-    val modelSettingsGuide: ModelSettingsGuideContent?
+    val modelSettingsGuide: ModelSettingsGuideContent?,
+    val action: GenerationFailureAction = GenerationFailureAction.DismissOnly,
 )
 
 /** 将生成异常转换为不包含模型服务响应、请求内容或凭据的本地化展示信息。 */
@@ -47,39 +60,81 @@ internal fun noProviderModelSettingsGuide(context: Context): ModelSettingsGuideC
     )
 }
 
+/** 根据失败根因划分弹窗动作，将模型配置问题与瞬时重试及内容约束分离。 */
+internal fun GenerationFailure.toFailureAction(): GenerationFailureAction = when (this) {
+    GenerationFailure.NoProvider,
+    GenerationFailure.CharacterProviderUnavailable,
+    GenerationFailure.SummaryProviderUnavailable,
+    GenerationFailure.Unauthorized,
+    GenerationFailure.Forbidden,
+    is GenerationFailure.PromptBudget -> GenerationFailureAction.ConfigureModel
+
+    is GenerationFailure.HttpFailure -> if (statusCode == 408 || statusCode in 500..599) {
+        GenerationFailureAction.Retry
+    } else {
+        GenerationFailureAction.ConfigureModel
+    }
+
+    is GenerationFailure.Image -> when (kind) {
+        ImageRequestFailure.Unsupported,
+        ImageRequestFailure.UnsupportedDetail -> GenerationFailureAction.ConfigureModel
+
+        ImageRequestFailure.UnsupportedFormat,
+        ImageRequestFailure.Missing,
+        ImageRequestFailure.InvalidImage,
+        ImageRequestFailure.OriginalUnsupported,
+        ImageRequestFailure.OriginalTooLarge,
+        ImageRequestFailure.TooLarge,
+        ImageRequestFailure.TooMany -> GenerationFailureAction.DismissOnly
+    }
+
+    GenerationFailure.RateLimited,
+    GenerationFailure.RequestFailure,
+    GenerationFailure.Network,
+    is GenerationFailure.EmptyResponse,
+    GenerationFailure.Unknown -> GenerationFailureAction.Retry
+}
+
 /** 将安全失败分类转换为页面可以直接渲染的本地化展示信息。 */
 private fun GenerationFailure.toGenerationFailurePresentation(
     context: Context,
     @StringRes fallbackMessageResId: Int,
     providerName: String?,
 ): GenerationFailurePresentation {
-    // 页面正文始终使用固定本地化文案，不读取供应商原始响应
+    // 页面正文始终使用固定本地化文案，不读取供应商原始响应。
     val message = toGenerationFailureMessage(
         context = context,
         fallbackMessageResId = fallbackMessageResId,
         providerName = providerName?.takeIf { it.isNotBlank() },
     )
-    // 只有模型配置或 HTTP 访问类错误提供配置入口，避免误导网络和空响应问题
-    val guide = when (this) {
-        GenerationFailure.NoProvider -> noProviderModelSettingsGuide(context)
-        GenerationFailure.CharacterProviderUnavailable,
-        GenerationFailure.SummaryProviderUnavailable,
-        GenerationFailure.Unauthorized,
-        GenerationFailure.Forbidden,
-        GenerationFailure.RateLimited,
-        GenerationFailure.RequestFailure,
-        is GenerationFailure.HttpFailure -> ModelSettingsGuideContent(
+    val action = toFailureAction()
+    // 只有模型配置与能力类错误生成配置引导，瞬时故障与附件问题不误导至模型设置页。
+    val guide = when {
+        this == GenerationFailure.NoProvider -> noProviderModelSettingsGuide(context)
+
+        this is GenerationFailure.PromptBudget || this is GenerationFailure.Image -> {
+            if (action == GenerationFailureAction.ConfigureModel) {
+                ModelSettingsGuideContent(
+                    title = context.getString(R.string.model_request_failed_title),
+                    message = message,
+                )
+            } else {
+                null
+            }
+        }
+
+        action == GenerationFailureAction.ConfigureModel -> ModelSettingsGuideContent(
             title = context.getString(R.string.model_request_failed_title),
             message = context.getString(R.string.model_request_failed_desc, message),
         )
 
-        is GenerationFailure.Image,
-        is GenerationFailure.PromptBudget,
-        GenerationFailure.Network,
-        is GenerationFailure.EmptyResponse,
-        GenerationFailure.Unknown -> null
+        else -> null
     }
-    return GenerationFailurePresentation(message, guide)
+    return GenerationFailurePresentation(
+        message = message,
+        modelSettingsGuide = guide,
+        action = action,
+    )
 }
 
 /** 将安全失败分类转换为不包含原始响应的本地化错误消息。 */

@@ -638,6 +638,8 @@
     <string name="group_chat_turn_order">%1$sの発言順</string>
     <string name="group_chat_cast_ready">メンバーの準備ができました</string>
     <string name="group_chat_speaker_replying">%1$s が返信中（%2$d/%3$d）</string>
+    <string name="group_chat_reply_failed_speaker">%1$s の返信に失敗しました</string>
+    <string name="group_chat_reply_failed_speakers">%1$s の返信に失敗しました · 残り %2$d 人</string>
     <string name="mute">ミュート</string>
     <string name="unmute">ミュート解除</string>
     <string name="group_chat_room_ready">チャットの準備ができました</string>
@@ -1122,7 +1124,6 @@
     <string name="image_error_count">リクエストに含まれる画像が多すぎます（最大 12 枚）。</string>
     <string name="image_prepare_failed">画像を処理できなかったか、見つからないか、上限を超えています。静止画像を選び直してください（最大 4 枚、各 32 MiB / 4800 万画素）。</string>
     <string name="image_edit_ended">編集はすでに終了しています。画像を選択する前にメッセージ編集を開き直してください。</string>
-    <string name="image_retry">返信を再試行</string>
     <string name="image_summary_paused">画像の要約に失敗しました。自動要約は一時停止中です。設定で要約モデルを変更して再開してください。</string>
     <string name="image_token_estimator">画像トークン推定器</string>
     <string name="image_estimator_generic">汎用の概算</string>

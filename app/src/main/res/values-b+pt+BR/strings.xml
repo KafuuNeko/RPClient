@@ -741,6 +741,8 @@ Falhas: %2$d</string>
     <string name="group_chat_turn_order">Ordem de turnos: %1$s</string>
     <string name="group_chat_cast_ready">Elenco pronto</string>
     <string name="group_chat_speaker_replying">%1$s está respondendo (%2$d/%3$d)</string>
+    <string name="group_chat_reply_failed_speaker">%1$s falhou ao responder</string>
+    <string name="group_chat_reply_failed_speakers">%1$s falhou ao responder · %2$d restantes</string>
     <string name="mute">Silenciar</string>
     <string name="unmute">Desativar silêncio</string>
     <string name="group_chat_room_ready">A sala está pronta</string>
@@ -1130,7 +1132,6 @@ Abra as Configurações de Modelo para verificar a chave de API, a URL base, o n
     <string name="image_error_count">A solicitação contém imagens demais (máximo de 12).</string>
     <string name="image_prepare_failed">Não foi possível processar a imagem, ela está ausente ou excede o limite. Escolha novamente uma imagem estática (no máximo quatro; 32 MiB / 48 megapixels cada).</string>
     <string name="image_edit_ended">A edição já foi encerrada. Reabra o editor de mensagens antes de selecionar imagens.</string>
-    <string name="image_retry">Tentar resposta novamente</string>
     <string name="image_summary_paused">Falha ao resumir a imagem. Os resumos automáticos estão pausados; altere o modelo de resumo e retome nas configurações.</string>
     <string name="image_token_estimator">Estimador de tokens de imagem</string>
     <string name="image_estimator_generic">Estimativa genérica</string>

@@ -759,6 +759,8 @@
     <string name="group_chat_turn_order">%1$s turn order</string>
     <string name="group_chat_cast_ready">Cast is ready</string>
     <string name="group_chat_speaker_replying">%1$s is replying (%2$d/%3$d)</string>
+    <string name="group_chat_reply_failed_speaker">%1$s failed to reply</string>
+    <string name="group_chat_reply_failed_speakers">%1$s failed to reply · %2$d remaining</string>
     <string name="mute">Mute</string>
     <string name="unmute">Unmute</string>
     <string name="group_chat_room_ready">The room is ready</string>
@@ -1144,7 +1146,6 @@
     <string name="image_error_count">The request contains too many images (maximum 12).</string>
     <string name="image_prepare_failed">The image could not be processed, is missing, or exceeds the limit. Pick a static image again (at most four; 32 MiB / 48 megapixels each).</string>
     <string name="image_edit_ended">Editing has already ended. Reopen the message editor before selecting images.</string>
-    <string name="image_retry">Retry reply</string>
     <string name="image_summary_paused">Image summarization failed. Automatic summaries are paused; change the summary model and resume in settings.</string>
     <string name="image_token_estimator">Image token estimator</string>
     <string name="image_estimator_generic">Generic approximation</string>

@@ -741,6 +741,8 @@ Gagal: %2$d</string>
     <string name="group_chat_turn_order">Urutan giliran %1$s</string>
     <string name="group_chat_cast_ready">Pemeran siap</string>
     <string name="group_chat_speaker_replying">%1$s sedang membalas (%2$d/%3$d)</string>
+    <string name="group_chat_reply_failed_speaker">%1$s gagal membalas</string>
+    <string name="group_chat_reply_failed_speakers">%1$s gagal membalas · %2$d tersisa</string>
     <string name="mute">Bisukan</string>
     <string name="unmute">Batal bisukan</string>
     <string name="group_chat_room_ready">Ruangan siap</string>
@@ -1127,7 +1129,6 @@ Buka Pengaturan Model untuk memeriksa kunci API, URL dasar, nama model, dan izin
     <string name="image_error_count">Permintaan berisi terlalu banyak gambar (maksimum 12).</string>
     <string name="image_prepare_failed">Gambar tidak dapat diproses, hilang, atau melebihi batas. Pilih lagi gambar statis (maksimal empat; masing-masing 32 MiB / 48 megapiksel).</string>
     <string name="image_edit_ended">Pengeditan sudah berakhir. Buka kembali editor pesan sebelum memilih gambar.</string>
-    <string name="image_retry">Coba lagi balasan</string>
     <string name="image_summary_paused">Gagal meringkas gambar. Ringkasan otomatis dijeda; ganti model ringkasan dan lanjutkan di pengaturan.</string>
     <string name="image_token_estimator">Estimator token gambar</string>
     <string name="image_estimator_generic">Perkiraan umum</string>

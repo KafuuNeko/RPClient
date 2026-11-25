@@ -22,6 +22,9 @@ sealed class GroupChatGenerationState {
         val preview: GroupChatMessageItem? = null,
     ) : GroupChatGenerationState()
 
-    data class Failed(val message: String, val canRetryReply: Boolean = false) :
-        GroupChatGenerationState()
+    /** 本轮或批次生成失败，消息用于状态记录与失败弹窗展示。 */
+    data class Failed(
+        val message: String,
+        val canRetryReply: Boolean = false,
+    ) : GroupChatGenerationState()
 }

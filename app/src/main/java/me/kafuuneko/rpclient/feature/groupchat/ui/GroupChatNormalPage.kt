@@ -41,7 +41,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -135,39 +134,29 @@ internal fun GroupChatNormalPage(
             )
         },
         bottomBar = {
-            Column {
-                if ((conversation.generationState as? GroupChatGenerationState.Failed)?.canRetryReply == true) {
-                    TextButton(
-                        onClick = { emitIntent(GroupChatUiIntent.RetryImageReply) },
-                        modifier = Modifier.align(Alignment.CenterHorizontally),
-                    ) {
-                        Text(stringResource(R.string.image_retry))
-                    }
-                }
-                MessageImageViewerDialog(
-                    state = state.imageState,
-                    emit = { action ->
-                        emitIntent(GroupChatUiIntent.ImageAction(action = action))
-                    },
-                )
-                Composer(
-                    draft = conversation.inputDraft,
-                    generating = generating,
-                    writingState = impersonating?.writing,
-                    onToggleReasoning = { emitIntent(GroupChatUiIntent.ToggleWritingReasoning) },
-                    onImpersonate = { emitIntent(GroupChatUiIntent.ImpersonateUser) },
-                    imageState = state.imageState,
-                    onDraftChange = { text ->
-                        emitIntent(GroupChatUiIntent.ChangeInputDraft(text))
-                    },
-                    onSend = { emitIntent(GroupChatUiIntent.SendMessage) },
-                    onStop = { emitIntent(GroupChatUiIntent.StopGeneration) },
-                    onImageAction = { action -> emitIntent(GroupChatUiIntent.ImageAction(action)) },
-                    canContinue = canContinue,
-                    onContinue = { emitIntent(GroupChatUiIntent.ContinueLast) },
-                    onSummarize = { emitIntent(GroupChatUiIntent.SummarizeNow) },
-                )
-            }
+            MessageImageViewerDialog(
+                state = state.imageState,
+                emit = { action ->
+                    emitIntent(GroupChatUiIntent.ImageAction(action = action))
+                },
+            )
+            Composer(
+                draft = conversation.inputDraft,
+                generating = generating,
+                writingState = impersonating?.writing,
+                onToggleReasoning = { emitIntent(GroupChatUiIntent.ToggleWritingReasoning) },
+                onImpersonate = { emitIntent(GroupChatUiIntent.ImpersonateUser) },
+                imageState = state.imageState,
+                onDraftChange = { text ->
+                    emitIntent(GroupChatUiIntent.ChangeInputDraft(text))
+                },
+                onSend = { emitIntent(GroupChatUiIntent.SendMessage) },
+                onStop = { emitIntent(GroupChatUiIntent.StopGeneration) },
+                onImageAction = { action -> emitIntent(GroupChatUiIntent.ImageAction(action)) },
+                canContinue = canContinue,
+                onContinue = { emitIntent(GroupChatUiIntent.ContinueLast) },
+                onSummarize = { emitIntent(GroupChatUiIntent.SummarizeNow) },
+            )
         },
         content = { padding ->
             Column(
@@ -265,7 +254,7 @@ private fun CustomGroupChatTopBar(
             )
 
         is GroupChatGenerationState.Impersonating -> stringResource(R.string.impersonate_user)
-        is GroupChatGenerationState.Failed -> generationState.message
+        is GroupChatGenerationState.Failed -> stringResource(R.string.generation_failed)
     }
 
     // 采用与单聊一致的顶部底板与毛玻璃样式。

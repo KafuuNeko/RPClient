@@ -652,6 +652,8 @@
     <string name="group_chat_turn_order">%1$s發言順序</string>
     <string name="group_chat_cast_ready">成員已準備就緒</string>
     <string name="group_chat_speaker_replying">%1$s 正在回覆（%2$d/%3$d）</string>
+    <string name="group_chat_reply_failed_speaker">%1$s 未能回覆</string>
+    <string name="group_chat_reply_failed_speakers">%1$s 未能回覆 · 剩餘 %2$d 位</string>
     <string name="mute">靜音</string>
     <string name="unmute">取消靜音</string>
     <string name="group_chat_room_ready">聊天室已準備好</string>
@@ -1121,7 +1123,6 @@
     <string name="image_error_count">請求包含過多圖片（最多 12 張）。</string>
     <string name="image_prepare_failed">無法處理該圖片，可能已遺失或超過限制。請重新選擇靜態圖片（最多四張，每張 32 MiB / 4800 萬像素）。</string>
     <string name="image_edit_ended">編輯狀態已結束。請重新開啟訊息編輯器後再選擇圖片。</string>
-    <string name="image_retry">重試回覆</string>
     <string name="image_summary_paused">圖片摘要失敗。自動摘要已暫停，請在設定中更換摘要模型並恢復。</string>
     <string name="image_token_estimator">圖片預估器</string>
     <string name="image_estimator_generic">通用近似</string>

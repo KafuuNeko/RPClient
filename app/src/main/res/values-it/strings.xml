@@ -717,6 +717,8 @@ Non riusciti: %2$d</string>
     <string name="group_chat_turn_order">Ordine dei turni: %1$s</string>
     <string name="group_chat_cast_ready">Il cast è pronto</string>
     <string name="group_chat_speaker_replying">%1$s sta rispondendo (%2$d/%3$d)</string>
+    <string name="group_chat_reply_failed_speaker">%1$s non è riuscito a rispondere</string>
+    <string name="group_chat_reply_failed_speakers">%1$s non è riuscito a rispondere · %2$d rimanenti</string>
     <string name="mute">Silenzia</string>
     <string name="unmute">Riattiva audio</string>
     <string name="group_chat_room_ready">La stanza è pronta</string>
@@ -1105,7 +1107,6 @@ Apri le impostazioni del modello per verificare la chiave API, l\'URL di base, i
     <string name="image_error_count">La richiesta contiene troppe immagini (massimo 12).</string>
     <string name="image_prepare_failed">Non è stato possibile elaborare l\'immagine, è mancante o supera il limite. Scegli di nuovo un\'immagine statica (al massimo quattro; 32 MiB / 48 megapixel ciascuna).</string>
     <string name="image_edit_ended">La modifica è già terminata. Riapri l\'editor dei messaggi prima di selezionare le immagini.</string>
-    <string name="image_retry">Riprova risposta</string>
     <string name="image_summary_paused">Riassunto dell\'immagine non riuscito. I riassunti automatici sono in pausa; cambia il modello di riassunto e riprendi nelle impostazioni.</string>
     <string name="image_token_estimator">Stima dei token immagine</string>
     <string name="image_estimator_generic">Approssimazione generica</string>

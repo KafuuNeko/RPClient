@@ -202,6 +202,16 @@ sealed class GroupChatDialogState {
         val selectedEntryIds: Set<Long>
     ) : GroupChatDialogState()
 
+    /** 模型回复生成失败弹窗，提供本次上下文重试或关闭决策。 */
+    data class GenerationFailure(
+        /** 弹窗标题，群聊断点失败时包含中断角色与剩余人数。 */
+        val title: String,
+        /** 脱敏后的本地化失败原因正文。 */
+        val message: String,
+        /** 是否提供「重试」确认按钮；关闭弹窗即放弃本次上下文重试。 */
+        val canRetry: Boolean = false,
+    ) : GroupChatDialogState()
+
     data class ModelSettingsGuide(
         val title: String,
         val message: String

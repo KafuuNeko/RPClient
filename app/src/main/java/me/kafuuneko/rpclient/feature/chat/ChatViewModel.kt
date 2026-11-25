@@ -29,6 +29,7 @@ import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookEntryData
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageCursor
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageDisplayContext
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
+import me.kafuuneko.rpclient.feature.chat.model.ChatReplyRetryTarget
 import me.kafuuneko.rpclient.feature.chat.model.GenerationOutput
 import me.kafuuneko.rpclient.feature.chat.model.LoadedChatMessagePage
 import me.kafuuneko.rpclient.feature.chat.model.PreparedSummaryRequest
@@ -59,6 +60,7 @@ import me.kafuuneko.rpclient.feature.chat.utils.toChatSettingsState
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.main.MainActivity
 import me.kafuuneko.rpclient.feature.main.model.Route
+import me.kafuuneko.rpclient.model.GenerationFailureAction
 import me.kafuuneko.rpclient.model.noProviderModelSettingsGuide
 import me.kafuuneko.rpclient.model.toGenerationFailurePresentation
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
@@ -153,57 +155,204 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     ChatUiState.None
 ), KoinComponent {
     // 数据仓库与领域服务注入
-    private var mRetryUserMessageId: Long? = null
+    private var mRetryTarget: ChatReplyRetryTarget? = null
 
-    /** 重试已提交用户图文的回复，不重复创建用户消息和附件。 */
-    @UiIntentObserver(ChatUiIntent.RetryImageReply::class)
-    private suspend fun onRetryImageReply() {
+    /** 重试当前失败弹窗对应的生成任务；流式中断产生残缺回复时原位覆盖，不另起新气泡。 */
+    @UiIntentObserver(ChatUiIntent.RetryGeneration::class)
+    private suspend fun onRetryGeneration() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         if ((uiState.conversationState.generationState as? ChatGenerationState.Failed)?.canRetryReply != true) return
         val sessionId = mSessionId ?: return
-        val messageId = mRetryUserMessageId ?: return
+        val target = mRetryTarget?.takeIf { item -> item.sessionId == sessionId } ?: return
         if (mGenerationJob?.isCompleted == false) return
-        // 按当前会话再次校验持久化目标，不能依赖按钮显示时的旧快照。
-        val message = mChatRepository.getMessageById(messageId)
-        if (message?.sessionId != sessionId || message.source != ChatMessage.Source.User) {
+        // 按当前会话再次校验持久化触发消息，防止目标被删除后仍沿用旧快照。
+        if (target.triggerUserMessageId != null) {
+            val trigger = withContext(Dispatchers.IO) {
+                mChatRepository.getMessageById(target.triggerUserMessageId)
+            }
+            if (trigger?.sessionId != sessionId || trigger.source != ChatMessage.Source.User) {
+                clearReplyRetry()
+                refreshUiState(
+                    sessionId = sessionId,
+                    generationState = ChatGenerationState.Idle,
+                    dialogState = ChatDialogState.GenerationFailure(
+                        title = mContext.getString(R.string.generation_failed),
+                        message = mContext.getString(R.string.message_deleted),
+                        canRetry = false,
+                    ),
+                )
+                return
+            }
+        }
+        val expectedSource = if (target.isUserImpersonation) {
+            ChatMessage.Source.User
+        } else {
+            ChatMessage.Source.Char
+        }
+        val resolvedTargetId = target.targetMessageId?.let { id ->
+            val existing = withContext(Dispatchers.IO) { mChatRepository.getMessageById(id) }
+            if (existing?.sessionId == sessionId && existing.source == expectedSource) id else null
+        }
+        // 显式重生成目标已丢失时不再退化为新建消息，直接提示无法重生成。
+        if (target.generationMode == PromptGenerationMode.Regenerate && resolvedTargetId == null) {
             clearReplyRetry()
             refreshUiState(
                 sessionId = sessionId,
-                generationState = ChatGenerationState.Failed(mContext.getString(R.string.message_deleted)),
+                generationState = ChatGenerationState.Idle,
+                dialogState = ChatDialogState.GenerationFailure(
+                    title = mContext.getString(R.string.regenerate_failed),
+                    message = mContext.getString(R.string.no_latest_assistant_reply_to_regenerate),
+                    canRetry = false,
+                ),
             )
             return
         }
+        val activeTarget = target.copy(targetMessageId = resolvedTargetId)
+        mRetryTarget = activeTarget
+        val fallbackErrorResId = activeTarget.fallbackFailureResId()
+        // 立即关闭失败弹窗并切入请求态，避免点击重试后弹窗停留一帧。
+        uiState.copy(
+            dialogState = ChatDialogState.None,
+            conversationState = uiState.conversationState.copy(
+                generationState = ChatGenerationState.Requesting,
+            ),
+        ).setup()
         mGenerationJob = viewModelScope.launch {
-            try {
+            runCatching {
                 refreshUiState(
                     sessionId = sessionId,
-                    generationState = ChatGenerationState.Requesting
+                    generationState = ChatGenerationState.Requesting,
+                    dialogState = ChatDialogState.None,
                 )
-                val built = generateCommittedReply(sessionId)
+                val built = executeRetryTarget(activeTarget)
+                clearReplyRetry()
                 maybeAutoSummarize(sessionId, built.templates, built.persona)
-            } catch (error: Exception) {
-                val failure = error.toGenerationFailurePresentation(
-                    context = mContext, fallbackMessageResId = R.string.generation_failed,
-                ) ?: return@launch
-                refreshUiState(
+            }.onFailure { error ->
+                presentGenerationFailure(
                     sessionId = sessionId,
-                    generationState = ChatGenerationState.Failed(failure.message)
+                    throwable = error,
+                    fallbackMessageResId = fallbackErrorResId,
                 )
             }
         }
     }
 
-    /** 丢弃旧恢复目标，同时撤下仍显示在失败状态中的重试入口。 */
+    /** 按重试快照重建请求并分发输出目标；存在原位覆盖目标时排除残缺正文并更新原气泡。 */
+    private suspend fun executeRetryTarget(target: ChatReplyRetryTarget): BuiltGenerationRequest {
+        val outputSource = if (target.isUserImpersonation) {
+            ChatMessage.Source.User
+        } else {
+            ChatMessage.Source.Char
+        }
+        val keepLatest = target.generationMode == PromptGenerationMode.Normal
+            || target.generationMode == PromptGenerationMode.Continue
+        val built = withContext(Dispatchers.IO) {
+            buildGenerationRequest(
+                sessionId = target.sessionId,
+                generationMode = target.generationMode,
+                excludedMessageId = target.targetMessageId,
+                keepLatestMessage = keepLatest,
+            )
+        }
+        recordPromptInspection(built.inspection)
+        val output = if (target.targetMessageId != null) {
+            GenerationOutput.Update(
+                messageId = target.targetMessageId,
+                source = outputSource,
+            )
+        } else {
+            GenerationOutput.Create(source = outputSource)
+        }
+        // 流式与非流式共用同一输出目标，避免残缺回复下方另起新消息。
+        if (AppModel.streamEnabled) {
+            generateStreaming(sessionId = target.sessionId, built = built, output = output)
+        } else {
+            generateOnce(sessionId = target.sessionId, built = built, output = output)
+        }
+        return built
+    }
+
+    /**
+     * 将生成异常映射为统一的失败对话框状态并按根因决定是否保留本次重试上下文。
+     *
+     * - 模型配置类错误引导前往模型设置，同时清理旧重试上下文；
+     * - 瞬时/运行错误在存在有效恢复目标时开放弹窗内「重试」按钮；
+     * - 附件或历史内容约束仅展示说明并提供关闭按钮。
+     *
+     * @param sessionId 当前会话 ID
+     * @param throwable 捕获到的生成异常
+     * @param fallbackMessageResId 兜底失败标题及默认提示资源 ID
+     * @param inputDraft 失败后应保留在输入框中的草稿，为空时沿用当前页面草稿
+     */
+    private suspend fun presentGenerationFailure(
+        sessionId: Long,
+        throwable: Throwable,
+        fallbackMessageResId: Int,
+        inputDraft: String? = null,
+    ) {
+        val failure = throwable.toGenerationFailurePresentation(
+            context = mContext,
+            fallbackMessageResId = fallbackMessageResId,
+        ) ?: return
+        // 仅瞬时/运行失败且当前存在同会话重试快照时开放弹窗重试，其余失败立即清理。
+        val canRetry =
+            failure.action == GenerationFailureAction.Retry && mRetryTarget?.sessionId == sessionId
+        if (!canRetry) {
+            mRetryTarget = null
+        }
+        val dialogState = when (failure.action) {
+            GenerationFailureAction.ConfigureModel ->
+                failure.modelSettingsGuide?.toChatDialogState()
+                    ?: ChatDialogState.GenerationFailure(
+                        title = mContext.getString(fallbackMessageResId),
+                        message = failure.message,
+                        canRetry = false,
+                    )
+
+            GenerationFailureAction.Retry -> ChatDialogState.GenerationFailure(
+                title = mContext.getString(fallbackMessageResId),
+                message = failure.message,
+                canRetry = canRetry,
+            )
+
+            GenerationFailureAction.DismissOnly -> ChatDialogState.GenerationFailure(
+                title = mContext.getString(fallbackMessageResId),
+                message = failure.message,
+                canRetry = false,
+            )
+        }
+        val currentDraft =
+            inputDraft ?: getOrNull<ChatUiState.Normal>()?.conversationState?.inputDraft.orEmpty()
+        refreshUiState(
+            sessionId = sessionId,
+            inputDraft = currentDraft,
+            generationState = ChatGenerationState.Failed(
+                message = failure.message,
+                canRetryReply = canRetry,
+            ),
+            dialogState = dialogState,
+        )
+    }
+
+    /** 将单聊重试目标映射为对应的失败标题资源。 */
+    private fun ChatReplyRetryTarget.fallbackFailureResId(): Int = when {
+        isUserImpersonation -> R.string.impersonation_failed
+        generationMode == PromptGenerationMode.Regenerate -> R.string.regenerate_failed
+        generationMode == PromptGenerationMode.Continue -> R.string.continue_generation_failed
+        else -> R.string.generation_failed
+    }
+
+    /** 丢弃旧恢复目标，同时撤下仍显示在失败状态中的重试标记。 */
     private fun clearReplyRetry() {
-        mRetryUserMessageId = null
+        mRetryTarget = null
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         val failed =
             uiState.conversationState.generationState as? ChatGenerationState.Failed ?: return
         uiState.copy(
             conversationState = uiState.conversationState.copy(
                 generationState = failed.copy(
-                    canRetryReply = false
-                )
+                    canRetryReply = false,
+                ),
             ),
         ).setup()
     }
@@ -677,7 +826,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                         content = input,
                         images = finalInputs.filterIsInstance<MessageImageInput.Prepared>(),
                     ).also { messageWithImages ->
-                        mRetryUserMessageId = messageWithImages.key.messageId
+                        mRetryTarget = ChatReplyRetryTarget(
+                            sessionId = sessionId,
+                            generationMode = PromptGenerationMode.Normal,
+                            triggerUserMessageId = messageWithImages.key.messageId,
+                        )
                         committed = true
                         clearSentDraft()
                     }
@@ -692,20 +845,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 // 回复和它触发的摘要复用同一模板及身份，期间切换只影响后续操作。
                 maybeAutoSummarize(sessionId, templates, persona)
             }.onFailure { throwable ->
-                // 异常处理：解析错误信息并更新 UI 失败状态
-                val failure = throwable.toGenerationFailurePresentation(
-                    context = mContext, fallbackMessageResId = R.string.generation_failed,
-                ) ?: return@onFailure
-                val guideDialog = failure.modelSettingsGuide?.toChatDialogState()
-                refreshUiState(
+                // 异常处理：通过统一失败对话框展示原因与对应动作
+                presentGenerationFailure(
                     sessionId = sessionId,
+                    throwable = throwable,
+                    fallbackMessageResId = R.string.generation_failed,
                     inputDraft = if (committed) "" else uiState.conversationState.inputDraft,
-                    generationState = ChatGenerationState.Failed(failure.message),
-                    dialogState = guideDialog ?: ChatDialogState.None,
                 )
-                if (guideDialog == null) {
-                    AppViewEvent.PopupToastMessage(failure.message).tryEmit()
-                }
             }
         }
     }
@@ -1697,19 +1843,38 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         withContext(Dispatchers.IO) {
             mChatRepository.deleteMessage(messageId)
         }
-        if (mRetryUserMessageId == messageId) clearReplyRetry()
+        if (mRetryTarget?.triggerUserMessageId == messageId || mRetryTarget?.targetMessageId == messageId) {
+            clearReplyRetry()
+        }
         AppViewEvent.PopupToastMessageByResId(R.string.message_deleted).tryEmit()
         refreshUiState(sessionId = sessionId)
     }
 
     /**
-     * 关闭当前显示的任何弹窗/对话框。
+     * 关闭当前显示的任何弹窗/对话框；关闭失败或模型配置弹窗时一并放弃本次重试上下文并回到空闲状态。
      */
     @UiIntentObserver(ChatUiIntent.DismissDialog::class)
     private fun onDismissDialog() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         if (uiState.dialogState.isBlocking()) return
-        uiState.copy(dialogState = ChatDialogState.None).setup()
+        val shouldResetFailure = uiState.dialogState is ChatDialogState.GenerationFailure
+            || uiState.dialogState is ChatDialogState.ModelSettingsGuide
+        if (shouldResetFailure) {
+            mRetryTarget = null
+        }
+        val nextGenerationState = if (shouldResetFailure
+            && uiState.conversationState.generationState is ChatGenerationState.Failed
+        ) {
+            ChatGenerationState.Idle
+        } else {
+            uiState.conversationState.generationState
+        }
+        uiState.copy(
+            dialogState = ChatDialogState.None,
+            conversationState = uiState.conversationState.copy(
+                generationState = nextGenerationState,
+            ),
+        ).setup()
     }
 
     /**
@@ -1892,7 +2057,19 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private fun onOpenProviderSettings() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         if (uiState.dialogState.isBlocking() || mSummaryJob?.isActive == true) return
-        uiState.copy(dialogState = ChatDialogState.None).setup()
+        mRetryTarget = null
+        val nextGenerationState =
+            if (uiState.conversationState.generationState is ChatGenerationState.Failed) {
+                ChatGenerationState.Idle
+            } else {
+                uiState.conversationState.generationState
+            }
+        uiState.copy(
+            dialogState = ChatDialogState.None,
+            conversationState = uiState.conversationState.copy(
+                generationState = nextGenerationState,
+            ),
+        ).setup()
         AppViewEvent.StartActivity(LLMProviderListActivity::class.java).tryEmit()
     }
 
@@ -2159,8 +2336,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         // 前置条件全部满足后才保存设置并离开表单。
         if (!saveSettingsBeforeGeneration(uiState)) return
-        // 启动重生成协程任务
+        // 启动重生成协程任务并记录原位重试快照
         clearReplyRetry()
+        mRetryTarget = ChatReplyRetryTarget(
+            sessionId = sessionId,
+            generationMode = PromptGenerationMode.Regenerate,
+            targetMessageId = latestAssistantMessage.id,
+        )
         mGenerationJob = viewModelScope.launch {
             runCatching {
                 // 更新 UI 为请求中状态
@@ -2194,22 +2376,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                         output = GenerationOutput.Update(latestAssistantMessage.id),
                     )
                 }
+                clearReplyRetry()
                 // 检查自动总结
                 maybeAutoSummarize(sessionId, built.templates, built.persona)
             }.onFailure { throwable ->
-                // 异常处理：解析错误信息并更新 UI 状态
-                val failure = throwable.toGenerationFailurePresentation(
-                    context = mContext, fallbackMessageResId = R.string.regenerate_failed,
-                ) ?: return@onFailure
-                val guideDialog = failure.modelSettingsGuide?.toChatDialogState()
-                refreshUiState(
+                presentGenerationFailure(
                     sessionId = sessionId,
-                    generationState = ChatGenerationState.Failed(failure.message),
-                    dialogState = guideDialog ?: ChatDialogState.None,
+                    throwable = throwable,
+                    fallbackMessageResId = R.string.regenerate_failed,
                 )
-                if (guideDialog == null) {
-                    AppViewEvent.PopupToastMessage(failure.message).tryEmit()
-                }
             }
         }
     }
@@ -2245,9 +2420,16 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             return
         }
         val isLastUser = latestMessage.source == ChatMessage.Source.User
+        val generationMode =
+            if (isLastUser) PromptGenerationMode.Normal else PromptGenerationMode.Continue
         if (!saveSettingsBeforeGeneration(uiState)) return
-        // 启动续写任务
+        // 启动续写任务并记录重试快照
         clearReplyRetry()
+        mRetryTarget = ChatReplyRetryTarget(
+            sessionId = sessionId,
+            generationMode = generationMode,
+            triggerUserMessageId = latestMessage.id.takeIf { isLastUser },
+        )
         mGenerationJob = viewModelScope.launch {
             runCatching {
                 refreshUiState(
@@ -2256,9 +2438,6 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     generationState = ChatGenerationState.Requesting,
                     expandedThinkBlockIds = uiState.conversationState.expandedThinkBlockIds,
                 )
-                // 依据最后一条消息来源决定生成模式（Normal 或 Continue）
-                val generationMode =
-                    if (isLastUser) PromptGenerationMode.Normal else PromptGenerationMode.Continue
                 val built = withContext(Dispatchers.IO) {
                     buildGenerationRequest(
                         sessionId = sessionId,
@@ -2282,23 +2461,17 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                         output = GenerationOutput.Create(ChatMessage.Source.Char),
                     )
                 }
+                clearReplyRetry()
                 // 检查自动总结
                 maybeAutoSummarize(sessionId, built.templates, built.persona)
             }.onFailure { throwable ->
                 val errorResId =
                     if (isLastUser) R.string.generation_failed else R.string.continue_generation_failed
-                val failure = throwable.toGenerationFailurePresentation(
-                    context = mContext, fallbackMessageResId = errorResId,
-                ) ?: return@onFailure
-                val guideDialog = failure.modelSettingsGuide?.toChatDialogState()
-                refreshUiState(
+                presentGenerationFailure(
                     sessionId = sessionId,
-                    generationState = ChatGenerationState.Failed(failure.message),
-                    dialogState = guideDialog ?: ChatDialogState.None,
+                    throwable = throwable,
+                    fallbackMessageResId = errorResId,
                 )
-                if (guideDialog == null) {
-                    AppViewEvent.PopupToastMessage(failure.message).tryEmit()
-                }
             }
         }
     }
@@ -2320,8 +2493,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         }
         if (!ensureProviderConfigured(sessionId, uiState.character.id)) return
         if (!saveSettingsBeforeGeneration(uiState)) return
-        // 启动模仿用户生成任务
+        // 启动模仿用户生成任务并记录重试快照
         clearReplyRetry()
+        mRetryTarget = ChatReplyRetryTarget(
+            sessionId = sessionId,
+            generationMode = PromptGenerationMode.Impersonate,
+            isUserImpersonation = true,
+        )
         mGenerationJob = viewModelScope.launch {
             runCatching {
                 refreshUiState(
@@ -2350,21 +2528,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                         output = GenerationOutput.Create(ChatMessage.Source.User),
                     )
                 }
+                clearReplyRetry()
                 // 检查自动总结
                 maybeAutoSummarize(sessionId, built.templates, built.persona)
             }.onFailure { throwable ->
-                val failure = throwable.toGenerationFailurePresentation(
-                    context = mContext, fallbackMessageResId = R.string.impersonation_failed,
-                ) ?: return@onFailure
-                val guideDialog = failure.modelSettingsGuide?.toChatDialogState()
-                refreshUiState(
+                presentGenerationFailure(
                     sessionId = sessionId,
-                    generationState = ChatGenerationState.Failed(failure.message),
-                    dialogState = guideDialog ?: ChatDialogState.None,
+                    throwable = throwable,
+                    fallbackMessageResId = R.string.impersonation_failed,
                 )
-                if (guideDialog == null) {
-                    AppViewEvent.PopupToastMessage(failure.message).tryEmit()
-                }
             }
         }
     }
@@ -2458,6 +2630,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             worldInfoStateJson = built.worldInfoStateJson,
         )
         mActiveStreamingGeneration = active
+        var streamCompleted = false
         try {
             // 若为创建新消息，在数据库创建占位记录（支持取消时无痕删除）
             if (output is GenerationOutput.Create) {
@@ -2509,11 +2682,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     is LLMStreamEvent.Finished -> Unit
                 }
             }
+            streamCompleted = true
         } finally {
             // 收尾阶段：在 NonCancellable 上下文下执行唯一一次持久化提交，确保部分生成内容安全落库
             val snapshot = active
+            var committedMessageId: Long? = null
             try {
-                withContext(NonCancellable + Dispatchers.IO) {
+                committedMessageId = withContext(NonCancellable + Dispatchers.IO) {
                     val finalContent = snapshot.content.takeIf { text -> text.isNotBlank() }
                         ?.let { applyStreamingGeneratedRegex(snapshot) }
                         .orEmpty()
@@ -2527,6 +2702,12 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     )
                 }
             } finally {
+                // 流式中途异常且已落库残缺正文时，绑定为原位覆盖目标以免重试另起新气泡。
+                if (!streamCompleted && committedMessageId != null) {
+                    mRetryTarget = mRetryTarget?.takeIf { item ->
+                        item.sessionId == snapshot.sessionId
+                    }?.copy(targetMessageId = committedMessageId)
+                }
                 // 清理全局活跃流式引用
                 if (mActiveStreamingGeneration?.token === token) {
                     mActiveStreamingGeneration = null
@@ -3342,14 +3523,16 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 canLoadNewerMessages = messagePage.canLoadNewerMessages,
                 messages = displayMessages,
                 hasAssistantMessage = pageData.hasCharacterMessage,
+                canRegenerateLatestReply = pageData.canRegenerateLatestReply,
                 canLoadOlderMessages = messagePage.canLoadOlderMessages,
                 inputDraft = inputDraft,
                 generationState = if (generationState is ChatGenerationState.Failed) {
-                    generationState.copy(
-                        canRetryReply = mRetryUserMessageId?.let { id ->
-                            mChatRepository.getMessageById(id)?.sessionId == sessionId
-                        } == true,
-                    )
+                    val target = mRetryTarget?.takeIf { item -> item.sessionId == sessionId }
+                    val canRetry = target != null && (
+                        target.triggerUserMessageId == null ||
+                            mChatRepository.getMessageById(target.triggerUserMessageId)?.sessionId == sessionId
+                        )
+                    generationState.copy(canRetryReply = canRetry)
                 } else generationState,
                 expandedThinkBlockIds = expandedThinkBlockIds,
                 editingMessageId = editingMessageId,

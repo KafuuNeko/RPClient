@@ -13,7 +13,8 @@ sealed class GroupChatUiIntent {
     /** 从摘要额度提示前往全局设置。 */
     data object OpenSummarySettings : GroupChatUiIntent()
 
-    data object RetryImageReply : GroupChatUiIntent()
+    /** 从生成失败弹窗重试当前生成批次。 */
+    data object RetryGeneration : GroupChatUiIntent()
 
     data class ImageAction(val action: MessageImageAction) : GroupChatUiIntent()
 

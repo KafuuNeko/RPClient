@@ -637,6 +637,8 @@
     <string name="group_chat_turn_order">Ordre %1$s</string>
     <string name="group_chat_cast_ready">Le groupe est prêt</string>
     <string name="group_chat_speaker_replying">%1$s répond (%2$d/%3$d)</string>
+    <string name="group_chat_reply_failed_speaker">%1$s n\'a pas pu répondre</string>
+    <string name="group_chat_reply_failed_speakers">%1$s n\'a pas pu répondre · %2$d restants</string>
     <string name="mute">Désactiver le son</string>
     <string name="unmute">Réactiver le son</string>
     <string name="group_chat_room_ready">La discussion est prête</string>
@@ -1127,7 +1129,6 @@
     <string name="image_error_count">La requête contient trop d’images (maximum 12).</string>
     <string name="image_prepare_failed">L’image n’a pas pu être traitée, est manquante ou dépasse la limite. Choisissez à nouveau une image statique (au maximum quatre ; 32 Mio / 48 mégapixels chacune).</string>
     <string name="image_edit_ended">La modification est déjà terminée. Rouvrez l’éditeur de messages avant de sélectionner des images.</string>
-    <string name="image_retry">Réessayer la réponse</string>
     <string name="image_summary_paused">Le résumé de l’image a échoué. Les résumés automatiques sont en pause ; changez le modèle de résumé et reprenez dans les paramètres.</string>
     <string name="image_token_estimator">Estimation des tokens d’image</string>
     <string name="image_estimator_generic">Approximation générique</string>

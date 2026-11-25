@@ -86,6 +86,8 @@ data class ChatConversationState(
     val messages: List<ChatMessageUiModel>,
     /** 完整会话历史中是否存在角色回复，不受当前分页窗口限制。 */
     val hasAssistantMessage: Boolean,
+    /** 最新消息为角色回复且非唯一开场白时才允许重生成最新回复。 */
+    val canRegenerateLatestReply: Boolean = hasAssistantMessage,
     /** 当前已加载窗口之前是否仍有更早消息。 */
     val canLoadOlderMessages: Boolean = false,
     /** 当前历史窗口的加载方向，同一时间只允许一个分页任务。 */
@@ -187,6 +189,16 @@ sealed class ChatDialogState {
     data class DeleteMessageConfirm(
         /** 当前操作关联的消息 ID。 */
         val messageId: String
+    ) : ChatDialogState()
+
+    /** 模型回复生成失败弹窗，提供本次上下文重试或关闭决策。 */
+    data class GenerationFailure(
+        /** 弹窗标题。 */
+        val title: String,
+        /** 脱敏后的本地化失败原因正文。 */
+        val message: String,
+        /** 是否提供「重试」确认按钮；关闭弹窗即放弃本次上下文重试。 */
+        val canRetry: Boolean = false,
     ) : ChatDialogState()
 
     data class ModelSettingsGuide(

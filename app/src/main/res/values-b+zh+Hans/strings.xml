@@ -727,6 +727,8 @@
     <string name="group_chat_turn_order">%1$s发言顺序</string>
     <string name="group_chat_cast_ready">成员已准备就绪</string>
     <string name="group_chat_speaker_replying">%1$s 正在回复（%2$d/%3$d）</string>
+    <string name="group_chat_reply_failed_speaker">%1$s 未能回复</string>
+    <string name="group_chat_reply_failed_speakers">%1$s 未能回复 · 剩余 %2$d 位</string>
     <string name="mute">静音</string>
     <string name="unmute">取消静音</string>
     <string name="group_chat_room_ready">聊天室已准备好</string>
@@ -1123,7 +1125,6 @@
     <string name="image_error_count">请求包含过多图片（最多 12 张）。</string>
     <string name="image_prepare_failed">图片无法处理、已丢失或超过限制，请重新选择静态图片（最多四张，单张 32 MiB / 4800 万像素）。</string>
     <string name="image_edit_ended">编辑状态已结束，请重新打开消息编辑后选择图片。</string>
-    <string name="image_retry">重试回复</string>
     <string name="image_summary_paused">图片摘要失败，已暂停自动摘要。请更换摘要模型后在设置中恢复。</string>
     <string name="image_token_estimator">图片预估器</string>
     <string name="image_estimator_generic">通用近似</string>

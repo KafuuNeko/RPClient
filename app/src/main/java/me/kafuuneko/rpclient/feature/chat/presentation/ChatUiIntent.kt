@@ -10,7 +10,8 @@ sealed class ChatUiIntent {
     /** 从摘要额度提示前往全局设置。 */
     data object OpenSummarySettings : ChatUiIntent()
 
-    data object RetryImageReply : ChatUiIntent()
+    /** 从生成失败弹窗重试当前生成任务。 */
+    data object RetryGeneration : ChatUiIntent()
 
     data class ImageAction(val action: MessageImageAction) : ChatUiIntent()
 

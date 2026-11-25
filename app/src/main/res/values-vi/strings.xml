@@ -741,6 +741,8 @@ Thất bại: %2$d</string>
     <string name="group_chat_turn_order">Thứ tự phát ngôn %1$s</string>
     <string name="group_chat_cast_ready">Dàn nhân vật đã sẵn sàng</string>
     <string name="group_chat_speaker_replying">%1$s đang trả lời (%2$d/%3$d)</string>
+    <string name="group_chat_reply_failed_speaker">%1$s không thể trả lời</string>
+    <string name="group_chat_reply_failed_speakers">%1$s không thể trả lời · còn %2$d</string>
     <string name="mute">Tắt tiếng</string>
     <string name="unmute">Bật tiếng</string>
     <string name="group_chat_room_ready">Phòng trò chuyện đã sẵn sàng</string>
@@ -1127,7 +1129,6 @@ Mở Cài đặt mô hình để kiểm tra khóa API, URL cơ sở, tên mô h�
     <string name="image_error_count">Yêu cầu chứa quá nhiều hình ảnh (tối đa 12).</string>
     <string name="image_prepare_failed">Không thể xử lý hình ảnh, hình ảnh bị thiếu hoặc vượt quá giới hạn. Hãy chọn lại ảnh tĩnh (tối đa bốn ảnh; mỗi ảnh 32 MiB / 48 megapixel).</string>
     <string name="image_edit_ended">Việc chỉnh sửa đã kết thúc. Hãy mở lại trình chỉnh sửa tin nhắn trước khi chọn hình ảnh.</string>
-    <string name="image_retry">Thử lại phản hồi</string>
     <string name="image_summary_paused">Tóm tắt hình ảnh thất bại. Tóm tắt tự động đã tạm dừng; hãy đổi mô hình tóm tắt và tiếp tục trong cài đặt.</string>
     <string name="image_token_estimator">Bộ ước tính token hình ảnh</string>
     <string name="image_estimator_generic">Ước tính chung</string>

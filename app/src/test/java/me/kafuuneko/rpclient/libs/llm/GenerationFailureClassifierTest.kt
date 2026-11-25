@@ -2,6 +2,8 @@ package me.kafuuneko.rpclient.libs.llm
 
 import kotlinx.coroutines.CancellationException
 import me.kafuuneko.rpclient.libs.prompt.request.PromptBudgetExceededException
+import me.kafuuneko.rpclient.model.GenerationFailureAction
+import me.kafuuneko.rpclient.model.toFailureAction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -130,5 +132,63 @@ class GenerationFailureClassifierTest {
     @Test
     fun cancellationIsNotAUserVisibleFailure() {
         assertNull(classifyGenerationFailure(CancellationException("cancelled")))
+    }
+
+    @Test
+    fun mapsGenerationFailureActionsByRootCause() {
+        // 瞬时网络、限流、超时及 5xx 服务端波动归入重试弹窗。
+        val retryable = listOf(
+            GenerationFailure.Network,
+            GenerationFailure.RateLimited,
+            GenerationFailure.HttpFailure(408),
+            GenerationFailure.HttpFailure(500),
+            GenerationFailure.HttpFailure(503),
+            GenerationFailure.EmptyResponse(),
+            GenerationFailure.RequestFailure,
+            GenerationFailure.Unknown,
+        )
+        retryable.forEach { failure ->
+            assertEquals(failure.toString(), GenerationFailureAction.Retry, failure.toFailureAction())
+        }
+
+        // 凭据、权限、4xx 客户端错误、上下文预算及模型图片能力问题归入模型配置引导。
+        val configurable = listOf(
+            GenerationFailure.NoProvider,
+            GenerationFailure.CharacterProviderUnavailable,
+            GenerationFailure.SummaryProviderUnavailable,
+            GenerationFailure.Unauthorized,
+            GenerationFailure.Forbidden,
+            GenerationFailure.HttpFailure(400),
+            GenerationFailure.HttpFailure(404),
+            GenerationFailure.HttpFailure(422),
+            GenerationFailure.PromptBudget(requiredTokens = 100, promptBudget = 50),
+            GenerationFailure.Image(ImageRequestFailure.Unsupported),
+            GenerationFailure.Image(ImageRequestFailure.UnsupportedDetail),
+        )
+        configurable.forEach { failure ->
+            assertEquals(
+                failure.toString(),
+                GenerationFailureAction.ConfigureModel,
+                failure.toFailureAction(),
+            )
+        }
+
+        // 附件损坏、缺失或数量体积超限仅提示关闭，由用户直接调整消息或附件。
+        val dismissOnly = listOf(
+            ImageRequestFailure.Missing,
+            ImageRequestFailure.InvalidImage,
+            ImageRequestFailure.TooLarge,
+            ImageRequestFailure.TooMany,
+            ImageRequestFailure.OriginalUnsupported,
+            ImageRequestFailure.OriginalTooLarge,
+            ImageRequestFailure.UnsupportedFormat,
+        ).map(GenerationFailure::Image)
+        dismissOnly.forEach { failure ->
+            assertEquals(
+                failure.toString(),
+                GenerationFailureAction.DismissOnly,
+                failure.toFailureAction(),
+            )
+        }
     }
 }

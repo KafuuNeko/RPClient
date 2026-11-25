@@ -13,10 +13,12 @@ internal sealed class GenerationOutput {
         val source: ChatMessage.Source
     ) : GenerationOutput()
 
-    /** 更新覆盖已有的消息记录（如重新生成） */
+    /** 更新覆盖已有的消息记录（如重新生成或流式中断原位重试） */
     data class Update(
         /** 当前操作关联的消息 ID。 */
-        val messageId: Long
+        val messageId: Long,
+        /** 目标消息的角色来源，用于匹配持久化前正则与提交校验。 */
+        val source: ChatMessage.Source = ChatMessage.Source.Char,
     ) : GenerationOutput()
 }
 
@@ -26,7 +28,7 @@ internal sealed class GenerationOutput {
 internal fun GenerationOutput.source(): ChatMessage.Source {
     return when (this) {
         is GenerationOutput.Create -> source
-        is GenerationOutput.Update -> ChatMessage.Source.Char
+        is GenerationOutput.Update -> source
     }
 }
 

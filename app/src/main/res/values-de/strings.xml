@@ -638,6 +638,8 @@
     <string name="group_chat_turn_order">%1$s-Reihenfolge</string>
     <string name="group_chat_cast_ready">Die Gruppe ist bereit</string>
     <string name="group_chat_speaker_replying">%1$s antwortet (%2$d/%3$d)</string>
+    <string name="group_chat_reply_failed_speaker">%1$s konnte nicht antworten</string>
+    <string name="group_chat_reply_failed_speakers">%1$s konnte nicht antworten · %2$d verbleibend</string>
     <string name="mute">Stummschalten</string>
     <string name="unmute">Stummschaltung aufheben</string>
     <string name="group_chat_room_ready">Der Chat ist bereit</string>
@@ -1126,7 +1128,6 @@
     <string name="image_error_count">Die Anfrage enthält zu viele Bilder (maximal 12).</string>
     <string name="image_prepare_failed">Das Bild konnte nicht verarbeitet werden, fehlt oder überschreitet das Limit. Wähle erneut ein statisches Bild (höchstens vier; je 32 MiB / 48 Megapixel).</string>
     <string name="image_edit_ended">Die Bearbeitung wurde bereits beendet. Öffne den Nachrichteneditor erneut, bevor du Bilder auswählst.</string>
-    <string name="image_retry">Antwort erneut versuchen</string>
     <string name="image_summary_paused">Die Bildzusammenfassung ist fehlgeschlagen. Automatische Zusammenfassungen sind pausiert; ändere das Zusammenfassungsmodell und setze sie in den Einstellungen fort.</string>
     <string name="image_token_estimator">Bild-Token-Schätzung</string>
     <string name="image_estimator_generic">Allgemeine Näherung</string>

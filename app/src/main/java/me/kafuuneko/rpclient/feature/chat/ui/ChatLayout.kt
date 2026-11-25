@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.feature.chat.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -31,6 +32,7 @@ import me.kafuuneko.rpclient.ui.dialog.AppActionItem
 import me.kafuuneko.rpclient.ui.dialog.AppActionListDialog
 import me.kafuuneko.rpclient.ui.dialog.AppConfirmDialog
 import me.kafuuneko.rpclient.ui.dialog.AppDangerDialog
+import me.kafuuneko.rpclient.ui.dialog.DialogBadgeTone
 import me.kafuuneko.rpclient.ui.dialog.LoadingDialog
 import me.kafuuneko.rpclient.ui.dialog.PromptInspectorDialog
 import me.kafuuneko.rpclient.ui.dialog.SessionLorebookDialog
@@ -141,13 +143,34 @@ private fun DialogSwitch(
             onConfirm = { ChatUiIntent.OpenSummarySettings.emit() },
         )
 
+        is ChatDialogState.GenerationFailure -> AppConfirmDialog(
+            onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
+            title = dialogState.title,
+            message = dialogState.message,
+            badgeIcon = Icons.Rounded.ErrorOutline,
+            badgeTone = DialogBadgeTone.Danger,
+            confirmText = stringResource(if (dialogState.canRetry) R.string.retry else R.string.close),
+            dismissText = if (dialogState.canRetry) stringResource(R.string.cancel) else null,
+            onConfirm = {
+                if (dialogState.canRetry) {
+                    ChatUiIntent.RetryGeneration.emit()
+                } else {
+                    ChatUiIntent.DismissDialog.emit()
+                }
+            },
+            properties = DialogProperties(dismissOnClickOutside = false),
+        )
+
         is ChatDialogState.ModelSettingsGuide -> AppConfirmDialog(
             onDismissRequest = { ChatUiIntent.DismissDialog.emit() },
             title = dialogState.title,
             message = dialogState.message,
+            badgeIcon = Icons.Rounded.ErrorOutline,
+            badgeTone = DialogBadgeTone.Danger,
             confirmText = stringResource(R.string.go_to_model_settings),
             dismissText = stringResource(R.string.cancel),
             onConfirm = { ChatUiIntent.OpenProviderSettings.emit() },
+            properties = DialogProperties(dismissOnClickOutside = false),
         )
 
         ChatDialogState.Exporting -> LoadingDialog(
