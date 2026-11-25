@@ -1358,9 +1358,6 @@
     <string name="prompt_template_failed">템플릿을 불러오거나 저장하지 못했습니다. 다시 시도하세요.</string>
     <string name="prompt_template_conflict">템플릿이 변경되었습니다. 초안을 복사한 후 편집기를 닫고 다시 여세요.</string>
     <string name="prompt_template_active">사용 중</string>
-    <string name="prompt_template_search">템플릿 검색</string>
-    <string name="prompt_template_all">프롬프트 템플릿</string>
-    <string name="prompt_template_no_results">일치하는 템플릿이 없습니다</string>
     <string name="prompt_template_empty">템플릿을 만들어 나만의 프롬프트 모음을 저장하세요.</string>
     <string name="prompt_template_activate">활성화</string>
     <string name="prompt_template_delete_title">템플릿을 삭제할까요?</string>

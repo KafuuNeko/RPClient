@@ -148,7 +148,11 @@ class GenerationFailureClassifierTest {
             GenerationFailure.Unknown,
         )
         retryable.forEach { failure ->
-            assertEquals(failure.toString(), GenerationFailureAction.Retry, failure.toFailureAction())
+            assertEquals(
+                failure.toString(),
+                GenerationFailureAction.Retry,
+                failure.toFailureAction()
+            )
         }
 
         // 凭据、权限、4xx 客户端错误、上下文预算及模型图片能力问题归入模型配置引导。

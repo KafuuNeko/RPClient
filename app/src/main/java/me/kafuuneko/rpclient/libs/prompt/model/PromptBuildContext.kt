@@ -56,6 +56,8 @@ data class PromptBuildContext(
     val userWritingDraft: String? = null,
     /** Classic 摘要的末尾任务；非空时复用普通上下文预算并停止追加角色回复引导。 */
     val summaryInstruction: String? = null,
+    /** 重生成或原位替换残缺回复时撤销本轮已推进的世界书时序，再按原输入重新扫描。 */
+    val isReplayingTurn: Boolean = generationMode == PromptGenerationMode.Regenerate,
 )
 
 /** 本次构建对应的用户操作，会影响尾部指令和世界书生成类型过滤。 */

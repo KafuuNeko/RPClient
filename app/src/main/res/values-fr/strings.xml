@@ -1372,9 +1372,6 @@
     <string name="prompt_template_failed">Impossible de charger ou enregistrer le modèle. Réessayez.</string>
     <string name="prompt_template_conflict">Ce modèle a été modifié. Copiez votre brouillon, puis fermez et rouvrez l’éditeur.</string>
     <string name="prompt_template_active">Actif</string>
-    <string name="prompt_template_search">Rechercher des modèles</string>
-    <string name="prompt_template_all">Modèles de prompts</string>
-    <string name="prompt_template_no_results">Aucun modèle correspondant</string>
     <string name="prompt_template_empty">Créez un modèle pour enregistrer votre propre ensemble de prompts.</string>
     <string name="prompt_template_activate">Activer</string>
     <string name="prompt_template_delete_title">Supprimer le modèle ?</string>

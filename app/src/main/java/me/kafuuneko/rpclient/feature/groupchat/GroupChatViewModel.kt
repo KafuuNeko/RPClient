@@ -3106,6 +3106,8 @@ class GroupChatViewModel :
                     generationMode = generationMode,
                     regexScripts = scripts,
                     userWritingDraft = userWritingDraft,
+                    isReplayingTurn = replacingReply != null ||
+                        generationMode == GroupChatGenerationMode.Regenerate,
                 ),
             )
         }

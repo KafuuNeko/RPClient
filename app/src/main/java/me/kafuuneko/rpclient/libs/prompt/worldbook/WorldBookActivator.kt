@@ -60,6 +60,7 @@ class WorldBookActivator {
                 },
                 totalMessageCount = context.totalMessageCount,
                 worldInfoStateJson = context.session.worldInfoStateJson,
+                isReplayingTurn = context.isReplayingTurn,
                 candidateLorebookEntries = context.candidateLorebookEntries,
                 candidateLorebooks = context.candidateLorebooks,
                 recursiveScanningLorebookIds = context.recursiveScanningLorebookIds,
@@ -87,6 +88,14 @@ class WorldBookActivator {
         val state = (context.worldInfoState
             ?: WorldInfoRuntimeState.fromJson(context.worldInfoStateJson, mGson))
             .discardIfChatRewound(messageCount)
+            .let { state ->
+                // 同轮替换只撤销本轮首次激活的条目，保留更早轮次尚未结束的 sticky/cooldown。
+                if (context.isReplayingTurn) {
+                    state.copy(entries = state.entries.filterValues { it.activatedAt != messageCount })
+                } else {
+                    state
+                }
+            }
         val activated = linkedMapOf<Long, LorebookEntry>()
         val timedStickyIds = mutableSetOf<Long>()
         val failedProbabilityIds = mutableSetOf<Long>()
@@ -727,7 +736,9 @@ data class WorldBookScanContext(
     /** 作者提供的角色使用说明和备注。 */
     val creatorNotes: String = "",
     /** 本轮世界书扫描开始时使用的时序状态。 */
-    val worldInfoState: WorldInfoRuntimeState? = null
+    val worldInfoState: WorldInfoRuntimeState? = null,
+    /** 同一轮重新生成或重试，先撤销原回复推进的时序，再执行关键词与预算判断。 */
+    val isReplayingTurn: Boolean = generationType == WorldBookGenerationType.Regenerate,
 )
 
 /** 世界书扫描使用的轻量消息，显式保留发言者名称。 */

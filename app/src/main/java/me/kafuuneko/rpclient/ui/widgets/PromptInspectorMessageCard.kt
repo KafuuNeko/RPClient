@@ -225,7 +225,10 @@ private fun MessageFilterToolbar(
             if (worldInfoCount > 0) {
                 MessageFilterChip(
                     selected = filter == PromptInspectorMessageFilter.WorldInfo,
-                    label = stringResource(R.string.prompt_inspector_filter_world_info, worldInfoCount),
+                    label = stringResource(
+                        R.string.prompt_inspector_filter_world_info,
+                        worldInfoCount
+                    ),
                     onClick = { onFilterChange(PromptInspectorMessageFilter.WorldInfo) },
                 )
             }
@@ -538,6 +541,7 @@ internal fun GroupedSourceSection(
                         group.kind.baseLabel(),
                         group.sources.size,
                     )
+
                     singleDetailedSource -> group.sources.single().label()
                     else -> group.kind.baseLabel()
                 }

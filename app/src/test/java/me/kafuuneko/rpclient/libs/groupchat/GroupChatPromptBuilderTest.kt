@@ -1142,6 +1142,38 @@ class GroupChatPromptBuilderTest {
         assertTrue(builder.build(next.copy(totalMessageCount = 3)).messages.any { it.content == "Echo for Alice" })
     }
 
+    /** 群聊构建器必须把重放标记传给共享激活器，并在预算后保留正确的冷却状态。 */
+    @Test
+    fun regenerationAndPartialRetryReplayWorldInfoAtTheSameMessageCount() {
+        val alice = character(1, "Alice")
+        val entry = worldEntry(21, 100, "TURN_LORE", LorebookEntry.POSITION_BEFORE).copy(
+            cooldown = 3,
+        )
+        val builder = GroupChatPromptBuilder(TestPromptPreferences())
+        val base = GroupChatPromptContext(
+            session = GroupChatSession(title = "Crew", createTime = 1, latestTime = 1),
+            members = listOf(member(alice, 0)), speaker = alice,
+            messages = emptyList(), totalMessageCount = 20, provider = provider(),
+            candidateLorebookEntries = listOf(entry),
+        )
+        val first = builder.buildWithMetadata(base)
+        val persisted =
+            base.copy(session = base.session.copy(worldInfoStateJson = first.worldInfoStateJson))
+        assertFalse(builder.build(persisted).messages.any { it.content == "TURN_LORE" })
+
+        // 显式重生成与 Normal 模式的残缺回复重试使用相同的轮次，但保留不同生成类型。
+        for (mode in listOf(GroupChatGenerationMode.Regenerate, GroupChatGenerationMode.Normal)) {
+            val replay = builder.buildWithMetadata(
+                persisted.copy(
+                    generationMode = mode,
+                    isReplayingTurn = true
+                )
+            )
+            assertTrue(replay.request.messages.any { it.content == "TURN_LORE" })
+            assertEquals(first.worldInfoStateJson, replay.worldInfoStateJson)
+        }
+    }
+
     private fun character(id: Long, name: String): Character {
         return Character(
             id = id,

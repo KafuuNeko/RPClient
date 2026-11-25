@@ -310,6 +310,7 @@ class PromptPresetViewModel :
                 category = category,
                 expanded = category in browser.expandedCategories,
                 sections = sections,
+                totalCount = scopedStates.count { it.field.section.category == category },
             )
         }
         return browser.copy(

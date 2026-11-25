@@ -1365,9 +1365,6 @@ Gagal: %2$d</string>
     <string name="prompt_template_failed">Tidak dapat memuat atau menyimpan templat. Coba lagi.</string>
     <string name="prompt_template_conflict">Templat ini telah berubah. Salin draf Anda, lalu tutup dan buka kembali editor.</string>
     <string name="prompt_template_active">Aktif</string>
-    <string name="prompt_template_search">Cari templat</string>
-    <string name="prompt_template_all">Templat prompt</string>
-    <string name="prompt_template_no_results">Tidak ada templat yang cocok</string>
     <string name="prompt_template_empty">Buat templat untuk menyimpan kumpulan prompt Anda sendiri.</string>
     <string name="prompt_template_activate">Aktifkan</string>
     <string name="prompt_template_delete_title">Hapus templat?</string>

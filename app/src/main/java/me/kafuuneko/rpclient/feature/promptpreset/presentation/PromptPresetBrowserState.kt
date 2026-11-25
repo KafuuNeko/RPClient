@@ -24,6 +24,8 @@ data class PromptPresetGroupState(
     val category: PromptPresetCategory,
     val expanded: Boolean,
     val sections: List<PromptPresetSectionState>,
+    /** 当前场景下过滤前的字段数，不随“仅看已修改”开关变化。 */
+    val totalCount: Int,
 ) {
     val itemCount: Int get() = sections.sumOf { section -> section.items.size }
     val customCount: Int

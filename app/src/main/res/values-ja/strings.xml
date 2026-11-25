@@ -1359,9 +1359,6 @@
     <string name="prompt_template_failed">テンプレートを読み込むか保存できませんでした。再試行してください。</string>
     <string name="prompt_template_conflict">テンプレートが変更されました。下書きをコピーしてから、エディターを開き直してください。</string>
     <string name="prompt_template_active">使用中</string>
-    <string name="prompt_template_search">テンプレートを検索</string>
-    <string name="prompt_template_all">プロンプトテンプレート</string>
-    <string name="prompt_template_no_results">一致するテンプレートがありません</string>
     <string name="prompt_template_empty">テンプレートを作成して、自分のプロンプト一式を保存できます。</string>
     <string name="prompt_template_activate">有効にする</string>
     <string name="prompt_template_delete_title">テンプレートを削除しますか？</string>

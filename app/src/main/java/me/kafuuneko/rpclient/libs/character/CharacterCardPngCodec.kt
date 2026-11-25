@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.character
 
+import com.google.gson.JsonArray
 import com.google.gson.JsonParser
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
@@ -116,10 +117,17 @@ object CharacterCardPngCodec {
     /** 双格式使用同一份最新角色数据，便于不同版本的读取方识别。 */
     private fun writeMetadata(output: DataOutputStream, json: String) {
         writeTextChunk(output, "chara", encodeBase64Text(json))
+        // 旧卡仍可读取 chara；只有包含 data 对象时才声明 V3，避免生成畸形的优先读取块。
         val ccv3Json = runCatching {
             val v3 = JsonParser.parseString(json).asJsonObject.apply {
                 addProperty("spec", "chara_card_v3")
                 addProperty("spec_version", "3.0")
+            }
+            val data = v3.get("data")?.takeIf { it.isJsonObject }?.asJsonObject
+                ?: return@runCatching null
+            // V3 必须携带群聊专用开场白数组，已有合法内容保持原样。
+            if (data.get("group_only_greetings")?.isJsonArray != true) {
+                data.add("group_only_greetings", JsonArray())
             }
             v3.toString()
         }.getOrNull()

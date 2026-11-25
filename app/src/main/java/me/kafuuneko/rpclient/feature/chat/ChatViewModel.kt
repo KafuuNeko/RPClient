@@ -3371,6 +3371,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                     userWritingDraft = userWritingDraft,
                     summaryInstruction = summaryInstruction,
                     regexScripts = regexScripts,
+                    isReplayingTurn = excludedMessageId != null ||
+                        generationMode == PromptGenerationMode.Regenerate,
                 ),
             )
         }

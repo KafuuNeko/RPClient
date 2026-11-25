@@ -1376,9 +1376,6 @@ Falhas: %2$d</string>
     <string name="prompt_template_failed">Não foi possível carregar ou salvar o modelo. Tente novamente.</string>
     <string name="prompt_template_conflict">Este modelo foi alterado. Copie seu rascunho, feche e reabra o editor.</string>
     <string name="prompt_template_active">Ativo</string>
-    <string name="prompt_template_search">Buscar modelos</string>
-    <string name="prompt_template_all">Modelos de prompts</string>
-    <string name="prompt_template_no_results">Nenhum modelo encontrado</string>
     <string name="prompt_template_empty">Crie um modelo para salvar seu próprio conjunto de prompts.</string>
     <string name="prompt_template_activate">Ativar</string>
     <string name="prompt_template_delete_title">Excluir modelo?</string>

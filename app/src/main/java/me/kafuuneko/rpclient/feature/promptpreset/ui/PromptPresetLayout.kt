@@ -494,7 +494,7 @@ private fun PromptCategoryCard(
                             text = stringResource(
                                 R.string.prompt_preset_group_custom_count,
                                 group.customCount,
-                                group.itemCount,
+                                group.totalCount,
                             ),
                         )
                     } else {
@@ -800,11 +800,15 @@ private fun EditPromptDialog(
     onSave: () -> Unit,
 ) {
     val field = promptPresetField(dialogState.type)
-    val errorMessage = if (dialogState.hasInvalidRequiredMacro && dialogState.requiredMacro != null) {
-        stringResource(R.string.prompt_raw_summary_format_requires_macro, dialogState.requiredMacro)
-    } else {
-        null
-    }
+    val errorMessage =
+        if (dialogState.hasInvalidRequiredMacro && dialogState.requiredMacro != null) {
+            stringResource(
+                R.string.prompt_raw_summary_format_requires_macro,
+                dialogState.requiredMacro
+            )
+        } else {
+            null
+        }
 
     // 字段只提供标题、只读态与必填校验，实时字数、全屏切换和撤销由共享编辑器承载。
     AppPromptEditorDialog(
@@ -834,6 +838,7 @@ private fun PromptPresetLayoutPreview() {
         PromptPresetGroupState(
             category = category,
             expanded = category == PromptPresetCategory.Basic,
+            totalCount = promptPresetFields.count { it.section.category == category },
             sections = promptPresetFields.filter { field -> field.section.category == category }
                 .groupBy { field -> field.section }
                 .map { (section, fields) ->
@@ -844,7 +849,8 @@ private fun PromptPresetLayoutPreview() {
                                 field = field,
                                 isCustomized = category == PromptPresetCategory.Basic && index == 0,
                                 isEmpty = field.type.defaultValue.isBlank(),
-                                previewText = field.type.defaultValue.lineSequence().firstOrNull().orEmpty(),
+                                previewText = field.type.defaultValue.lineSequence().firstOrNull()
+                                    .orEmpty(),
                             )
                         },
                     )

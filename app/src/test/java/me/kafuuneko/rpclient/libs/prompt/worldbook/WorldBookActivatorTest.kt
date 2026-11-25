@@ -181,6 +181,77 @@ class WorldBookActivatorTest {
         assertEquals(listOf(entry), availableAgain.activatedEntries)
     }
 
+    /** 重生成和普通模式的原位重试都应重新激活本轮条目，普通下一次扫描仍受冷却约束。 */
+    @Test
+    fun replayingTurnReactivatesSameTurnCooldown() {
+        val entry = lorebookEntry(id = 1L, keywords = """["harbor"]""", cooldown = 3)
+        val base = context(
+            messages = listOf(chatMessage("harbor")),
+            currentUserMessage = null,
+            entries = listOf(entry),
+            totalMessageCount = 20,
+        )
+        val first = activator.activateStructured(base)
+        val persisted =
+            base.copy(session = base.session.copy(worldInfoStateJson = first.nextStateJson))
+        assertEquals(
+            emptyList<LorebookEntry>(),
+            activator.activateStructured(persisted).activatedEntries
+        )
+
+        // 重生成默认携带重放语义；流式中断重试保留 Normal 类型并单独标记重放。
+        val regenerate = context(
+            messages = base.messages,
+            currentUserMessage = null,
+            entries = listOf(entry),
+            totalMessageCount = 20,
+            worldInfoStateJson = first.nextStateJson,
+            generationMode = PromptGenerationMode.Regenerate,
+        )
+        for (input in listOf(regenerate, persisted.copy(isReplayingTurn = true))) {
+            val replay = activator.activateStructured(input)
+            assertEquals(listOf(entry), replay.activatedEntries)
+            assertEquals(first.nextState, replay.nextState)
+            assertEquals(replay.nextState, activator.resolveNextState(replay).nextState)
+        }
+    }
+
+    /** 撤销本轮激活不影响更早轮次的冷却和粘滞，也不能强制保留本轮已不再匹配的条目。 */
+    @Test
+    fun replayingTurnPreservesEarlierTimedEffectsAndRescansCurrentSticky() {
+        val cooldown = lorebookEntry(id = 1L, keywords = """["past"]""", cooldown = 5)
+        val sticky = lorebookEntry(id = 2L, keywords = """["past"]""", sticky = 4, cooldown = 2)
+        val current = lorebookEntry(id = 3L, keywords = """["now"]""", sticky = 2, cooldown = 3)
+        val entries = listOf(cooldown, sticky, current)
+        val earlier = activator.activateStructured(
+            context(
+                messages = listOf(chatMessage("past")), currentUserMessage = null,
+                entries = entries, totalMessageCount = 9
+            )
+        )
+        val base = context(
+            messages = listOf(chatMessage("now")), currentUserMessage = null,
+            entries = entries, totalMessageCount = 10, worldInfoStateJson = earlier.nextStateJson,
+        )
+        val first = activator.activateStructured(base)
+        val replayInput = base.copy(
+            session = base.session.copy(worldInfoStateJson = first.nextStateJson),
+            isReplayingTurn = true,
+        )
+        // 本轮条目重新命中，之前的冷却和粘滞期限仍保持原样。
+        val replay = activator.activateStructured(replayInput)
+        assertEquals(setOf(sticky, current), replay.activatedEntries.toSet())
+        assertEquals(earlier.nextState.entries["1"], replay.nextState.entries["1"])
+        assertEquals(earlier.nextState.entries["2"], replay.nextState.entries["2"])
+        // 输入变化后重新判断关键词，不能沿用原回复刚写入的 sticky。
+        val changed =
+            activator.activateStructured(replayInput.copy(messages = listOf(chatMessage("no match"))))
+        assertEquals(listOf(sticky), changed.activatedEntries)
+        assertEquals(setOf("1", "2"), changed.nextState.entries.keys)
+        val budgeted = activator.resolveNextState(replay.copy(activatedEntries = listOf(sticky)))
+        assertEquals(setOf("1", "2"), budgeted.nextState.entries.keys)
+    }
+
     @Test
     fun summarizedHistoryDoesNotResetTimedEffects() {
         val entry = lorebookEntry(

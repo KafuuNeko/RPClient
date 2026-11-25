@@ -295,7 +295,8 @@ private fun ColumnScope.AppDialogContent(
         .fillMaxWidth()
     val modifier = if (scrollable) {
         // 普通正文由容器滚动，编辑器则使用受约束的内部视口，避免重复滚动。
-        val scrollableModifier = if (fillHeight) contentModifier else contentModifier.heightIn(max = 380.dp)
+        val scrollableModifier =
+            if (fillHeight) contentModifier else contentModifier.heightIn(max = 380.dp)
         scrollableModifier
             .draggableScrollIndicator(scrollState)
             .verticalScroll(scrollState)

@@ -93,6 +93,8 @@ data class GroupChatPromptContext(
     ),
     /** 输入框续写的起点；空串表示从头代写，null 表示输出到历史或其他生成任务。 */
     val userWritingDraft: String? = null,
+    /** 重生成或原位替换残缺回复时撤销本轮世界书时序，不改变生成类型过滤。 */
+    val isReplayingTurn: Boolean = generationMode == GroupChatGenerationMode.Regenerate,
 )
 
 /** 群聊回复的生成模式。 */
@@ -404,6 +406,7 @@ private class GroupChatPromptBuildSession(
                 currentUserMessage = null,
                 totalMessageCount = context.totalMessageCount,
                 worldInfoStateJson = context.session.worldInfoStateJson,
+                isReplayingTurn = context.isReplayingTurn,
                 candidateLorebookEntries = context.candidateLorebookEntries,
                 candidateLorebooks = context.candidateLorebooks,
                 recursiveScanningLorebookIds = context.recursiveScanningLorebookIds,

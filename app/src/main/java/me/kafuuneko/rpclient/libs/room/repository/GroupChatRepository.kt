@@ -361,8 +361,10 @@ class GroupChatRepository(
      *
      * @param sessionId 群聊会话 ID。
      * @param maxHistoryMessages 最多读取的最近历史消息数；0 表示不限制。
+     * @param protectedUserMessageId 当前批次不可裁剪的触发用户消息 ID。
+     * @param batchPersona 当前生成批次固定使用的用户人设；为空时解析会话人设。
      * @param replacingReply 设置页请求替换的末尾角色回复，生成时排除它及覆盖它的摘要。
-     * @param keepLatestMessage 续写或无新输入接话时保留已被手动摘要覆盖的末条原文。
+     * @param keepLatestMessage 续写或无新输入接话时保留已被摘要覆盖的末条原文；替换回复时自动保留前一条。
      * @return 群聊生成快照；会话不存在时返回 null。
      */
     suspend fun getGroupChatPromptData(
@@ -398,10 +400,10 @@ class GroupChatRepository(
             val retained =
                 messages.filter { message -> message.id > (summary?.coveredMessageId ?: 0L) }
                     .toMutableList()
-            // 按末条消息接话或原位重试残缺回复时保留原文和附件，哪怕手动摘要已覆盖它。
+            // 接话、重生成和原位重试都需要本轮原始图文输入，即使摘要已经覆盖它。
             val latestMessage = messages.lastOrNull()
             if (retained.isEmpty() && latestMessage != null &&
-                (keepLatestMessage || latestMessage.id == protectedUserMessageId)
+                (keepLatestMessage || replacingReply != null || latestMessage.id == protectedUserMessageId)
             ) {
                 retained.add(latestMessage)
             }

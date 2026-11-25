@@ -1380,9 +1380,6 @@
     <string name="prompt_template_failed">Не удалось загрузить или сохранить шаблон. Повторите попытку.</string>
     <string name="prompt_template_conflict">Шаблон изменён. Скопируйте черновик, затем закройте и снова откройте редактор.</string>
     <string name="prompt_template_active">Активен</string>
-    <string name="prompt_template_search">Поиск шаблонов</string>
-    <string name="prompt_template_all">Шаблоны промптов</string>
-    <string name="prompt_template_no_results">Подходящих шаблонов нет</string>
     <string name="prompt_template_empty">Создайте шаблон, чтобы сохранить собственный набор промптов.</string>
     <string name="prompt_template_activate">Активировать</string>
     <string name="prompt_template_delete_title">Удалить шаблон?</string>

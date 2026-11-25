@@ -1367,9 +1367,6 @@
     <string name="prompt_template_failed">Vorlage konnte nicht geladen oder gespeichert werden. Bitte erneut versuchen.</string>
     <string name="prompt_template_conflict">Diese Vorlage wurde geändert. Kopiere deinen Entwurf und öffne den Editor erneut.</string>
     <string name="prompt_template_active">Aktiv</string>
-    <string name="prompt_template_search">Vorlagen suchen</string>
-    <string name="prompt_template_all">Prompt-Vorlagen</string>
-    <string name="prompt_template_no_results">Keine passenden Vorlagen</string>
     <string name="prompt_template_empty">Erstelle eine Vorlage für deinen eigenen Satz von Prompts.</string>
     <string name="prompt_template_activate">Aktivieren</string>
     <string name="prompt_template_delete_title">Vorlage löschen?</string>

@@ -1373,9 +1373,6 @@
     <string name="prompt_template_failed">No se pudo cargar o guardar la plantilla. Inténtalo de nuevo.</string>
     <string name="prompt_template_conflict">Esta plantilla ha cambiado. Copia tu borrador y vuelve a abrir el editor.</string>
     <string name="prompt_template_active">Activa</string>
-    <string name="prompt_template_search">Buscar plantillas</string>
-    <string name="prompt_template_all">Plantillas de instrucciones</string>
-    <string name="prompt_template_no_results">No hay plantillas coincidentes</string>
     <string name="prompt_template_empty">Crea una plantilla para guardar tu propio conjunto de instrucciones.</string>
     <string name="prompt_template_activate">Activar</string>
     <string name="prompt_template_delete_title">¿Eliminar plantilla?</string>

@@ -1365,9 +1365,6 @@ Thất bại: %2$d</string>
     <string name="prompt_template_failed">Không thể tải hoặc lưu mẫu. Vui lòng thử lại.</string>
     <string name="prompt_template_conflict">Mẫu này đã thay đổi. Hãy sao chép bản nháp, rồi đóng và mở lại trình soạn thảo.</string>
     <string name="prompt_template_active">Đang dùng</string>
-    <string name="prompt_template_search">Tìm mẫu</string>
-    <string name="prompt_template_all">Mẫu lời nhắc</string>
-    <string name="prompt_template_no_results">Không có mẫu phù hợp</string>
     <string name="prompt_template_empty">Tạo mẫu để lưu bộ lời nhắc của riêng bạn.</string>
     <string name="prompt_template_activate">Kích hoạt</string>
     <string name="prompt_template_delete_title">Xóa mẫu?</string>

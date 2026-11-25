@@ -1351,9 +1351,6 @@ Non riusciti: %2$d</string>
     <string name="prompt_template_failed">Impossibile caricare o salvare il modello. Riprova.</string>
     <string name="prompt_template_conflict">Questo modello è stato modificato. Copia la bozza, poi chiudi e riapri l’editor.</string>
     <string name="prompt_template_active">Attivo</string>
-    <string name="prompt_template_search">Cerca modelli</string>
-    <string name="prompt_template_all">Modelli di prompt</string>
-    <string name="prompt_template_no_results">Nessun modello corrispondente</string>
     <string name="prompt_template_empty">Crea un modello per salvare il tuo insieme di prompt.</string>
     <string name="prompt_template_activate">Attiva</string>
     <string name="prompt_template_delete_title">Eliminare il modello?</string>

@@ -1,5 +1,6 @@
 package me.kafuuneko.rpclient.libs.character
 
+import com.google.gson.JsonArray
 import com.google.gson.JsonParser
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
@@ -57,8 +58,33 @@ class CharacterCardPngCodecTest {
         val v3 = JsonParser.parseString(decode(text.getValue("ccv3"))).asJsonObject
         assertEquals("chara_card_v3", v3.get("spec").asString)
         assertEquals("3.0", v3.get("spec_version").asString)
-        assertEquals(JsonParser.parseString(json).asJsonObject.get("data"), v3.get("data"))
+        val data = v3.getAsJsonObject("data")
+        assertTrue(data.get("group_only_greetings").isJsonArray)
+        assertEquals(0, data.getAsJsonArray("group_only_greetings").size())
+        val expectedData = JsonParser.parseString(json).asJsonObject.getAsJsonObject("data")
+            .apply { add("group_only_greetings", JsonArray()) }
+        assertEquals(expectedData, data)
         assertEquals(v3.toString(), CharacterCardPngCodec.readCharacterJson(encoded))
+    }
+
+    /** 重新导出 V3 卡时保留已有群聊开场白，不能用兼容空数组覆盖它们。 */
+    @Test
+    fun preservesExistingGroupOnlyGreetings() {
+        val json = """{"data":{"name":"Group","group_only_greetings":["Hello, everyone!"]}}"""
+        val encoded = CharacterCardPngCodec.writeCharacterJson(png(), json)
+        val v3 = JsonParser.parseString(decode(textChunks(encoded).getValue("ccv3"))).asJsonObject
+        assertEquals(JsonParser.parseString(json).asJsonObject.get("data"), v3.get("data"))
+    }
+
+    /** 缺少有效 data 的旧卡仅保留 chara，避免畸形 ccv3 抢占导入优先级。 */
+    @Test
+    fun malformedDataDoesNotProduceV3Metadata() {
+        val inputs = listOf("""{"name":"Legacy"}""", """{"data":null}""", """{"data":[]}""")
+        for (json in inputs) {
+            val encoded = CharacterCardPngCodec.writeCharacterJson(png(), json)
+            assertEquals(setOf("chara"), textChunks(encoded).keys)
+            assertEquals(json, CharacterCardPngCodec.readCharacterJson(encoded))
+        }
     }
 
     /** 重复导出替换旧的两套元数据，不能残留同名块或旧角色设定。 */

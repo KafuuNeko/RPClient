@@ -162,6 +162,7 @@ internal fun PromptInspectorReaderView(
                             R.string.prompt_inspector_reader_tab_segments,
                             item.segments.size,
                         )
+
                         PromptReaderMode.Raw -> stringResource(R.string.prompt_inspector_reader_tab_raw)
                     }
                 },
@@ -583,6 +584,7 @@ private fun ReaderSegmentHeaderCard(
         segment.sources.size > 1 -> segment.sources
             .mapNotNull { source -> source.detail.takeIf(String::isNotBlank) }
             .joinToString(" · ")
+
         else -> ""
     }
     val isWorldInfo = primarySource?.kind == PromptSourceKind.WorldInfo
@@ -693,14 +695,15 @@ private fun ReaderSegmentHeaderCard(
             if (showPreview && previewText.isNotBlank()) {
                 val highlightBg = MaterialTheme.colorScheme.primaryContainer
                 val highlightFg = MaterialTheme.colorScheme.onPrimaryContainer
-                val previewAnnotated = remember(previewText, searchQuery, highlightBg, highlightFg) {
-                    buildHighlightedInspectorText(
-                        text = previewText,
-                        query = searchQuery,
-                        highlightBackground = highlightBg,
-                        highlightForeground = highlightFg,
-                    )
-                }
+                val previewAnnotated =
+                    remember(previewText, searchQuery, highlightBg, highlightFg) {
+                        buildHighlightedInspectorText(
+                            text = previewText,
+                            query = searchQuery,
+                            highlightBackground = highlightBg,
+                            highlightForeground = highlightFg,
+                        )
+                    }
                 Text(
                     text = previewAnnotated,
                     style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),

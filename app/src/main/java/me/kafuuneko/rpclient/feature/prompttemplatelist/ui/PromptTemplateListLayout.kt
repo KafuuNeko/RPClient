@@ -743,11 +743,12 @@ private fun MetadataDialog(
         PromptTemplateMetadataMode.Copy -> Icons.Rounded.ContentCopy
         PromptTemplateMetadataMode.Edit -> Icons.Rounded.Edit
     }
-    val subtitle = if (dialog.mode == PromptTemplateMetadataMode.Copy && dialog.sourceName.isNotBlank()) {
-        stringResource(R.string.prompt_template_copy_source, dialog.sourceName)
-    } else {
-        null
-    }
+    val subtitle =
+        if (dialog.mode == PromptTemplateMetadataMode.Copy && dialog.sourceName.isNotBlank()) {
+            stringResource(R.string.prompt_template_copy_source, dialog.sourceName)
+        } else {
+            null
+        }
     val confirmRes = if (dialog.mode == PromptTemplateMetadataMode.Edit) {
         R.string.save
     } else {

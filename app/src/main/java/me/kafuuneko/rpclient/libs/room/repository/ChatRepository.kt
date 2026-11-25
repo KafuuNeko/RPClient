@@ -898,7 +898,7 @@ class ChatRepository(
      * @param sessionId 会话 ID。
      * @param excludedMessageId 重生成时不应进入 Prompt 的待替换消息 ID。
      * @param maxHistoryMessages 最多读取的最近历史消息数；0 表示不限制。
-     * @param keepLatestMessage 续写或回复待回答消息时，保留已被手动摘要覆盖的末条原文。
+     * @param keepLatestMessage 续写或回复待回答消息时，保留已被摘要覆盖的末条原文；替换回复时自动保留前一条。
      * @return 普通生成使用的历史上下文。
      */
     suspend fun getPromptHistoryContext(
@@ -935,18 +935,14 @@ class ChatRepository(
                     totalMessageCount = totalMessageCount,
                 )
             }
-            // 续写和回复待回答消息需要原文，手动摘要覆盖末条后仍保留这个生成目标（原位重试时取被排除残缺消息之前的一条）。
-            val history = if (keepLatestMessage && messagesAfterSummary.isEmpty()) {
-                if (excludedMessageId == null) {
-                    listOfNotNull(mChatMessageDao.getLatestMessageBySessionId(sessionId))
-                } else {
-                    listOfNotNull(
-                        mChatMessageDao.getLatestMessagePageBySessionId(
-                            sessionId = sessionId,
-                            limit = 2,
-                        ).firstOrNull { message -> message.id != excludedMessageId },
-                    )
-                }
+            // 摘要不能替代本轮原始图文输入；重生成和原位重试需保留待替换回复之前的一条。
+            val history = if (
+                messagesAfterSummary.isEmpty() && (keepLatestMessage || excludedMessageId != null)
+            ) {
+                loadLatestPromptMessage(
+                    sessionId = sessionId,
+                    excludedMessageId = excludedMessageId
+                )
             } else {
                 messagesAfterSummary
             }
@@ -1526,11 +1522,33 @@ class ChatRepository(
             throughMessageId = refreshBoundaryId,
             excludedMessageId = excludedMessageId,
             maxHistoryMessages = maxHistoryMessages,
-        )
+        ).ifEmpty {
+            // 前一份摘要也可能已覆盖原提问，此时仍须恢复本轮输入而不是返回空历史。
+            loadLatestPromptMessage(sessionId = sessionId, excludedMessageId = excludedMessageId)
+        }
         return ChatPromptHistoryContext(
             summary = previousSummary?.content.orEmpty(),
             messages = getMessagesWithImages(messages.map { it.id }),
             totalMessageCount = totalMessageCount,
+        )
+    }
+
+    /**
+     * 摘要覆盖全部输入时，读取末条未被替换的普通消息，后续仍通过同一图文快照恢复附件。
+     *
+     * @param sessionId 会话 ID。
+     * @param excludedMessageId 待替换回复的 ID；为空时读取会话末条普通消息。
+     * @return 需要保留的单条原始输入；不存在其他普通消息时返回空列表。
+     */
+    private suspend fun loadLatestPromptMessage(
+        sessionId: Long,
+        excludedMessageId: Long?,
+    ): List<ChatMessage> {
+        return listOfNotNull(
+            mChatMessageDao.getLatestMessagePageBySessionId(
+                sessionId = sessionId,
+                limit = if (excludedMessageId == null) 1 else 2,
+            ).firstOrNull { message -> message.id != excludedMessageId },
         )
     }
 

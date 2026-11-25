@@ -1360,9 +1360,6 @@
     <string name="prompt_template_failed">模板读取或保存失败，请重试。</string>
     <string name="prompt_template_conflict">模板已被修改。请先复制草稿，再关闭并重新打开编辑器。</string>
     <string name="prompt_template_active">当前启用</string>
-    <string name="prompt_template_search">搜索模板</string>
-    <string name="prompt_template_all">提示词模板</string>
-    <string name="prompt_template_no_results">没有匹配的模板</string>
     <string name="prompt_template_empty">新建模板，保存你自己的整套提示词。</string>
     <string name="prompt_template_activate">启用</string>
     <string name="prompt_template_delete_title">删除模板？</string>

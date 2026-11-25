@@ -1358,9 +1358,6 @@
     <string name="prompt_template_failed">範本讀取或儲存失敗，請重試。</string>
     <string name="prompt_template_conflict">範本已被修改。請先複製草稿，再關閉並重新開啟編輯器。</string>
     <string name="prompt_template_active">目前啟用</string>
-    <string name="prompt_template_search">搜尋範本</string>
-    <string name="prompt_template_all">提示詞範本</string>
-    <string name="prompt_template_no_results">沒有相符的範本</string>
     <string name="prompt_template_empty">新增範本，儲存你自己的整套提示詞。</string>
     <string name="prompt_template_activate">啟用</string>
     <string name="prompt_template_delete_title">刪除範本？</string>

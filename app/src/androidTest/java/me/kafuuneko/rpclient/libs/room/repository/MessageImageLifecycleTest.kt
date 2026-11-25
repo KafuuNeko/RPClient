@@ -320,6 +320,72 @@ class MessageImageLifecycleTest {
         assertFalse(archive.hasImages(sessionId))
     }
 
+    /** 自动摘要覆盖图文提问、手动摘要又覆盖旧回复后，单聊重生成仍能取回同一份原始输入。 */
+    @Test
+    fun singleRegenerationRestoresSummarizedInputAndImages() = runBlocking {
+        val image = prepared()
+        val user = chat.createUserMessageWithImages(
+            sessionId = sessionId,
+            content = "What is in this image?",
+            images = listOf(MessageImageInput.Prepared(image)),
+        )
+        val replyId = chat.createMessage(sessionId, ChatMessage.Source.Char, "Old reply")
+        chat.saveSummary(sessionId, "Question memory", user.key.messageId)
+
+        // 两种摘要边界分别覆盖普通读取与 loadRegenerationPromptHistory 提前返回路径。
+        for (boundary in listOf(user.key.messageId, replyId)) {
+            if (boundary == replyId) chat.saveSummary(sessionId, "Reply memory", replyId)
+            for (window in listOf(0, 1)) {
+                val history = chat.getPromptHistoryContext(
+                    sessionId = sessionId, excludedMessageId = replyId, maxHistoryMessages = window,
+                )
+                assertEquals("Question memory", history.summary)
+                assertEquals(1, history.totalMessageCount)
+                val restored = history.messages.single()
+                assertEquals(user.key, restored.key)
+                assertEquals(user.content, restored.content)
+                assertEquals(image.file.uuid, restored.images.single().image.imageUuid)
+            }
+        }
+        assertEquals("Old reply", chat.getMessageById(replyId)?.content)
+    }
+
+    /** 群聊重生成和原位重试不依赖调用方额外传参，也能保留已被摘要覆盖的图文提问。 */
+    @Test
+    fun groupRegenerationRestoresSummarizedInputAndImages() = runBlocking {
+        val image = prepared()
+        val user = group.createUserMessageWithImages(
+            sessionId = groupId, content = "What is in this image?",
+            images = listOf(MessageImageInput.Prepared(image)), speakerNameSnapshot = "User",
+        )
+        val replyId = group.createMessage(
+            sessionId = groupId, source = GroupChatMessage.Source.Character, content = "Old reply",
+            speakerCharacterId = characterId, speakerNameSnapshot = "Character",
+        )
+        val reply = requireNotNull(group.getMessageById(replyId))
+        group.saveSummary(groupId, "Question memory", user.key.messageId)
+
+        // 摘要覆盖回复后也只能使用较早记忆，并恢复提问的正文和附件。
+        for (boundary in listOf(user.key.messageId, replyId)) {
+            if (boundary == replyId) group.saveSummary(groupId, "Reply memory", replyId)
+            for (window in listOf(0, 1)) {
+                val history = requireNotNull(
+                    group.getGroupChatPromptData(
+                        sessionId = groupId, maxHistoryMessages = window, replacingReply = reply,
+                    )
+                )
+                assertEquals("Question memory", history.data.summary?.content)
+                assertEquals(1, history.totalMessageCount)
+                assertEquals(user.key.messageId, history.data.messages.single().id)
+                val restored = history.messageImages.single()
+                assertEquals(user.key, restored.key)
+                assertEquals(user.content, restored.content)
+                assertEquals(image.file.uuid, restored.images.single().image.imageUuid)
+            }
+        }
+        assertEquals("Old reply", group.getMessageById(replyId)?.content)
+    }
+
     /** 单聊概览只描述最新普通消息的附件，忽略摘要与同 ID 的群聊图片。 */
     @Test
     fun singleOverviewTracksImagesOfLatestOrdinaryMessage() = runBlocking {

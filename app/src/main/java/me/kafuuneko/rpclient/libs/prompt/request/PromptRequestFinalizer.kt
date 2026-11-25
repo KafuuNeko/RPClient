@@ -339,11 +339,12 @@ class PromptRequestFinalizer(
         if (segments.isEmpty()) return emptyList()
         // 增量单段路径直接复用已缓存的正文计数，合并多段后按各自正文精确复算
         return segments.mapIndexed { index, segment ->
-            val tokenCount = if (index == 0 && segments.size == 1 && cachedSingleSegmentTokenCount != null) {
-                cachedSingleSegmentTokenCount
-            } else {
-                tokenizer.countText(segment.content)
-            }
+            val tokenCount =
+                if (index == 0 && segments.size == 1 && cachedSingleSegmentTokenCount != null) {
+                    cachedSingleSegmentTokenCount
+                } else {
+                    tokenizer.countText(segment.content)
+                }
             PromptInspectionSegment(
                 sources = segment.sources.distinct(),
                 content = segment.content,

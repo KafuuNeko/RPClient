@@ -23,22 +23,23 @@ class PromptPresetRepository(private val mDatabase: AppDatabase) {
      * 合并自定义列表与轻量选择状态，默认预设不需要数据库记录。
      * @return 包含内置预设、启用标记及自定义项计数的列表流。
      */
-    fun observePresets() = combine(mDao.observePresetSummaries(), mActiveId) { summaries, selected ->
-        val active = selected.takeIf { id -> summaries.any { it.preset.id == id } }
-            ?: PromptTemplateSnapshot.BUILTIN_ID
-        val builtin = PromptPresetListing(
-            preset = defaultPreset(),
-            isActive = active == PromptTemplateSnapshot.BUILTIN_ID,
-            overrideCount = 0,
-        )
-        listOf(builtin) + summaries.map { summary ->
-            PromptPresetListing(
-                preset = summary.preset,
-                isActive = summary.preset.id == active,
-                overrideCount = summary.overrideCount,
+    fun observePresets() =
+        combine(mDao.observePresetSummaries(), mActiveId) { summaries, selected ->
+            val active = selected.takeIf { id -> summaries.any { it.preset.id == id } }
+                ?: PromptTemplateSnapshot.BUILTIN_ID
+            val builtin = PromptPresetListing(
+                preset = defaultPreset(),
+                isActive = active == PromptTemplateSnapshot.BUILTIN_ID,
+                overrideCount = 0,
             )
+            listOf(builtin) + summaries.map { summary ->
+                PromptPresetListing(
+                    preset = summary.preset,
+                    isActive = summary.preset.id == active,
+                    overrideCount = summary.overrideCount,
+                )
+            }
         }
-    }
 
     /**
      * 读取当前启用预设的名称，内置默认或记录不存在时返回空以交由界面展示默认文案。

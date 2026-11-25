@@ -24,6 +24,14 @@ data class CharacterContentListState(
     val selectionState: CharacterContentSelectionState = CharacterContentSelectionState.None,
 ) {
     val visibleItems = if (filter == null) items else items.filter { it.type == filter }
+
+    /** 顶栏图标与批量切换共用同一判断，隐藏分类的选择不影响当前筛选结果。 */
+    val allVisibleSelected: Boolean
+        get() {
+            val selection =
+                selectionState as? CharacterContentSelectionState.Selecting ?: return false
+            return visibleItems.isNotEmpty() && visibleItems.all { it.selection in selection.selectedItems }
+        }
 }
 
 /** 浏览与多选互斥；取消全部勾选后仍保留多选模式，直到用户主动退出。 */

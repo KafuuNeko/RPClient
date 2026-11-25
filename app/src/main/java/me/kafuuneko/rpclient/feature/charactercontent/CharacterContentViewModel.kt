@@ -182,7 +182,7 @@ class CharacterContentViewModel :
         val visibleSelections = state.list.visibleItems.mapTo(mutableSetOf()) { it.selection }
         if (visibleSelections.isEmpty()) return
         // 只切换当前筛选范围，避免清空其他分类的选择或误选隐藏内容。
-        val selectedItems = if (selection.selectedItems.containsAll(visibleSelections)) {
+        val selectedItems = if (state.list.allVisibleSelected) {
             selection.selectedItems - visibleSelections
         } else {
             selection.selectedItems + visibleSelections

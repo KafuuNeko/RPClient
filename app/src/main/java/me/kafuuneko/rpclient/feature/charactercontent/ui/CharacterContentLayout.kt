@@ -104,8 +104,6 @@ private fun CharacterContentTopBar(
     val selection = state?.list?.selectionState as? CharacterContentSelectionState.Selecting
     val selectedItems = selection?.selectedItems.orEmpty()
     val visibleItems = state?.list?.visibleItems.orEmpty()
-    val allVisibleSelected = visibleItems.isNotEmpty() &&
-        visibleItems.all { it.selection in selectedItems }
     // 勾选数包含当前筛选隐藏的条目，与确认窗口的删除范围一致。
     val title = if (selection != null) {
         stringResource(R.string.selected_count, selectedItems.size)
@@ -119,7 +117,7 @@ private fun CharacterContentTopBar(
         actions = {
             if (selection != null) {
                 BatchSelectionActions(
-                    allSelected = allVisibleSelected,
+                    allSelected = state?.list?.allVisibleSelected == true,
                     canSelectAll = visibleItems.isNotEmpty(),
                     enabled = state?.dialogState == CharacterContentDialogState.None,
                     onToggleAll = { CharacterContentUiIntent.ToggleVisibleItemSelection.emit() },

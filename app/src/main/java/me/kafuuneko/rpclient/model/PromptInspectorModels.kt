@@ -251,6 +251,7 @@ internal fun matchesMessageFilter(
         PromptInspectorMessageFilter.WorldInfo -> item.sources.any { source ->
             source.kind == PromptSourceKind.WorldInfo
         }
+
         PromptInspectorMessageFilter.Images -> item.images.isNotEmpty()
     }
     if (!passesCategory) return false

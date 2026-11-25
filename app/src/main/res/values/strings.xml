@@ -1374,9 +1374,6 @@
     <string name="prompt_template_failed">Could not load or save the template. Please retry.</string>
     <string name="prompt_template_conflict">This template has changed. Copy your draft, then close and reopen the editor.</string>
     <string name="prompt_template_active">Active</string>
-    <string name="prompt_template_search">Search templates</string>
-    <string name="prompt_template_all">Templates</string>
-    <string name="prompt_template_no_results">No matching templates</string>
     <string name="prompt_template_empty">Create a template to save your own set of prompts.</string>
     <string name="prompt_template_activate">Activate</string>
     <string name="prompt_template_delete_title">Delete template?</string>

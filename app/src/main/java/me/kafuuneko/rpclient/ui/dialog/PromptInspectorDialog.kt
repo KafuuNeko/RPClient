@@ -255,6 +255,7 @@ private fun PromptInspectorMainView(
                         R.string.prompt_inspector_tab_messages,
                         inspection.items.size,
                     )
+
                     PromptInspectorTab.Overview -> if (inspection.omittedItems.isNotEmpty()) {
                         stringResource(
                             R.string.prompt_inspector_tab_overview_omitted,
@@ -263,6 +264,7 @@ private fun PromptInspectorMainView(
                     } else {
                         stringResource(R.string.prompt_inspector_tab_overview)
                     }
+
                     PromptInspectorTab.Regex -> stringResource(
                         R.string.prompt_inspector_tab_regex,
                         inspection.regexExecutions.size + inspection.regexErrors.size,
@@ -727,7 +729,10 @@ private fun OmittedItemCard(item: PromptOmittedItem) {
                     color = MaterialTheme.colorScheme.error.copy(alpha = 0.14f),
                 ) {
                     Text(
-                        text = stringResource(R.string.prompt_inspector_item_tokens, item.tokenCount),
+                        text = stringResource(
+                            R.string.prompt_inspector_item_tokens,
+                            item.tokenCount
+                        ),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.error,
@@ -922,7 +927,12 @@ private fun RegexErrorCard(error: RegexExecutionError) {
     }
 }
 
-@Preview(name = "PromptInspectorDialog - Dark", widthDp = 390, heightDp = 820, showBackground = true)
+@Preview(
+    name = "PromptInspectorDialog - Dark",
+    widthDp = 390,
+    heightDp = 820,
+    showBackground = true
+)
 @Composable
 private fun PromptInspectorDialogDarkPreview() {
     AppTheme(darkTheme = true, dynamicColor = false) {
@@ -953,7 +963,12 @@ private fun PromptInspectorDialogDarkPreview() {
     }
 }
 
-@Preview(name = "PromptInspectorReader - Segments", widthDp = 390, heightDp = 820, showBackground = true)
+@Preview(
+    name = "PromptInspectorReader - Segments",
+    widthDp = 390,
+    heightDp = 820,
+    showBackground = true
+)
 @Composable
 private fun PromptInspectorReaderPreview() {
     AppTheme(darkTheme = true, dynamicColor = false) {
@@ -1010,7 +1025,11 @@ private val previewPromptInspection = PromptInspection(
                 ),
                 PromptInspectionSegment(
                     sources = listOf(
-                        PromptSource(PromptSourceKind.WorldInfo, "【常驻-视觉基准】角色外貌与物理状态", 1L),
+                        PromptSource(
+                            PromptSourceKind.WorldInfo,
+                            "【常驻-视觉基准】角色外貌与物理状态",
+                            1L
+                        ),
                     ),
                     content = "Detailed appearance and wardrobe baseline.",
                     tokenCount = 1_850,
