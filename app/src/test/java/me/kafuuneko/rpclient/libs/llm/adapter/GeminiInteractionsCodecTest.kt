@@ -16,6 +16,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.LLMUsage
 import me.kafuuneko.rpclient.libs.llm.model.isOutputIncomplete
 import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
+import me.kafuuneko.rpclient.libs.prompt.request.DEFAULT_STRICT_PROMPT_PLACEHOLDER
 import java.io.IOException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -33,6 +34,75 @@ class GeminiInteractionsCodecTest {
         model = "fixture-model",
         requestBodyPatchJson = """{"generation_config":{"seed":42}}""",
     )
+
+    /** 直接调用编码器时也为纯系统或空历史补齐输入，避免发送空步骤数组。 */
+    @Test
+    fun systemOnlyAndEmptyHistoryIncludeAUserInput() {
+        for (messages in listOf(
+            emptyList(),
+            listOf(LLMMessage(LLMMessageRole.System, "context"))
+        )) {
+            for (stream in listOf(false, true)) {
+                val wire = GeminiInteractionsRequestCodec.encode(
+                    provider = mProvider,
+                    request = LLMGenerationRequest(messages),
+                    stream = stream,
+                    registerImage = { error("No images expected") },
+                )
+                val root = JsonParser.parseString(wire).asJsonObject
+                val input = root.getAsJsonArray("input")
+                assertEquals(1, input.size())
+                assertEquals("user_input", input[0].asJsonObject.get("type").asString)
+                val text = input[0].asJsonObject.getAsJsonArray("content")[0].asJsonObject
+                assertEquals(DEFAULT_STRICT_PROMPT_PLACEHOLDER, text.get("text").asString)
+                if (messages.isNotEmpty()) {
+                    assertEquals("context", root.get("system_instruction").asString)
+                }
+            }
+        }
+    }
+
+    /** 空白心跳不推进步骤，随后到达的正文和交互终态仍可正常完成。 */
+    @Test
+    fun blankHeartbeatsDoNotInterruptAnActiveStream() {
+        val decoder = GeminiInteractionsStreamDecoder()
+        for (data in listOf("", " \t\r\n")) {
+            assertTrue(decoder.accept(SseEvent("", data)).isEmpty())
+        }
+        decoder.accept(SseEvent("step.start", """{"index":0,"step":{"type":"model_output"}}"""))
+        val parts = decoder.accept(
+            SseEvent("step.delta", """{"index":0,"delta":{"type":"text","text":"  reply\n"}}""")
+        )
+        assertEquals("  reply\n", (parts.single() as LLMProviderStreamPart.Text).content)
+        assertTrue(decoder.accept(SseEvent("", "  ")).isEmpty())
+        decoder.accept(SseEvent("step.stop", """{"index":0}"""))
+        decoder.accept(
+            SseEvent(
+                "interaction.completed",
+                """{"interaction":{"status":"completed"}}"""
+            )
+        )
+        decoder.requireFinished()
+        assertTrue(decoder.isFinished)
+    }
+
+    /** 带空白的结束标记仍属于提前断流，已有部分正文不能替代交互终态。 */
+    @Test
+    fun doneBeforeInteractionCompletionFailsEvenAfterText() {
+        for (data in listOf("[DONE]", " \t[DONE]\r\n")) {
+            val decoder = GeminiInteractionsStreamDecoder()
+            decoder.accept(SseEvent("step.start", """{"index":0,"step":{"type":"model_output"}}"""))
+            decoder.accept(
+                SseEvent(
+                    "step.delta",
+                    """{"index":0,"delta":{"type":"text","text":"partial"}}"""
+                )
+            )
+            decoder.accept(SseEvent("step.stop", """{"index":0}"""))
+            assertThrows(IOException::class.java) { decoder.accept(SseEvent("", data)) }
+            assertFalse(decoder.isFinished)
+        }
+    }
 
     /** 系统指令只提升连续前缀，私有图片标识不进入模型输入。 */
     @Test

@@ -207,6 +207,66 @@ class ChatSettingsRecoveryTest {
         }
     }
 
+    /** 成员写入被数据库拒绝时提示保存失败，排序回滚保留草稿且 Intent 队列继续工作。 */
+    @Test
+    fun memberWriteFailuresKeepTheFormAndIntentQueueUsable() = runBlocking {
+        val id = createGroup()
+        mGroups.addMembers(id, listOf(mCharacterIds.last()))
+        val database = mDatabase.openHelper.writableDatabase
+        // 触发器只拦截本测试群聊，真实事务失败路径无需替换 Repository。
+        for (operation in listOf("DELETE", "UPDATE")) {
+            database.execSQL(
+                "CREATE TRIGGER audit_reject_member_$operation BEFORE $operation ON group_chat_members " +
+                    "WHEN OLD.sessionId = $id BEGIN SELECT RAISE(ABORT, 'Fixture write rejected'); END",
+            )
+        }
+        try {
+            withModel(::GroupChatViewModel) { vm ->
+                val states = vm.uiStateFlow.filterIsInstance<GroupChatUiState.Normal>()
+                vm.emit(GroupChatUiIntent.Init(id.toString()))
+                withTimeout(15_000) { states.first() }
+                vm.emit(GroupChatUiIntent.OpenSettings)
+                withTimeout(15_000) { states.first { it.page == GroupChatPage.Settings } }
+                vm.emit(GroupChatUiIntent.ChangeTitle("Keep this draft"))
+                withTimeout(15_000) { states.first { it.settingsState.titleDraft == "Keep this draft" } }
+                // 每次失败都应给出写入提示，不能误报成员数量限制或结束意图收集。
+                for (intent in listOf(
+                    GroupChatUiIntent.RemoveMember(mCharacterIds.last()),
+                    GroupChatUiIntent.MoveMember(mCharacterIds.first(), 1),
+                    GroupChatUiIntent.CommitMemberOrder,
+                )) {
+                    if (intent == GroupChatUiIntent.CommitMemberOrder) {
+                        vm.emit(
+                            GroupChatUiIntent.ReorderMember(
+                                mCharacterIds.first(),
+                                mCharacterIds.last()
+                            )
+                        )
+                        withTimeout(15_000) { states.first { it.members.first().id != mCharacterIds.first() } }
+                    }
+                    val notification = async(start = CoroutineStart.UNDISPATCHED) {
+                        withTimeout(15_000) { vm.viewEventFlow.first() }
+                    }
+                    vm.emit(intent)
+                    notification.await().consumeIfNotHandled {
+                        assertEquals(
+                            AppViewEvent.PopupToastMessageByResId(R.string.story_save_failed_short),
+                            it
+                        )
+                    }
+                }
+                val restored =
+                    withTimeout(15_000) { states.first { it.members.map { member -> member.id } == mCharacterIds } }
+                assertEquals("Keep this draft", restored.settingsState.titleDraft)
+                vm.emit(GroupChatUiIntent.ChangeTitle("Editable after failures"))
+                withTimeout(15_000) { states.first { it.settingsState.titleDraft == "Editable after failures" } }
+            }
+        } finally {
+            database.execSQL("DROP TRIGGER IF EXISTS audit_reject_member_DELETE")
+            database.execSQL("DROP TRIGGER IF EXISTS audit_reject_member_UPDATE")
+        }
+    }
+
     /** 创建分支时宿主暂未订阅，恢复收集后仍能打开同一个分支并结束源页面。 */
     @Test
     fun branchNavigationSurvivesMissingActivityCollector() = runBlocking {

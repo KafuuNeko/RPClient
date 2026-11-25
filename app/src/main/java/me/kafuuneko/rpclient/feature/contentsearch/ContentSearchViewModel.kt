@@ -444,6 +444,7 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
                     }
                 }
                 gate.cancel()
+                if (generation != mGeneration) return@launch
                 val finalHits = existing + page.hits
                 clearActiveTracking()
                 publish(
@@ -461,6 +462,7 @@ class ContentSearchViewModel(private val mSavedState: SavedStateHandle) :
                 throw cancelled
             } catch (failure: Exception) {
                 gate.cancel()
+                if (generation != mGeneration) return@launch
                 val message = if (failure is SearchChangedException) {
                     R.string.content_search_changed
                 } else {

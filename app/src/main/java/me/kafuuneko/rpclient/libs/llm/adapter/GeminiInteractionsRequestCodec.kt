@@ -9,6 +9,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.resolveFor
+import me.kafuuneko.rpclient.libs.prompt.request.DEFAULT_STRICT_PROMPT_PLACEHOLDER
 
 /**
  * Gemini Interactions v1 普通生成请求编码器。
@@ -36,7 +37,9 @@ internal object GeminiInteractionsRequestCodec {
         val options = request.options.resolveFor(provider)
         val images = ImageContentCodec(provider)
         // 只把前置系统消息提升为指令，中途的资料保持在历史中的原位置。
-        val history = request.messages.dropWhile { it.role == LLMMessageRole.System }
+        val history = request.messages.dropWhile { it.role == LLMMessageRole.System }.ifEmpty {
+            listOf(LLMMessage(LLMMessageRole.User, DEFAULT_STRICT_PROMPT_PLACEHOLDER))
+        }
         val input = JsonArray().apply { history.forEach { add(step(it, images, registerImage)) } }
         val payload = JsonObject().apply {
             addProperty("model", provider.model)

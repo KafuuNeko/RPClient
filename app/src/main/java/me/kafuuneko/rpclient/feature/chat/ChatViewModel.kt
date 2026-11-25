@@ -1024,6 +1024,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     @UiIntentObserver(ChatUiIntent.ShowSessionLoreDialog::class)
     private fun onShowSessionLoreDialog() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.dialogState.isBlocking() || mSummaryJob?.isActive == true) return
         val groups = uiState.lorebookState.groups
         uiState.copy(
             dialogState = ChatDialogState.SessionLorebook(
@@ -1145,6 +1146,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     @UiIntentObserver(ChatUiIntent.ShowAddLorebooksDialog::class)
     private fun onShowAddLorebooksDialog() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.dialogState.isBlocking() || mSummaryJob?.isActive == true) return
         if (uiState.page != ChatPage.Settings) return
         val candidateGroups = uiState.lorebookState.groups.filter { it.enabledCount == 0 }
         if (candidateGroups.isEmpty()) return
@@ -1292,6 +1294,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     @UiIntentObserver(ChatUiIntent.ToggleSessionLoreEntry::class)
     private suspend fun onToggleSessionLoreEntry(intent: ChatUiIntent.ToggleSessionLoreEntry) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.dialogState.isBlocking() || mSummaryJob?.isActive == true) return
         val sessionId = mSessionId ?: return
         if (uiState.lorebookState.groups.none { group ->
                 group.entries.any { chatLorebookEntryItem -> chatLorebookEntryItem.id == intent.entryId }
@@ -1314,6 +1317,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     @UiIntentObserver(ChatUiIntent.ToggleSessionLorebook::class)
     private suspend fun onToggleSessionLorebook(intent: ChatUiIntent.ToggleSessionLorebook) {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.dialogState.isBlocking() || mSummaryJob?.isActive == true) return
         val sessionId = mSessionId ?: return
         val group = uiState.lorebookState.groups
             .firstOrNull { it.lorebookId == intent.lorebookId } ?: return
@@ -1374,6 +1378,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     @UiIntentObserver(ChatUiIntent.OpenPromptInspector::class)
     private fun onOpenPromptInspector() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.dialogState.isBlocking() || mSummaryJob?.isActive == true) return
         val inspection = mLastPromptInspection
         if (inspection == null) {
             AppViewEvent.PopupToastMessageByResId(R.string.prompt_inspector_unavailable).tryEmit()
@@ -1587,9 +1592,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.CancelSummary::class)
     private suspend fun onCancelSummary() {
-        if (!isStateOf<ChatUiState.Normal>()) return
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.dialogState != ChatDialogState.Summarizing) return
         mSummaryJobMutex.withLock {
             mSummaryJob?.cancelAndJoin()
+            val current = getOrNull<ChatUiState.Normal>() ?: return@withLock
+            if (current.dialogState == ChatDialogState.Summarizing && mSummaryJob?.isCompleted != false) {
+                current.copy(dialogState = ChatDialogState.None).setup()
+            }
         }
     }
 
@@ -1599,6 +1609,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     @UiIntentObserver(ChatUiIntent.DeleteSessionClick::class)
     private fun onDeleteSessionClick() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.dialogState.isBlocking() || mSummaryJob?.isActive == true) return
         if (mGenerationJob?.isCompleted == false) {
             AppViewEvent.PopupToastMessageByResId(R.string.stop_generation_before_deleting)
                 .tryEmit()
@@ -1843,6 +1854,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     @UiIntentObserver(ChatUiIntent.OpenWorldBookManager::class)
     private fun onOpenWorldBookManager() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.dialogState.isBlocking() || mSummaryJob?.isActive == true) return
         uiState.copy(dialogState = ChatDialogState.None).setup()
         AppViewEvent.StartActivity(WorldBookListActivity::class.java).tryEmit()
     }
@@ -1878,8 +1890,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.OpenProviderSettings::class)
     private fun onOpenProviderSettings() {
-        val uiState = getOrNull<ChatUiState.Normal>()
-        uiState?.copy(dialogState = ChatDialogState.None)?.setup()
+        val uiState = getOrNull<ChatUiState.Normal>() ?: return
+        if (uiState.dialogState.isBlocking() || mSummaryJob?.isActive == true) return
+        uiState.copy(dialogState = ChatDialogState.None).setup()
         AppViewEvent.StartActivity(LLMProviderListActivity::class.java).tryEmit()
     }
 
@@ -3470,10 +3483,15 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         val settingsState = if (preserveSettingsDraft) {
             currentState.settingsState.withRefreshedPersona(nextState.settingsState)
         } else nextState.settingsState
+        // 摘要可能在读取或人设查询期间完成，旧快照不能重新打开进度弹窗。
+        val latest = getOrNull<ChatUiState.Normal>() ?: return
+        val nextDialog = if (dialogState == ChatDialogState.Summarizing &&
+            latest.dialogState != ChatDialogState.Summarizing
+        ) latest.dialogState else nextState.dialogState
         nextState.copy(
             imageState = mImageCoordinator.state,
             settingsState = settingsState,
-            dialogState = nextState.dialogState.resolveExportDialogState(
+            dialogState = nextDialog.resolveExportDialogState(
                 isExportActive = mChatExportJob?.isActive == true,
             ),
             conversationState = nextState.conversationState.copy(

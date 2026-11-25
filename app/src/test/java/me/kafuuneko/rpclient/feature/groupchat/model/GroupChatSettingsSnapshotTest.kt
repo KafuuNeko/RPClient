@@ -3,6 +3,8 @@ package me.kafuuneko.rpclient.feature.groupchat.model
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatSettingsState
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
+import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookEntryItem
+import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
 import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 import me.kafuuneko.rpclient.libs.room.model.SummaryVersion
 import me.kafuuneko.rpclient.libs.room.model.SummaryInputSnapshot
@@ -114,6 +116,34 @@ class GroupChatSettingsSnapshotTest {
         )
 
         assertFalse(updatedMembers.hasUnsavedChanges())
+        val lorebook = GroupChatLorebookGroupItem(
+            lorebookId = 8L,
+            lorebookName = "Station",
+            entries = listOf(
+                GroupChatLorebookEntryItem(
+                    id = 9L,
+                    lorebookId = 8L,
+                    lorebookName = "Station",
+                    name = "Dock",
+                    content = "Station dock",
+                    keywords = emptyList(),
+                    secondaryKeywords = emptyList(),
+                    constant = true,
+                    order = 0,
+                    depth = 0,
+                    enabled = true,
+                ),
+            ),
+        )
+        // 世界书候选更新与启用集合变化均已即时写库，不属于待保存表单。
+        assertFalse(base.copy(lorebookGroups = listOf(lorebook)).hasUnsavedChanges())
+        assertFalse(base.copy(enabledLorebookGroups = listOf(lorebook)).hasUnsavedChanges())
+        assertFalse(
+            updatedMembers.copy(
+                lorebookGroups = listOf(lorebook),
+                enabledLorebookGroups = listOf(lorebook),
+            ).hasUnsavedChanges(),
+        )
     }
 
     private fun sampleSettingsState(): GroupChatSettingsState {

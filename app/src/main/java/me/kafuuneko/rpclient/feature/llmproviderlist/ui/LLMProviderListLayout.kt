@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -357,7 +356,7 @@ private fun ProviderListCard(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 AppSurface(
                     shape = RoundedCornerShape(8.dp),
@@ -372,7 +371,7 @@ private fun ProviderListCard(
                         else
                             MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
                     ),
-                    modifier = Modifier.widthIn(max = 220.dp),
+                    modifier = Modifier.weight(1f),
                 ) {
                     Text(
                         text = provider.model.ifBlank { stringResource(R.string.pending_config) },
@@ -389,17 +388,21 @@ private fun ProviderListCard(
                 }
 
                 Row(
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
                 ) {
-                    RpMetaPill(
-                        text = when (provider.protocol) {
-                            LLMProviderProtocol.OpenAIResponses -> stringResource(R.string.protocol_openai_responses)
-                            LLMProviderProtocol.Gemini -> stringResource(R.string.protocol_gemini_generate_content)
-                            LLMProviderProtocol.GeminiInteractions -> stringResource(R.string.protocol_gemini_interactions)
-                            else -> provider.protocol.name
-                        },
-                    )
+                    // 协议标签可省略，状态圆点始终保留独立空间。
+                    Box(modifier = Modifier.weight(weight = 1f, fill = false)) {
+                        RpMetaPill(
+                            text = when (provider.protocol) {
+                                LLMProviderProtocol.OpenAIResponses -> stringResource(R.string.protocol_openai_responses)
+                                LLMProviderProtocol.Gemini -> stringResource(R.string.protocol_gemini_generate_content)
+                                LLMProviderProtocol.GeminiInteractions -> stringResource(R.string.protocol_gemini_interactions)
+                                else -> provider.protocol.name
+                            },
+                        )
+                    }
                     ProviderStatusDot(
                         isEnabled = provider.isEnabled,
                         isConfigured = provider.isConfigured

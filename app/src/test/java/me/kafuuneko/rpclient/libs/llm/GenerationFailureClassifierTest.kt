@@ -9,6 +9,39 @@ import org.junit.Test
 import java.io.IOException
 
 class GenerationFailureClassifierTest {
+    /** 协议在 HTTP 建连后返回的错误码也需归类，大小写与外层空白不影响引导。 */
+    @Test
+    fun classifiesProtocolErrorCodesWithoutCaseSensitivity() {
+        val codes = mapOf(
+            "invalid_api_key" to GenerationFailure.Unauthorized,
+            "authentication_error" to GenerationFailure.Unauthorized,
+            "authentication" to GenerationFailure.Unauthorized,
+            "unauthenticated" to GenerationFailure.Unauthorized,
+            "permission_denied" to GenerationFailure.Forbidden,
+            "rate_limit_exceeded" to GenerationFailure.RateLimited,
+            "insufficient_quota" to GenerationFailure.RateLimited,
+            "quota_exceeded" to GenerationFailure.RateLimited,
+            "resource_exhausted" to GenerationFailure.RateLimited,
+            "too_many_requests" to GenerationFailure.RateLimited,
+        )
+        // 同时覆盖既有服务商和 Interactions，避免新增分类破坏原有错误提示。
+        codes.forEach { (code, expected) ->
+            for (variant in listOf(code, " ${code.uppercase()}\t")) {
+                assertEquals(
+                    variant,
+                    expected,
+                    classifyGenerationFailure(LLMResponseException(variant))
+                )
+            }
+        }
+        for (code in listOf(null, "", "unknown_error")) {
+            assertEquals(
+                GenerationFailure.RequestFailure,
+                classifyGenerationFailure(LLMResponseException(code))
+            )
+        }
+    }
+
     @Test
     fun classifiesKnownFailuresUsingOnlySafeFields() {
         assertEquals(

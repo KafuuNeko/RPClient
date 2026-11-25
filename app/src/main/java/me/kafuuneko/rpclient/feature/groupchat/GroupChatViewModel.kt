@@ -391,6 +391,11 @@ class GroupChatViewModel :
     private data class LoadedGroupChat(
         val state: GroupChatUiState.Normal,
         val summaryEditor: SummaryEditorState,
+        val availableCharacterAvatarUuids: Map<Long, String>,
+        val unloadedNewerMessageCount: Int,
+        val messageDisplayContext: GroupChatData,
+        val oldestLoadedMessageCursor: GroupChatMessageCursor?,
+        val searchAnchorMissing: Boolean,
     )
 
     /**
@@ -413,13 +418,18 @@ class GroupChatViewModel :
         GroupChatUiState.Loading.setup()
         mInitialLoadJob = viewModelScope.launch {
             val loaded = withContext(Dispatchers.IO) {
-                loadState(sessionId = sessionId, inputDraft = "")
+                loadState(
+                    sessionId = sessionId,
+                    inputDraft = "",
+                    searchAnchorId = intent.searchMessageId
+                )
             }
             if (loaded == null) {
                 finishWithToast(R.string.group_chat_not_found)
                 return@launch
             }
             // 完整聚合状态准备好后再开放会话交互。
+            applyLoadedContext(loaded)
             mSummaryEditor = loaded.summaryEditor
             loaded.state.setup()
         }
@@ -431,12 +441,10 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.Resume::class)
     private suspend fun onResume() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
-        if (uiState.dialogState == GroupChatDialogState.Summarizing ||
-            uiState.dialogState == GroupChatDialogState.Saving
-        ) return
+        if (uiState.dialogState.isBlocking()) return
         // 返回页面时重新确认文件可读性，避免外部编辑或文件删除后仍展示旧头像。
         mAvatarCache.evictAll()
-        refreshState(
+        val refreshed = refreshState(
             inputDraft = uiState.conversationState.inputDraft,
             selectedSpeakerId = uiState.conversationState.selectedSpeakerId,
             generationState = uiState.conversationState.generationState,
@@ -444,7 +452,13 @@ class GroupChatViewModel :
             editingMessageDraft = uiState.conversationState.editingMessageDraft,
             dialogState = uiState.dialogState,
             preserveSettingsDraft = uiState.page == GroupChatPage.Settings,
+            preserveLiveRuntimeState = true,
         )
+        if (!refreshed && getOrNull<GroupChatUiState.Normal>() != null) {
+            mGenerationJob?.cancel()
+            clearReplyRetry()
+            GroupChatUiState.finished(uiStateFlow.value).setup()
+        }
     }
 
     /** 历史定位后继续向较新消息分页，保留现有历史窗口与阅读位置。 */
@@ -587,6 +601,7 @@ class GroupChatViewModel :
     private suspend fun onBack() {
         val uiState = uiStateFlow.value
         if (uiState !is GroupChatUiState.Normal && uiState !is GroupChatUiState.Loading) return
+        if (uiState is GroupChatUiState.Normal && uiState.dialogState.isBlocking()) return
         if (uiState is GroupChatUiState.Normal && uiState.page == GroupChatPage.Settings) {
             requestCloseSettings(uiState = uiState, dismissOpenDialog = true)
             return
@@ -606,7 +621,8 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.OpenSettings::class)
     private fun onOpenSettings() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
-        if (mGenerationJob?.isCompleted == false) return
+        if (uiState.page != GroupChatPage.Conversation) return
+        if (uiState.dialogState.isBlocking() || mGenerationJob?.isCompleted == false) return
         uiState.copy(page = GroupChatPage.Settings).setup()
     }
 
@@ -614,6 +630,7 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.ShowSessionLoreDialog::class)
     private fun onShowSessionLoreDialog() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.dialogState.isBlocking() || mGenerationJob?.isCompleted == false) return
         val groups = uiState.settingsState.lorebookGroups
         val enabledEntryIds = groups.flatMap { it.entries }
             .filter { it.enabled }
@@ -738,6 +755,7 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.ShowAddMembersDialog::class)
     private fun onShowAddMembersDialog() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.dialogState.isBlocking() || mGenerationJob?.isCompleted == false) return
         if (uiState.page != GroupChatPage.Settings) return
         val candidates = uiState.settingsState.availableCharacters.filterNot { it.alreadyMember }
         if (candidates.isEmpty()) return
@@ -916,6 +934,7 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.ShowAddLorebooksDialog::class)
     private fun onShowAddLorebooksDialog() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.dialogState.isBlocking() || mGenerationJob?.isCompleted == false) return
         if (uiState.page != GroupChatPage.Settings) return
         val candidateGroups = uiState.settingsState.lorebookGroups.filter { it.enabledCount == 0 }
         if (candidateGroups.isEmpty()) return
@@ -1067,6 +1086,7 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.OpenWorldBookManager::class)
     private fun onOpenWorldBookManager() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.dialogState.isBlocking() || mGenerationJob?.isCompleted == false) return
         uiState.copy(dialogState = GroupChatDialogState.None).setup()
         AppViewEvent.StartActivity(WorldBookListActivity::class.java).tryEmit()
     }
@@ -1088,8 +1108,9 @@ class GroupChatViewModel :
      */
     @UiIntentObserver(GroupChatUiIntent.OpenProviderSettings::class)
     private fun onOpenProviderSettings() {
-        val uiState = getOrNull<GroupChatUiState.Normal>()
-        uiState?.copy(dialogState = GroupChatDialogState.None)?.setup()
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.dialogState.isBlocking() || mGenerationJob?.isCompleted == false) return
+        uiState.copy(dialogState = GroupChatDialogState.None).setup()
         AppViewEvent.StartActivity(LLMProviderListActivity::class.java).tryEmit()
     }
 
@@ -1099,6 +1120,7 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.OpenPromptInspector::class)
     private fun onOpenPromptInspector() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.dialogState.isBlocking()) return
         val inspection = mLastPromptInspection
         if (inspection == null) {
             AppViewEvent.PopupToastMessageByResId(R.string.prompt_inspector_unavailable).tryEmit()
@@ -1210,6 +1232,7 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.SelectSpeaker::class)
     private suspend fun onSelectSpeaker(intent: GroupChatUiIntent.SelectSpeaker) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.page != GroupChatPage.Conversation || uiState.dialogState.isBlocking()) return
         val member = uiState.members
             .firstOrNull { it.id == intent.characterId } ?: return
         // 手动模式下仅切换 UI 选中的发言人
@@ -1226,6 +1249,15 @@ class GroupChatViewModel :
             mGroupChatRepository.getMembers(uiState.sessionId)
         }
         val forcedSpeaker = members.firstOrNull { it.character.id == intent.characterId } ?: return
+        uiState.copy(
+            conversationState = uiState.conversationState.copy(
+                generationState = GroupChatGenerationState.Generating(
+                    speakerName = forcedSpeaker.character.name,
+                    current = 1,
+                    total = 1,
+                ),
+            ),
+        ).setup()
         launchGeneration(uiState.sessionId, listOf(forcedSpeaker))
     }
 
@@ -1239,7 +1271,7 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.ToggleMemberMuted::class)
     private suspend fun onToggleMemberMuted(intent: GroupChatUiIntent.ToggleMemberMuted) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
-        if (mGenerationJob?.isCompleted == false) return
+        if (uiState.dialogState.isBlocking() || mGenerationJob?.isCompleted == false) return
         val member = uiState.members
             .firstOrNull { it.id == intent.characterId } ?: return
         // 保护规则：群聊中必须至少保留一位活跃（未禁言）成员
@@ -1592,11 +1624,14 @@ class GroupChatViewModel :
      */
     @UiIntentObserver(GroupChatUiIntent.StopGeneration::class)
     private suspend fun onStopGeneration() {
-        if (!isStateOf<GroupChatUiState.Normal>()) return
+        val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        val generation = uiState.conversationState.generationState
+        if (generation !is GroupChatGenerationState.Generating &&
+            generation !is GroupChatGenerationState.Impersonating
+        ) return
         clearReplyRetry()
-        val job = mGenerationJob ?: return
-        if (job.isCompleted) return
-        job.cancelAndJoin()
+        // 即使任务已经结束，也允许清理残留的生成标记并保留已有正文。
+        mGenerationJob?.cancelAndJoin()
         clearReplyRetry()
         applyStreamingAiRegex()
         persistOrDeleteStreamingMessage()
@@ -1634,7 +1669,14 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.CancelSummary::class)
     private suspend fun onCancelSummary() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
-        if (uiState.dialogState == GroupChatDialogState.Summarizing) mGenerationJob?.cancelAndJoin()
+        if (uiState.dialogState != GroupChatDialogState.Summarizing) return
+        mGenerationJob?.cancelAndJoin()
+        val current = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (current.dialogState == GroupChatDialogState.Summarizing &&
+            mGenerationJob?.isCompleted != false
+        ) {
+            current.copy(dialogState = GroupChatDialogState.None).setup()
+        }
     }
 
     /**
@@ -1976,6 +2018,7 @@ class GroupChatViewModel :
         intent: GroupChatUiIntent.ToggleLorebookEntry,
     ) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.dialogState.isBlocking() || mGenerationJob?.isCompleted == false) return
         // 计算切换后的启用条目集合
         val enabledIds = uiState.settingsState.lorebookGroups
             .flatMap { it.entries }
@@ -2000,6 +2043,7 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.ToggleLorebook::class)
     private suspend fun onToggleLorebook(intent: GroupChatUiIntent.ToggleLorebook) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.dialogState.isBlocking() || mGenerationJob?.isCompleted == false) return
         val entryIds = uiState.settingsState.lorebookGroups
             .firstOrNull { it.lorebookId == intent.lorebookId }
             ?.entries
@@ -2070,13 +2114,21 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.RemoveMember::class)
     private suspend fun onRemoveMember(intent: GroupChatUiIntent.RemoveMember) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
-        runCatching {
+        if (uiState.dialogState.isBlocking() || mGenerationJob?.isCompleted == false) return
+        // 最少成员限制与数据库写入故障分别提示，取消不得被转换为业务失败。
+        try {
             withContext(Dispatchers.IO) {
                 mGroupChatRepository.removeMember(uiState.sessionId, intent.characterId)
             }
-        }.onFailure {
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: IllegalArgumentException) {
             AppViewEvent.PopupToastMessageByResId(R.string.group_chat_select_two_characters)
                 .tryEmit()
+            return
+        } catch (_: SQLiteException) {
+            AppViewEvent.PopupToastMessageByResId(R.string.story_save_failed_short).tryEmit()
+            return
         }
         refreshState(
             page = uiState.page,
@@ -2092,12 +2144,19 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.MoveMember::class)
     private suspend fun onMoveMember(intent: GroupChatUiIntent.MoveMember) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
-        withContext(Dispatchers.IO) {
-            mGroupChatRepository.moveMember(
-                sessionId = uiState.sessionId,
-                characterId = intent.characterId,
-                offset = intent.offset,
-            )
+        if (uiState.dialogState.isBlocking() || mGenerationJob?.isCompleted == false) return
+        // 写入故障只结束本次操作，后续 Intent 仍可继续消费。
+        try {
+            withContext(Dispatchers.IO) {
+                mGroupChatRepository.moveMember(
+                    sessionId = uiState.sessionId,
+                    characterId = intent.characterId,
+                    offset = intent.offset,
+                )
+            }
+        } catch (_: SQLiteException) {
+            AppViewEvent.PopupToastMessageByResId(R.string.story_save_failed_short).tryEmit()
+            return
         }
         refreshState(
             page = uiState.page,
@@ -2109,6 +2168,7 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.ReorderMember::class)
     private fun onReorderMember(intent: GroupChatUiIntent.ReorderMember) {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.dialogState.isBlocking() || mGenerationJob?.isCompleted == false) return
         if (uiState.page != GroupChatPage.Settings) return
         val fromIndex = uiState.members.indexOfFirst { it.id == intent.fromCharacterId }
         val toIndex = uiState.members.indexOfFirst { it.id == intent.toCharacterId }
@@ -2131,22 +2191,29 @@ class GroupChatViewModel :
     private suspend fun onCommitMemberOrder() {
         val pendingOrder = mPendingMemberOrder ?: return
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        if (uiState.dialogState.isBlocking() || mGenerationJob?.isCompleted == false) return
         if (uiState.page != GroupChatPage.Settings) return
         mPendingMemberOrder = null
-        val committed = runCatching {
+        val committed = try {
             withContext(Dispatchers.IO) {
                 mGroupChatRepository.reorderMembers(
                     sessionId = uiState.sessionId,
                     orderedCharacterIds = pendingOrder.orderedCharacterIds,
                 )
             }
-        }.getOrDefault(defaultValue = false)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: SQLiteException) {
+            AppViewEvent.PopupToastMessageByResId(R.string.story_save_failed_short).tryEmit()
+            false
+        }
         if (committed) return
         // 写入失败时恢复手势开始前的顺序，不影响设置页的其他未保存草稿
-        val memberById = uiState.members.associateBy { it.id }
+        val current = getOrNull<GroupChatUiState.Normal>() ?: return
+        val memberById = current.members.associateBy { it.id }
         val restored = pendingOrder.originalCharacterIds.mapNotNull(memberById::get)
-        if (restored.size == uiState.members.size) {
-            uiState.copy(members = restored).setup()
+        if (restored.size == current.members.size) {
+            current.copy(members = restored).setup()
         }
     }
 
@@ -2536,7 +2603,7 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.DeleteSessionClick::class)
     private fun onDeleteSessionClick() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
-        if (mGenerationJob?.isCompleted == false) return
+        if (uiState.dialogState.isBlocking() || mGenerationJob?.isCompleted == false) return
         uiState.copy(dialogState = GroupChatDialogState.DeleteSessionConfirm(uiState.title)).setup()
     }
 
@@ -2602,7 +2669,7 @@ class GroupChatViewModel :
                 var completedTemplates: PromptTemplateSnapshot? = null
                 var batchPersona = initialPersona ?: mPersonas.resolve(
                     mGroupChatRepository.getSessionById(sessionId)
-                        ?: error(mContext.getString(R.string.group_chat_not_found))
+                        ?: error("Group chat does not exist")
                 )
                 var pendingSpeakers = speakers
                 var nextGenerationMode = generationMode
@@ -3523,7 +3590,9 @@ class GroupChatViewModel :
     }
 
     /**
-     * 辅助刷新群聊 UI 状态函数，自动从当前状态获取默认值并从数据层重载最新状态。
+     * 重载持久化状态，接受结果后再提交关联游标与编辑基线。
+     * @param preserveLiveRuntimeState 恢复页面时保留实时正文及任务状态，丢弃已被生成推进的旧读取。
+     * @return 会话是否仍存在；页面已结束或读取过期时不再发布状态。
      */
     private suspend fun refreshState(
         page: GroupChatPage =
@@ -3549,12 +3618,20 @@ class GroupChatViewModel :
             ?.coerceAtLeast(MESSAGE_PAGE_SIZE)
             ?: MESSAGE_PAGE_SIZE,
         preserveSettingsDraft: Boolean = false,
-    ) {
+        preserveLiveRuntimeState: Boolean = false,
+    ): Boolean {
         // 主动发送或继续生成后展示最新输出，搜索历史窗口只用于阅读。
-        if (generationState is GroupChatGenerationState.Generating) mSearchAnchorId = null
-        val sessionId = mSessionId ?: return
+        val sessionId = mSessionId ?: return false
+        val beforeLoad = getOrNull<GroupChatUiState.Normal>() ?: return true
+        val streamingMessageIdBeforeLoad = mStreamingMessageId
+        val searchAnchorId =
+            mSearchAnchorId.takeUnless { generationState is GroupChatGenerationState.Generating }
+        val olderWindowSize = searchAnchorId?.let { anchor ->
+            beforeLoad.conversationState.messages.indexOfFirst { it.id == anchor }
+                .takeIf { it >= 0 }
+        }
         val preserveImpersonation = generationState is GroupChatGenerationState.Impersonating &&
-            generationState === getOrNull<GroupChatUiState.Normal>()?.conversationState?.generationState
+            generationState === beforeLoad.conversationState.generationState
         val loaded = withContext(Dispatchers.IO) {
             loadState(
                 sessionId = sessionId,
@@ -3567,22 +3644,13 @@ class GroupChatViewModel :
                 editingMessageDraft = editingMessageDraft,
                 dialogState = dialogState,
                 messageLimit = messageLimit,
+                searchAnchorId = searchAnchorId,
+                olderWindowSize = olderWindowSize,
             )
-        } ?: return
-        mPendingMemberOrder = null
+        } ?: return false
         // 读取人设和群成员期间，图片选择器可以提交新的附件草稿。
-        val currentState = getOrNull<GroupChatUiState.Normal>() ?: return
-        val current = currentState.conversationState
-        // 后台恢复等读取可与代写增量并行，不能用读取前的快照覆盖正文或复活已结束的任务。
-        if (generationState is GroupChatGenerationState.Impersonating && current.generationState !is GroupChatGenerationState.Impersonating) return
+        val currentState = getOrNull<GroupChatUiState.Normal>() ?: return true
         val next = loaded.state
-        val conversation =
-            if (preserveImpersonation) {
-                next.conversationState.copy(
-                    inputDraft = current.inputDraft,
-                    generationState = current.generationState
-                )
-            } else next.conversationState
         // 成员与世界书属于即时持久化项；刷新后保留设置页其余未保存的表单草稿
         val mergedSettings = if (preserveSettingsDraft) {
             val draft = currentState.settingsState
@@ -3609,14 +3677,56 @@ class GroupChatViewModel :
                 savedSnapshot = draft.savedSnapshot,
             ).withRefreshedPersona(next.settingsState)
         } else {
-            mSummaryEditor = loaded.summaryEditor
             next.settingsState
         }
+        // 人设草稿查询也可能挂起，所有实时状态必须在最后一次读取之后校验。
+        val latest = getOrNull<GroupChatUiState.Normal>() ?: return true
+        val current = latest.conversationState
+        if (generationState is GroupChatGenerationState.Impersonating &&
+            current.generationState !is GroupChatGenerationState.Impersonating
+        ) return true
+        if (preserveLiveRuntimeState &&
+            (current.generationState !== beforeLoad.conversationState.generationState ||
+                current.messages !== beforeLoad.conversationState.messages ||
+                mStreamingMessageId != streamingMessageIdBeforeLoad)
+        ) return true
+        val conversation = if (preserveLiveRuntimeState || preserveImpersonation) {
+            // 库内占位正文尚未提交，沿用对应消息的实时展示内容。
+            val streaming = current.messages.firstOrNull { it.id == mStreamingMessageId }
+            next.conversationState.copy(
+                inputDraft = current.inputDraft,
+                generationState = current.generationState,
+                messages = next.conversationState.messages.map { message ->
+                    streaming?.takeIf { it.id == message.id } ?: message
+                },
+            )
+        } else next.conversationState
+        val nextDialog = if (preserveLiveRuntimeState ||
+            (dialogState == GroupChatDialogState.Summarizing &&
+                latest.dialogState != GroupChatDialogState.Summarizing)
+        ) latest.dialogState else next.dialogState
+        applyLoadedContext(loaded)
+        mPendingMemberOrder = null
+        if (!preserveSettingsDraft) mSummaryEditor = loaded.summaryEditor
         next.copy(
             conversationState = conversation,
             settingsState = mergedSettings,
             imageState = mImageCoordinator.state,
+            dialogState = nextDialog,
         ).setup()
+        return true
+    }
+
+    /** 只在主线程接受加载结果后提交游标，过期读取不得污染当前窗口或候选头像。 */
+    private fun applyLoadedContext(loaded: LoadedGroupChat) {
+        mSearchAnchorId = loaded.state.conversationState.searchAnchorMessageId
+        mUnloadedNewerMessageCount = loaded.unloadedNewerMessageCount
+        mMessageDisplayContext = loaded.messageDisplayContext
+        mOldestLoadedMessageCursor = loaded.oldestLoadedMessageCursor
+        mAvailableCharacterAvatarUuids = loaded.availableCharacterAvatarUuids
+        if (loaded.searchAnchorMissing) {
+            AppViewEvent.PopupToastMessageByResId(R.string.content_search_missing).tryEmit()
+        }
     }
 
     /**
@@ -3678,28 +3788,20 @@ class GroupChatViewModel :
         editingMessageDraft: String = "",
         dialogState: GroupChatDialogState = GroupChatDialogState.None,
         messageLimit: Int = MESSAGE_PAGE_SIZE,
+        searchAnchorId: Long? = null,
+        olderWindowSize: Int? = null,
     ): LoadedGroupChat? {
         // 查询群聊会话、成员与最近消息窗口
         // 刷新时保留锚点两侧已经加载的数量，避免恢复页面丢失一侧的阅读窗口。
-        val olderWindowSize = mSearchAnchorId?.let { anchor ->
-            getOrNull<GroupChatUiState.Normal>()?.conversationState?.messages
-                ?.indexOfFirst { groupChatMessageItem -> groupChatMessageItem.id == anchor }
-                ?.takeIf { value -> value >= 0 }
-        }
         val pageData = mGroupChatRepository.getGroupChatPageData(
             sessionId = sessionId,
             pageSize = messageLimit,
-            anchorMessageId = mSearchAnchorId,
+            anchorMessageId = searchAnchorId,
             olderWindowSize = olderWindowSize,
         ) ?: return null
         val data = pageData.data
-        if (mSearchAnchorId != null && data.messages.none { it.id == mSearchAnchorId }) {
-            mSearchAnchorId = null
-            AppViewEvent.PopupToastMessageByResId(R.string.content_search_missing).tryEmit()
-        }
-        mUnloadedNewerMessageCount = pageData.newerMessageCount
-        mMessageDisplayContext = data.copy(messages = emptyList())
-        mOldestLoadedMessageCursor = data.messages.firstOrNull()?.toGroupChatMessageCursor()
+        val searchAnchorMissing =
+            searchAnchorId != null && data.messages.none { it.id == searchAnchorId }
         val members = data.members.map { member ->
             GroupChatMemberItem(
                 id = member.character.id,
@@ -3727,7 +3829,7 @@ class GroupChatViewModel :
         // 组装可用添加角色列表，同步记录头像 UUID 供添加成员弹窗按需解码缩略图
         val memberIds = members.map { it.id }.toSet()
         val allCharacters = mCharacterRepository.getAllCharacters()
-        mAvailableCharacterAvatarUuids = allCharacters.associate { character ->
+        val availableCharacterAvatarUuids = allCharacters.associate { character ->
             character.id to character.avatar
         }
         val availableCharacters = allCharacters.map { character ->
@@ -3795,7 +3897,7 @@ class GroupChatViewModel :
                 .toGroupChatActivationStrategy(),
             page = page,
             conversationState = GroupChatConversationState(
-                searchAnchorMessageId = mSearchAnchorId,
+                searchAnchorMessageId = searchAnchorId.takeUnless { searchAnchorMissing },
                 canLoadNewerMessages = pageData.canLoadNewerMessages,
                 messages = data.toMessageItems(
                     messageImages = pageData.messageImages,
@@ -3846,7 +3948,15 @@ class GroupChatViewModel :
             hasAvailableProvider = hasAvailableProvider,
             dialogState = dialogState,
         )
-        return LoadedGroupChat(state = state, summaryEditor = summaryEditor)
+        return LoadedGroupChat(
+            state = state,
+            summaryEditor = summaryEditor,
+            availableCharacterAvatarUuids = availableCharacterAvatarUuids,
+            unloadedNewerMessageCount = pageData.newerMessageCount,
+            messageDisplayContext = data.copy(messages = emptyList()),
+            oldestLoadedMessageCursor = data.messages.firstOrNull()?.toGroupChatMessageCursor(),
+            searchAnchorMissing = searchAnchorMissing,
+        )
     }
 
     /**

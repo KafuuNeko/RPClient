@@ -236,6 +236,15 @@ internal fun normalizeProtocolMessages(
         val leading = messages.takeWhile { it.role == LLMMessageRole.System }
         val history = messages.drop(leading.size).map { message ->
             if (message.role == LLMMessageRole.System) message.copy(role = LLMMessageRole.User) else message
+        }.ifEmpty {
+            // 占位输入也参与预算与来源追踪，保证检查器和实际请求一致。
+            listOf(
+                TrackedPromptMessage(
+                    role = LLMMessageRole.User,
+                    content = DEFAULT_STRICT_PROMPT_PLACEHOLDER,
+                    sources = listOf(PromptSource(PromptSourceKind.PostProcessing)),
+                ),
+            )
         }
         return leading.mergeConsecutiveRoles() + history
     }

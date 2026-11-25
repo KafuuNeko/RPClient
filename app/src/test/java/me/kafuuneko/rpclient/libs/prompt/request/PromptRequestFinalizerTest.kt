@@ -29,6 +29,42 @@ class PromptRequestFinalizerTest {
     }
     private val finalizer = PromptRequestFinalizer { tokenizer }
 
+    /** 纯系统 Interactions 提示的占位输入必须进入预算和检查器，两种计数路径保持一致。 */
+    @Test
+    fun interactionsSystemOnlyPromptCountsAndInspectsTheUserPlaceholder() {
+        val provider =
+            provider(LLMProviderType.Gemini, LLMProviderProtocol.GeminiInteractions, "gemini")
+        val results = listOf(true, false).map { incremental ->
+            finalizer.finalize(
+                drafts = listOf(draft(content = "Required", priority = 100, canDrop = false)),
+                provider = provider,
+                model = provider.model,
+                options = LLMGenerationOptions(maxTokens = 10),
+                includeReasoningInContent = false,
+                maxContextTokens = 100,
+                maxResponseTokens = 10,
+                postProcessingMode = PromptPostProcessingMode.None,
+                strictPromptPlaceholder = "[Start]",
+                tokenizer = LengthPromptTokenizer(incremental),
+            )
+        }
+        // 编码器的兜底不能成为隐藏输入，最终化结果需明确携带其来源与成本。
+        assertEquals(results[0], results[1])
+        val result = results.first()
+        assertEquals(
+            listOf(LLMMessageRole.System, LLMMessageRole.User),
+            result.request.messages.map { it.role })
+        assertEquals(DEFAULT_STRICT_PROMPT_PLACEHOLDER, result.request.messages.last().content)
+        assertEquals(
+            result.request.messages.map { it.content },
+            result.inspection.items.map { it.content })
+        assertEquals(
+            PromptSourceKind.PostProcessing,
+            result.inspection.items.last().sources.single().kind
+        )
+        assertTrue(result.inspection.finalTokenCount >= "Required".length + DEFAULT_STRICT_PROMPT_PLACEHOLDER.length)
+    }
+
     @Test
     fun responsesKeepsInstructionOrderAndInspectorMatchesBothBudgetPaths() {
         // 原生协议允许 assistant 开头和中途 system，不应套用其他协议的严格重排。

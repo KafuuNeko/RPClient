@@ -107,10 +107,10 @@ fun classifyGenerationFailure(throwable: Throwable): GenerationFailure? {
             else -> GenerationFailure.HttpFailure(throwable.statusCode)
         }
 
-        is LLMResponseException -> when (throwable.code) {
-            "invalid_api_key", "authentication_error" -> GenerationFailure.Unauthorized
+        is LLMResponseException -> when (throwable.code?.trim()?.lowercase()) {
+            "invalid_api_key", "authentication_error", "authentication", "unauthenticated" -> GenerationFailure.Unauthorized
             "permission_denied" -> GenerationFailure.Forbidden
-            "rate_limit_exceeded", "insufficient_quota" -> GenerationFailure.RateLimited
+            "rate_limit_exceeded", "insufficient_quota", "quota_exceeded", "resource_exhausted", "too_many_requests" -> GenerationFailure.RateLimited
             else -> GenerationFailure.RequestFailure
         }
 

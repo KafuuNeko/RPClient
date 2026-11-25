@@ -29,6 +29,7 @@ import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
 import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
+import me.kafuuneko.rpclient.libs.llm.adapter.CLIENT_IMAGE_OPTIONS_KEY
 import me.kafuuneko.rpclient.libs.llm.adapter.hasValidOpenRouterRoutingPreferences
 import me.kafuuneko.rpclient.libs.llm.adapter.validateRequestBodyPatch
 import me.kafuuneko.rpclient.libs.llm.adapter.withImageQuality
@@ -197,22 +198,47 @@ class LLMProviderEditViewModel :
                 previousPreset != nextPreset
             // 两个 Gemini 接口来回切换时，只转换可识别的模板值，保留自定义网关和参数。
             val usesDefaultBaseUrl = baseUrl.trim().trimEnd('/') == previousPreset?.baseUrl
-            val usesDefaultPatch = previousPreset != null && runCatching {
-                JsonParser.parseString(requestBodyPatchJson) ==
-                    JsonParser.parseString(previousPreset.defaultRequestBodyPatchJson)
-            }.getOrDefault(false)
+            val migratedPatchJson = if (previousPreset != null && nextPreset != null &&
+                switchesGeminiProtocol
+            ) {
+                migrateGeminiDefaultPatchOrNull(
+                    currentPatchJson = requestBodyPatchJson,
+                    previousDefaultPatchJson = previousPreset.defaultRequestBodyPatchJson,
+                    nextDefaultPatchJson = nextPreset.defaultRequestBodyPatchJson,
+                )
+            } else null
             copy(
                 protocol = intent.value,
                 baseUrl = nextPreset?.baseUrl
                     ?.takeIf { switchesGeminiProtocol && usesDefaultBaseUrl } ?: baseUrl,
-                requestBodyPatchJson = nextPreset?.defaultRequestBodyPatchJson
-                    ?.takeIf { switchesGeminiProtocol && usesDefaultPatch }
-                    ?.let { formatJsonPretty(it).ifBlank { "{}" } } ?: requestBodyPatchJson,
+                requestBodyPatchJson = migratedPatchJson ?: requestBodyPatchJson,
                 sendTemperature = capabilities.defaultSendTemperature,
                 sendTopP = capabilities.defaultSendTopP,
             )
         }
     }
+
+    /**
+     * 切换 Gemini 默认协议补丁，同时保留独立于协议的客户端图片选项。
+     * @param currentPatchJson 当前表单补丁，空白等同于空对象。
+     * @param previousDefaultPatchJson 原协议的默认补丁。
+     * @param nextDefaultPatchJson 目标协议的默认补丁。
+     * @return 迁移后的补丁；自定义或无效补丁返回 null，交由原有校验处理。
+     */
+    private fun migrateGeminiDefaultPatchOrNull(
+        currentPatchJson: String,
+        previousDefaultPatchJson: String,
+        nextDefaultPatchJson: String,
+    ): String? = runCatching {
+        // 客户端选项不会发送到服务端，不能影响协议模板的识别。
+        val current = JsonParser.parseString(currentPatchJson.ifBlank { "{}" }).asJsonObject
+        val clientOptions = current.remove(CLIENT_IMAGE_OPTIONS_KEY)
+        val previousDefault = JsonParser.parseString(previousDefaultPatchJson).asJsonObject
+        if (current != previousDefault) return@runCatching null
+        val nextDefault = JsonParser.parseString(nextDefaultPatchJson).asJsonObject
+        if (clientOptions != null) nextDefault.add(CLIENT_IMAGE_OPTIONS_KEY, clientOptions)
+        formatJsonPretty(nextDefault.toString()).ifBlank { "{}" }
+    }.getOrNull()
 
     /** 修改接口基础地址（Base URL）。 */
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeBaseUrl::class)

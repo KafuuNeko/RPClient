@@ -14,6 +14,7 @@ import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEdi
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditUiIntent
 import me.kafuuneko.rpclient.feature.llmprovideredit.presentation.LLMProviderEditUiState
 import me.kafuuneko.rpclient.libs.llm.model.GEMINI_INTERACTIONS_BASE_URL
+import me.kafuuneko.rpclient.libs.llm.model.ImageQuality
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import okio.buffer
 import okio.source
@@ -54,19 +55,31 @@ class GeminiInteractionsProviderTest {
                         """{"generationConfig":{"thinkingConfig":{"includeThoughts":true,"thinkingLevel":"low"}}}"""
                     )
                 )
+                vm.emit(LLMProviderEditUiIntent.SelectImageQuality(ImageQuality.High))
                 vm.emit(LLMProviderEditUiIntent.ChangeProtocol(LLMProviderProtocol.GeminiInteractions))
                 val migrated =
                     states.first { it.form.protocol == LLMProviderProtocol.GeminiInteractions }.form
                 assertEquals(GEMINI_INTERACTIONS_BASE_URL, migrated.baseUrl)
-                assertEquals("{}", migrated.requestBodyPatchJson.trim())
+                val migratedPatch = JSONObject(migrated.requestBodyPatchJson)
+                assertFalse(migratedPatch.has("generationConfig"))
+                assertEquals(
+                    "high",
+                    migratedPatch.getJSONObject("_rpclient").getString("imageQuality")
+                )
                 assertNotNull(migrated.toProviderOrNull())
 
                 vm.emit(LLMProviderEditUiIntent.ChangeProtocol(LLMProviderProtocol.Gemini))
                 val restored = states.first { it.form.protocol == LLMProviderProtocol.Gemini }.form
                 assertEquals(ProviderPreset.Gemini.baseUrl, restored.baseUrl)
+                val restoredPatch = JSONObject(restored.requestBodyPatchJson)
+                assertEquals(
+                    "high",
+                    restoredPatch.getJSONObject("_rpclient").getString("imageQuality")
+                )
+                restoredPatch.remove("_rpclient")
                 assertEquals(
                     JSONObject(ProviderPreset.Gemini.defaultRequestBodyPatchJson).toString(),
-                    JSONObject(restored.requestBodyPatchJson).toString(),
+                    restoredPatch.toString()
                 )
                 assertNotNull(restored.toProviderOrNull())
 

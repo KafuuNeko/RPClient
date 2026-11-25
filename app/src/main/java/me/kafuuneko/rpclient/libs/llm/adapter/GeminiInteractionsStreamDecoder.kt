@@ -33,9 +33,11 @@ internal class GeminiInteractionsStreamDecoder {
     fun accept(event: SseEvent): List<LLMProviderStreamPart> {
         // 连接结束和步骤结束都不能替代交互终态，防止断流被当作完整回复。
         if (isFinished) return emptyList()
-        if (event.data == "[DONE]") throw IOException("Interaction closed before completion.")
+        val data = event.data.trim()
+        if (data.isEmpty()) return emptyList()
+        if (data == "[DONE]") throw IOException("Interaction closed before completion.")
         val json =
-            parseStreamJsonObject(event.data) ?: throw LLMResponseException("invalid_stream_event")
+            parseStreamJsonObject(data) ?: throw LLMResponseException("invalid_stream_event")
         val type = json.cleanString("event_type").ifEmpty { event.event }
         // 按协议事件分发，只有交互终态能够完成这一轮生成。
         return when (type) {

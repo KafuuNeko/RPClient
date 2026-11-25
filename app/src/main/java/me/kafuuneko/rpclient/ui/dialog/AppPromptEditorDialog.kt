@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -55,6 +54,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -118,11 +118,12 @@ fun AppPromptEditorDialog(
 
     // 短文本打开时定位到文末便于续写，长文本与只读模式保持在文首便于阅读。
     LaunchedEffect(textFieldState) {
-        val cursorOffset = if (!readOnly && textFieldState.text.length <= SHORT_TEXT_CURSOR_END_LIMIT) {
-            textFieldState.text.length
-        } else {
-            0
-        }
+        val cursorOffset =
+            if (!readOnly && textFieldState.text.length <= SHORT_TEXT_CURSOR_END_LIMIT) {
+                textFieldState.text.length
+            } else {
+                0
+            }
         textFieldState.edit { selection = TextRange(cursorOffset) }
     }
 
@@ -213,6 +214,7 @@ fun AppPromptEditorDialog(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PromptEditorActions(
     value: String,
@@ -240,30 +242,35 @@ private fun PromptEditorActions(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        if (undoAvailable) {
-            ToolbarPillAction(
-                icon = Icons.AutoMirrored.Rounded.Undo,
-                text = stringResource(R.string.prompt_editor_undo),
-                highlighted = true,
-                onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onUndo()
-                },
-            )
+        // 文字操作在剩余空间换行，为右侧固定尺寸图标保留可点击区域。
+        FlowRow(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            if (undoAvailable) {
+                ToolbarPillAction(
+                    icon = Icons.AutoMirrored.Rounded.Undo,
+                    text = stringResource(R.string.prompt_editor_undo),
+                    highlighted = true,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onUndo()
+                    },
+                )
+            }
+            if (canRestoreDefault) {
+                ToolbarPillAction(
+                    icon = Icons.Rounded.RestartAlt,
+                    text = stringResource(R.string.prompt_editor_restore_default),
+                    highlighted = false,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onRestoreDefault(defaultValue)
+                    },
+                )
+            }
         }
-        if (canRestoreDefault) {
-            ToolbarPillAction(
-                icon = Icons.Rounded.RestartAlt,
-                text = stringResource(R.string.prompt_editor_restore_default),
-                highlighted = false,
-                onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onRestoreDefault(defaultValue)
-                },
-            )
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
 
         if (canClear) {
             IconButton(
@@ -375,6 +382,8 @@ private fun ToolbarPillAction(
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = contentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -479,10 +488,10 @@ private fun PromptMacroChips(
     val haptic = LocalHapticFeedback.current
     // 必填宏使用高亮边框与星标提示；只读预览下仅展示宏集合，不执行插入。
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(
+        FlowRow(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
                 text = stringResource(R.string.prompt_editor_macro_title),
@@ -492,7 +501,10 @@ private fun PromptMacroChips(
             )
             if (!requiredMacro.isNullOrBlank()) {
                 Text(
-                    text = stringResource(R.string.prompt_preset_required_macro_hint, requiredMacro),
+                    text = stringResource(
+                        R.string.prompt_preset_required_macro_hint,
+                        requiredMacro
+                    ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold,
