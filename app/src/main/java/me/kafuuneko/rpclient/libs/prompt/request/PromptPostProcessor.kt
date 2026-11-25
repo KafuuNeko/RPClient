@@ -59,11 +59,19 @@ data class PromptPostProcessingNames(
     val groupNames: List<String> = emptyList()
 )
 
+/** 后处理阶段保留的单个来源文本分段，用于在合并后仍可按来源拆解检查。 */
+internal data class TrackedPromptSegment(
+    /** 当前分段对应的原始来源列表。 */
+    val sources: List<PromptSource>,
+    /** 当前分段最终进入请求的正文文本。 */
+    val content: String
+)
+
 /**
  * 后处理阶段携带来源追踪的消息。
  *
- * role 或正文可以因协议兼容策略改变，但 [sources] 必须随合并结果保留，供预算检查器
- * 和世界书时序提交判断实际进入请求的内容。
+ * role 或正文可以因协议兼容策略改变，但 [sources] 与 [segments] 必须随合并结果保留，
+ * 供预算检查器、来源拆解视图和世界书时序提交判断实际进入请求的内容。
  */
 internal data class TrackedPromptMessage(
     /** 当前对象在业务流程中承担的角色。 */
@@ -73,8 +81,24 @@ internal data class TrackedPromptMessage(
     /** 当前 Prompt 项合并后保留的原始来源列表。 */
     val sources: List<PromptSource>,
     val blocks: List<LLMContentBlock> = listOf(LLMContentBlock.Text(content)),
-    val unavailableImages: List<UnavailablePromptImage> = emptyList()
+    val unavailableImages: List<UnavailablePromptImage> = emptyList(),
+    /** 合并前各个原始草稿对应的来源文本分段。 */
+    val segments: List<TrackedPromptSegment> = defaultTrackedSegments(sources, content)
 )
+
+/** 为单条未合并消息构造默认来源分段；纯图片等空正文消息不产生空白文本分段。 */
+private fun defaultTrackedSegments(
+    sources: List<PromptSource>,
+    content: String,
+): List<TrackedPromptSegment> {
+    if (content.isBlank()) return emptyList()
+    return listOf(
+        element = TrackedPromptSegment(
+            sources = sources.distinct(),
+            content = content,
+        ),
+    )
+}
 
 /**
  * 在保留来源追踪的前提下执行 Prompt Post-Processing。
@@ -97,7 +121,7 @@ internal fun postProcessTrackedMessages(
     }
 }
 
-/** 将连续相同角色的消息合并为单条消息，使用双换行符拼接。 */
+/** 将连续相同角色的消息合并为单条消息，使用双换行符拼接并保留各自来源分段。 */
 private fun List<TrackedPromptMessage>.mergeConsecutiveRoles(): List<TrackedPromptMessage> {
     return fold(mutableListOf()) { merged, message ->
         val previous = merged.lastOrNull()
@@ -109,6 +133,7 @@ private fun List<TrackedPromptMessage>.mergeConsecutiveRoles(): List<TrackedProm
                 sources = (previous.sources + message.sources).distinct(),
                 blocks = mergeContentBlocks(previous.blocks + message.blocks),
                 unavailableImages = previous.unavailableImages + message.unavailableImages,
+                segments = previous.segments + message.segments,
             )
         } else {
             merged += message
@@ -199,9 +224,35 @@ private fun List<TrackedPromptMessage>.toSingleUserMessage(
                 }
                 listOf(LLMContentBlock.Text("$speaker:")) + message.blocks
             } else listOf(LLMContentBlock.Text(content)),
+            segments = message.withSingleUserSegments(content),
         )
     }
     return flattened.mergeConsecutiveRoles()
+}
+
+/** 同步更新单条用户模式改写后的分段正文，确保分段文本与最终拼接正文一致。 */
+private fun TrackedPromptMessage.withSingleUserSegments(
+    flattenedContent: String,
+): List<TrackedPromptSegment> {
+    if (flattenedContent.isBlank()) return emptyList()
+    if (segments.size <= 1) {
+        return listOf(
+            element = TrackedPromptSegment(
+                sources = sources.distinct(),
+                content = flattenedContent,
+            ),
+        )
+    }
+    // 已有多个分段且整体附加了发言者前缀时，仅把新增前缀补到首个分段头部
+    val addedPrefix = if (flattenedContent.endsWith(content)) {
+        flattenedContent.removeSuffix(content)
+    } else {
+        ""
+    }
+    if (addedPrefix.isEmpty()) return segments
+    return segments.mapIndexed { index, segment ->
+        if (index == 0) segment.copy(content = addedPrefix + segment.content) else segment
+    }
 }
 
 /** 辅助扩展：为 Assistant 消息附加角色发言者前缀。 */

@@ -10,6 +10,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.messageWithBlocks
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspectionItem
+import me.kafuuneko.rpclient.libs.prompt.model.PromptInspectionSegment
 import me.kafuuneko.rpclient.libs.prompt.model.PromptMessageDraft
 import me.kafuuneko.rpclient.libs.prompt.model.PromptOmissionReason
 import me.kafuuneko.rpclient.libs.prompt.model.PromptOmittedItem
@@ -267,6 +268,7 @@ class PromptRequestFinalizer(
             omitted = omitted,
             environment = environment,
             itemTokenCounts = retained.map { it.messageTokenCount },
+            singleSegmentTokenCounts = retained.map { it.contentTokenCount },
         )
     }
 
@@ -278,6 +280,7 @@ class PromptRequestFinalizer(
         omitted: List<PromptOmittedItem>,
         environment: PromptFinalizationEnvironment,
         itemTokenCounts: List<Int>? = null,
+        singleSegmentTokenCounts: List<Int>? = null,
     ): PromptFinalizationResult {
         // 请求和检查报告共用相同的最终消息序列，避免调试结果与实际提交内容分叉
         return PromptFinalizationResult(
@@ -299,7 +302,7 @@ class PromptRequestFinalizer(
                 responseReserve = environment.maxResponseTokens,
                 promptBudget = environment.promptBudget,
                 finalTokenCount = finalTokenCount,
-                // 增量路径复用缓存；精确回退路径只在最终成功结果上统计一次检查项
+                // 增量路径复用缓存；精确回退路径只在最终成功结果上统计一次检查项与各来源分段
                 items = processed.mapIndexed { index, message ->
                     PromptInspectionItem(
                         index = index + 1,
@@ -314,11 +317,39 @@ class PromptRequestFinalizer(
                                 listOf(image)
                             )
                         },
+                        segments = buildInspectionSegments(
+                            message = message,
+                            tokenizer = environment.tokenizer,
+                            cachedSingleSegmentTokenCount = singleSegmentTokenCounts?.get(index),
+                        ),
                     )
                 },
                 omittedItems = omitted,
             ),
         )
+    }
+
+    /** 为检查器生成最终消息对应的来源分段快照与估算 Token 数。 */
+    private fun buildInspectionSegments(
+        message: TrackedPromptMessage,
+        tokenizer: PromptTokenizer,
+        cachedSingleSegmentTokenCount: Int?,
+    ): List<PromptInspectionSegment> {
+        val segments = message.segments
+        if (segments.isEmpty()) return emptyList()
+        // 增量单段路径直接复用已缓存的正文计数，合并多段后按各自正文精确复算
+        return segments.mapIndexed { index, segment ->
+            val tokenCount = if (index == 0 && segments.size == 1 && cachedSingleSegmentTokenCount != null) {
+                cachedSingleSegmentTokenCount
+            } else {
+                tokenizer.countText(segment.content)
+            }
+            PromptInspectionSegment(
+                sources = segment.sources.distinct(),
+                content = segment.content,
+                tokenCount = tokenCount,
+            )
+        }
     }
 
     /** 内部扩展：将草稿列表执行带来源追踪的消息后处理。 */

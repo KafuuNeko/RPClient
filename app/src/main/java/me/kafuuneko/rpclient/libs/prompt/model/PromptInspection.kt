@@ -118,6 +118,21 @@ enum class PromptTokenizerStrategy {
     Conservative
 }
 
+/**
+ * 合并后的最终消息中对应的单个原始来源分段。
+ *
+ * 用于 Prompt 检查器按来源拆解长消息正文并展示单段估算 Token，
+ * 不影响实际提交给模型的完整消息内容。
+ */
+data class PromptInspectionSegment(
+    /** 当前分段对应的原始来源列表；单个草稿通常只含一项，同深度世界书分组可能包含多项。 */
+    val sources: List<PromptSource>,
+    /** 当前分段在最终消息中的文本内容（单条用户模式等场景会保留实际发送前缀）。 */
+    val content: String,
+    /** 当前分段正文的估算 Token 数（不含外层消息角色模板开销）。 */
+    val tokenCount: Int
+)
+
 /** 最终请求中一条消息的检查快照。 */
 data class PromptInspectionItem(
     /** 当前对象在所属有序集合中的位置。 */
@@ -132,7 +147,9 @@ data class PromptInspectionItem(
     val content: String,
     val images: List<LLMImageReference> = emptyList(),
     /** 与 images 同序，本次模型的图片估值，不属于资源固有信息。 */
-    val imageTokenCounts: List<Long> = emptyList()
+    val imageTokenCounts: List<Long> = emptyList(),
+    /** 当前最终消息合并前保留的来源分段列表，供检查器按来源拆解阅读。 */
+    val segments: List<PromptInspectionSegment> = emptyList()
 )
 
 /**

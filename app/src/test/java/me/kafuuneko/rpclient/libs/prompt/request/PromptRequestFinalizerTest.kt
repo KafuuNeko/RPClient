@@ -528,6 +528,119 @@ class PromptRequestFinalizerTest {
         }
     }
 
+    @Test
+    fun mergePostProcessingPreservesPerSourceSegmentsAndTokens() {
+        val drafts = listOf(
+            PromptMessageDraft(
+                role = LLMMessageRole.System,
+                content = "Main instructions",
+                source = PromptSource(PromptSourceKind.MainPrompt),
+                retentionPriority = 1_000,
+                canDrop = false,
+            ),
+            PromptMessageDraft(
+                role = LLMMessageRole.System,
+                content = "Lore entry alpha",
+                source = PromptSource(PromptSourceKind.WorldInfo, "Alpha", 1L),
+                retentionPriority = 900,
+                canDrop = false,
+            ),
+            PromptMessageDraft(
+                role = LLMMessageRole.System,
+                content = "Lore entry beta",
+                source = PromptSource(PromptSourceKind.WorldInfo, "Beta", 2L),
+                retentionPriority = 900,
+                canDrop = false,
+            ),
+            PromptMessageDraft(
+                role = LLMMessageRole.User,
+                content = "Hello there",
+                source = PromptSource(PromptSourceKind.ChatHistory),
+                retentionPriority = 100,
+                canDrop = true,
+            ),
+        )
+        val result = finalize(
+            drafts = drafts,
+            contextTokens = 500,
+            responseTokens = 50,
+            mode = PromptPostProcessingMode.SemiStrict,
+        )
+
+        assertEquals(2, result.inspection.items.size)
+        val mergedSystem = result.inspection.items.first()
+        assertEquals(3, mergedSystem.segments.size)
+        assertEquals(
+            listOf(
+                PromptSource(PromptSourceKind.MainPrompt),
+                PromptSource(PromptSourceKind.WorldInfo, "Alpha", 1L),
+                PromptSource(PromptSourceKind.WorldInfo, "Beta", 2L),
+            ),
+            mergedSystem.segments.map { segment -> segment.sources.single() },
+        )
+        assertEquals(
+            listOf("Main instructions".length, "Lore entry alpha".length, "Lore entry beta".length),
+            mergedSystem.segments.map { segment -> segment.tokenCount },
+        )
+        assertEquals(
+            mergedSystem.content,
+            mergedSystem.segments.joinToString("\n\n") { segment -> segment.content },
+        )
+    }
+
+    @Test
+    fun singleUserMessagePreservesSpeakerPrefixedSegments() {
+        val drafts = listOf(
+            PromptMessageDraft(
+                role = LLMMessageRole.System,
+                content = "Main prompt",
+                source = PromptSource(PromptSourceKind.MainPrompt),
+                retentionPriority = 1_000,
+                canDrop = false,
+            ),
+            PromptMessageDraft(
+                role = LLMMessageRole.Assistant,
+                content = "Welcome back.",
+                source = PromptSource(PromptSourceKind.ChatHistory),
+                retentionPriority = 100,
+                canDrop = true,
+            ),
+            PromptMessageDraft(
+                role = LLMMessageRole.User,
+                content = "Good evening.",
+                source = PromptSource(PromptSourceKind.ChatHistory),
+                retentionPriority = 100,
+                canDrop = false,
+            ),
+        )
+        val result = finalizer.finalize(
+            drafts = drafts,
+            provider = null,
+            model = "test",
+            options = LLMGenerationOptions(maxTokens = 50),
+            includeReasoningInContent = false,
+            maxContextTokens = 500,
+            maxResponseTokens = 50,
+            postProcessingMode = PromptPostProcessingMode.SingleUserMessage,
+            strictPromptPlaceholder = "[Start]",
+            postProcessingNames = PromptPostProcessingNames(
+                userName = "Alex",
+                characterName = "Mina",
+            ),
+        )
+
+        assertEquals(1, result.inspection.items.size)
+        val flattened = result.inspection.items.single()
+        assertEquals(
+            listOf("Main prompt", "Mina: Welcome back.", "Alex: Good evening."),
+            flattened.segments.map { segment -> segment.content },
+        )
+        assertEquals(
+            flattened.content,
+            flattened.segments.joinToString("\n\n") { segment -> segment.content },
+        )
+    }
+
     private fun finalize(
         drafts: List<PromptMessageDraft>,
         contextTokens: Int,
