@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.libs.room.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
@@ -13,7 +14,13 @@ import androidx.room.PrimaryKey
  */
 @Entity(
     tableName = "group_chat_sessions",
-    indices = [Index("userPersonaId")],
+    foreignKeys = [ForeignKey(
+        entity = PromptPreset::class,
+        parentColumns = ["id"],
+        childColumns = ["agentPromptPresetId"],
+        onDelete = ForeignKey.SET_NULL,
+    )],
+    indices = [Index("userPersonaId"), Index("agentPromptPresetId")],
 )
 data class GroupChatSession(
     // 群聊会话 ID。
@@ -63,6 +70,10 @@ data class GroupChatSession(
     // 通用继承和普通回复召回各自保存，旧会话默认不增加记忆内容。
     @ColumnInfo(defaultValue = "1") val inheritCharacterMemory: Boolean = true,
     @ColumnInfo(defaultValue = "0") val recallMemoryInNormalChat: Boolean = false,
+    // 与单聊独立持久化；相同角色在不同会话中不共享开关。
+    @ColumnInfo(defaultValue = "0") val agentEnabled: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val agentSettingsVersion: Long = 0,
+    val agentPromptPresetId: Long? = null,
 ) {
     /** 本轮发言者选择策略。 */
     enum class ActivationStrategy {

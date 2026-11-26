@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
+import me.kafuuneko.rpclient.libs.room.repository.SceneStateRepository
+import me.kafuuneko.rpclient.libs.room.repository.AgentRunRepository
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.room.Room
@@ -69,7 +71,14 @@ class GroupChatRepositoryBranchTest {
         mImages = MessageImageRepository(mDatabase, mFiles)
         mPersonas = UserPersonaRepository(mDatabase, mFiles)
         mMemory = MemoryRepository(mDatabase)
-        mRepository = GroupChatRepository(mDatabase, Gson(), mImages, mPersonas, mMemory)
+        mRepository = GroupChatRepository(
+            mDatabase,
+            Gson(),
+            mImages,
+            mPersonas,
+            mMemory,
+            SceneStateRepository(mDatabase, AgentRunRepository(mDatabase))
+        )
         // 群聊关系采用非默认顺序和静音状态，防止复制时误走新建群聊的默认配置。
         mCharacterIds = listOf("Alice", "Bob", "Carol").map { name -> insertCharacter(name) }
         mSessionId = mRepository.createSession(
@@ -281,7 +290,14 @@ class GroupChatRepositoryBranchTest {
                 userNote = ""
             ),
         )
-        val single = ChatRepository(mDatabase, Gson(), mImages, mPersonas, mMemory)
+        val single = ChatRepository(
+            mDatabase,
+            Gson(),
+            mImages,
+            mPersonas,
+            mMemory,
+            SceneStateRepository(mDatabase, AgentRunRepository(mDatabase))
+        )
             .createUserMessageWithImages(
                 singleId,
                 "Single",

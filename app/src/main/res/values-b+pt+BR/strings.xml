@@ -1650,4 +1650,13 @@ Falhas: %2$d</string>
     <string name="memory_inherited_disabled_hint">A herança está desativada nesta conversa.</string>
     <string name="memory_filter_value">%1$s: %2$s</string>
     <string name="memory_override_badge">Substituição local</string>
+
+    <string name="prompt_category_agent">Agente</string>
+    <string name="prompt_scope_agent">Agente</string>
+    <string name="prompt_agent_instruction">Instruções do agente</string>
+    <string name="prompt_agent_group_instruction">Instruções do agente em grupo</string>
+    <string name="prompt_agent_tool_guidance">Orientações de ferramentas</string>
+    <string name="prompt_agent_finalize">Orientações da resposta final</string>
+    <string name="prompt_agent_tool_error_guidance">Orientações para erros de ferramentas</string>
+    <string name="prompt_agent_compaction_guidance">Orientações de compactação do contexto</string>
 </resources>

@@ -7,7 +7,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 /** v6 → v7 由 Room 创建空记忆表，原摘要保持原样。 */
 class MemorySchemaMigration : AutoMigrationSpec {
     /** 结构迁移后补上 Room 注解不能表达的跨字段约束。 */
-    override fun onPostMigrate(db: SupportSQLiteDatabase) = MemoryDatabaseConstraints.install(db)
+    override fun onPostMigrate(db: SupportSQLiteDatabase) {
+        MemoryDatabaseConstraints.install(db)
+        AgentDatabaseConstraints.install(db)
+    }
 }
 
 /** 新装、迁移和恢复共用的记忆身份约束安装器。 */

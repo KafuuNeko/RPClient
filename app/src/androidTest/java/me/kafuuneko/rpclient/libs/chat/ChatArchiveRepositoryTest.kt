@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.libs.chat
 
+import me.kafuuneko.rpclient.libs.room.repository.SceneStateRepository
+import me.kafuuneko.rpclient.libs.room.repository.AgentRunRepository
 import me.kafuuneko.rpclient.libs.room.repository.MemoryRepository
 import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import android.content.Context
@@ -99,6 +101,7 @@ class ChatArchiveRepositoryTest {
                 mDatabase = database,
                 mFiles = files,
             ),
+            mScenes = SceneStateRepository(database, AgentRunRepository(database)),
         )
         for (role in ChatArchiveMessageRole.entries) for (deleteSourceFirst in listOf(
             true,
@@ -181,7 +184,8 @@ class ChatArchiveRepositoryTest {
                 Gson(),
                 MessageImageRepository(database, files),
                 UserPersonaRepository(database, files),
-                MemoryRepository(database)
+                MemoryRepository(database),
+                mScenes = SceneStateRepository(database, AgentRunRepository(database)),
             )
         val messages = database.getChatMessageDao().getMessagesBySessionId(sessionId)
         assertEquals(

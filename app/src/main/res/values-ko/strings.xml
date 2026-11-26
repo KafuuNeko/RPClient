@@ -1628,4 +1628,13 @@
     <string name="memory_inherited_disabled_hint">이 대화에서는 캐릭터 기억 상속이 꺼져 있습니다.</string>
     <string name="memory_filter_value">%1$s: %2$s</string>
     <string name="memory_override_badge">로컬 재정의</string>
+
+    <string name="prompt_category_agent">에이전트</string>
+    <string name="prompt_scope_agent">에이전트</string>
+    <string name="prompt_agent_instruction">에이전트 지침</string>
+    <string name="prompt_agent_group_instruction">그룹 에이전트 지침</string>
+    <string name="prompt_agent_tool_guidance">도구 사용 지침</string>
+    <string name="prompt_agent_finalize">최종 응답 지침</string>
+    <string name="prompt_agent_tool_error_guidance">도구 오류 처리 지침</string>
+    <string name="prompt_agent_compaction_guidance">컨텍스트 압축 지침</string>
 </resources>

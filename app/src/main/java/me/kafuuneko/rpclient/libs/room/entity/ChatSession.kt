@@ -21,10 +21,16 @@ import me.kafuuneko.rpclient.utils.takeIfNotBlank
             parentColumns = ["id"],
             childColumns = ["characterId"],
             onDelete = ForeignKey.CASCADE,
-        )
+        ),
+        ForeignKey(
+            entity = PromptPreset::class,
+            parentColumns = ["id"],
+            childColumns = ["agentPromptPresetId"],
+            onDelete = ForeignKey.SET_NULL,
+        ),
     ],
     indices = [
-        Index("characterId"), Index("userPersonaId")
+        Index("characterId"), Index("userPersonaId"), Index("agentPromptPresetId")
     ]
 )
 data class ChatSession(
@@ -59,6 +65,10 @@ data class ChatSession(
     // 通用继承和普通回复召回各自保存，旧会话默认不增加记忆内容。
     @ColumnInfo(defaultValue = "1") val inheritCharacterMemory: Boolean = true,
     @ColumnInfo(defaultValue = "0") val recallMemoryInNormalChat: Boolean = false,
+    // Agent 字段只能通过专门仓库更新，旧设置表单不得覆盖。
+    @ColumnInfo(defaultValue = "0") val agentEnabled: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val agentSettingsVersion: Long = 0,
+    val agentPromptPresetId: Long? = null,
 ) {
     /** 将空白 creator notes 覆盖归一化为 null，使读取时继续继承角色卡默认值。 */
     fun withNormalizedCreatorNotes(): ChatSession {

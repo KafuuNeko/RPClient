@@ -1625,4 +1625,13 @@ Non riusciti: %2$d</string>
     <string name="memory_inherited_disabled_hint">L\'ereditarietà è disattivata per questa conversazione.</string>
     <string name="memory_filter_value">%1$s: %2$s</string>
     <string name="memory_override_badge">Modifica locale</string>
+
+    <string name="prompt_category_agent">Agente</string>
+    <string name="prompt_scope_agent">Agente</string>
+    <string name="prompt_agent_instruction">Istruzioni agente</string>
+    <string name="prompt_agent_group_instruction">Istruzioni agente di gruppo</string>
+    <string name="prompt_agent_tool_guidance">Guida agli strumenti</string>
+    <string name="prompt_agent_finalize">Guida alla risposta finale</string>
+    <string name="prompt_agent_tool_error_guidance">Guida agli errori degli strumenti</string>
+    <string name="prompt_agent_compaction_guidance">Guida alla compressione del contesto</string>
 </resources>

@@ -1639,4 +1639,13 @@
     <string name="memory_inherited_disabled_hint">Die Vererbung ist für dieses Gespräch deaktiviert.</string>
     <string name="memory_filter_value">%1$s: %2$s</string>
     <string name="memory_override_badge">Lokale Abweichung</string>
+
+    <string name="prompt_category_agent">Agent</string>
+    <string name="prompt_scope_agent">Agent</string>
+    <string name="prompt_agent_instruction">Agentenanweisungen</string>
+    <string name="prompt_agent_group_instruction">Agentenanweisungen im Gruppenchat</string>
+    <string name="prompt_agent_tool_guidance">Hinweise zur Werkzeugnutzung</string>
+    <string name="prompt_agent_finalize">Hinweise zur endgültigen Antwort</string>
+    <string name="prompt_agent_tool_error_guidance">Hinweise zu Werkzeugfehlern</string>
+    <string name="prompt_agent_compaction_guidance">Hinweise zur Kontextverdichtung</string>
 </resources>

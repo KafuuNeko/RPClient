@@ -410,6 +410,28 @@ flowchart TD
 - [ ] 全量备份恢复前能安全中止活动运行并清理本机旧检查点，恢复后有效配置、策略与 `SceneState` 完整且缺失凭据标为 `NeedsConfiguration`。
 - [ ] 全部新增可见文案与无障碍描述同步补齐默认英文与全部已支持语言；范围 `formatApply`/`formatCheck`、单元测试、仪器测试及 `:app:assembleDebug` / `:app:assembleDemo`（R8 混淆）全部通过。
 
+## 实施进度
+
+本次按里程碑 A 的“数据层与通用契约”推进，尚未开放聊天内 Agent 运行入口。
+
+- 已实现会话独立开关、设置版本与 Agent 预设绑定、Provider 工具能力持久化；旧设置草稿保留最新 Agent 字段。
+- 已加入运行、步骤、调用、工具策略、剧情当前状态和修订表，保持 Room `v7`，通过自动迁移维护正式版 `v6 → v7`。
+- 已加入六个 Agent 提示词键、分类与场景筛选，绑定预设仅覆盖 Agent 段及压缩摘要模板；新增标签补齐全部现有语言。
+- 已实现工具 Schema、稳定目录、统一执行器、短事务授权及本机原子检查点；已派发但未定案的调用不自动重试。
+- 剧情状态采用受限 JSON 域及增量路径修改，支持版本冲突检查、最近 200 个完整修订、会话分支复制与消息删除回滚。
+- 整库恢复验证 Agent 所有者、调用归属和剧情消息边界，撤销恢复库中的执行资格与不可恢复检查点引用。
+- 下一任务为五协议独立工具轮次模型、`LLMClient` / `LLMRepository` 方法、协议 Codec 与本地合成 HTTP 验收；之后实现运行管理器、内置工具处理器及聊天设置/任务卡。全局停止活动 Job 和恢复后清理本机旧载荷随运行管理器及全量生命周期接入完成。
+
+本轮验证结果：
+
+- 范围 `formatApply` / `formatCheck`：60 个 Kotlin 文件通过；修正仪器测试声明后对该文件再次执行两项检查。
+- `:app:testDebugUnitTest`：528 项通过，无失败、错误或跳过，包含普通 Prompt 基线回归。
+- `:app:connectedDebugAndroidTest`：隔离 Android 34 模拟器上 76 项通过，无失败、错误或跳过；覆盖新增 12 项 Agent 基础回归，以及迁移、普通消息提交、摘要、分支、记忆与可移植备份回归。
+- `:app:assembleDebug`、`:app:assembleDemo`：均通过，Demo 包含 R8 混淆和 Lint 检查。
+- `git diff --check`、全部现有语言目录的新增资源校验通过；隔离测试模拟器及临时数据已清理。
+
+本机使用项目指定 Android Studio 内置 JBR 21 运行验证，并为命令设置 `JAVA_TOOL_OPTIONS=-XX:+UseSerialGC` 避开本机 JBR 的 G1 崩溃。Demo 首次验证所缺的既有依赖缓存通过联网补齐，未修改依赖声明。当前尚未进行五协议工具调用矩阵或真实模型账号联调；这些属于下一实施任务。
+
 ## 官方资料索引
 
 - [OpenAI Function calling](https://developers.openai.com/api/docs/guides/function-calling) · [OpenAI Reasoning 与无存储续接](https://developers.openai.com/api/docs/guides/reasoning)

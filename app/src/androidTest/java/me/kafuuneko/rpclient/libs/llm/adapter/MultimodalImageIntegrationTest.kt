@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.libs.llm.adapter
 
+import me.kafuuneko.rpclient.libs.room.repository.SceneStateRepository
+import me.kafuuneko.rpclient.libs.room.repository.AgentRunRepository
 import me.kafuuneko.rpclient.libs.room.repository.MemoryRepository
 import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import android.content.ContentProvider
@@ -262,6 +264,7 @@ class MultimodalImageIntegrationTest {
             mPersonas = UserPersonaRepository(database, files),
             mGson = Gson(),
             mImages = MessageImageRepository(database, files),
+            mScenes = SceneStateRepository(database, AgentRunRepository(database)),
         )
         logs = LLMRequestLogRepository(logDatabase)
         val characterId = database.getCharacterDao().insertOrReplace(

@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
+import me.kafuuneko.rpclient.libs.room.repository.SceneStateRepository
+import me.kafuuneko.rpclient.libs.room.repository.AgentRunRepository
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -47,6 +49,7 @@ class ConversationPageRepositoryTest {
                     mAppDatabase = database,
                 ),
             ),
+            mScenes = SceneStateRepository(database, AgentRunRepository(database)),
         )
         groupChatRepository = GroupChatRepository(
             mAppDatabase = database,
@@ -60,6 +63,7 @@ class ConversationPageRepositoryTest {
                     mAppDatabase = database,
                 ),
             ),
+            mScenes = SceneStateRepository(database, AgentRunRepository(database)),
         )
 
         // 创建单聊和群聊页面查询需要的最小会话数据

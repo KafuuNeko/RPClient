@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
+import me.kafuuneko.rpclient.libs.room.repository.SceneStateRepository
+import me.kafuuneko.rpclient.libs.room.repository.AgentRunRepository
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -43,6 +45,7 @@ class SessionOverviewRepositoryTest {
                     mAppDatabase = mDatabase,
                 ),
             ),
+            mScenes = SceneStateRepository(mDatabase, AgentRunRepository(mDatabase)),
         )
         mGroupChatRepository = GroupChatRepository(
             mAppDatabase = mDatabase,
@@ -56,6 +59,7 @@ class SessionOverviewRepositoryTest {
                     mAppDatabase = mDatabase,
                 ),
             ),
+            mScenes = SceneStateRepository(mDatabase, AgentRunRepository(mDatabase)),
         )
     }
 

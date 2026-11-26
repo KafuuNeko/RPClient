@@ -55,6 +55,9 @@ object AppModel : KotprefModel() {
     /** 当前提示词预设；-1 表示直接使用 PromptType 中的默认值。 */
     var activePromptPresetId by longPref(default = -1L, commitByDefault = true)
 
+    /** 仅复制给新建会话；迁移与旧备份中的会话始终默认关闭 Agent。 */
+    var defaultAgentEnabled by booleanPref(default = false)
+
     // 当前选中的模型配置 ID。
     var currentLLMProvider by longPref()
 

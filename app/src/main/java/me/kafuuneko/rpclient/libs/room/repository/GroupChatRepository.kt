@@ -1,7 +1,9 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
 import me.kafuuneko.rpclient.libs.memory.MemoryTarget
+import me.kafuuneko.rpclient.libs.AppModel
 import androidx.room.withTransaction
+import me.kafuuneko.rpclient.libs.agent.model.ConversationRef
 import com.google.gson.Gson
 import java.util.UUID
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatOpeningMessage
@@ -141,7 +143,8 @@ class GroupChatRepository(
     private val mGson: Gson,
     private val mImages: MessageImageRepository,
     private val mPersonas: UserPersonaRepository,
-    private val mMemory: MemoryRepository
+    private val mMemory: MemoryRepository,
+    private val mScenes: SceneStateRepository,
 ) {
     /** 原子保存用户正文、最终图片索引及有序附件；调用方须先完成图片处理。 */
     suspend fun createUserMessageWithImages(
@@ -677,6 +680,7 @@ class GroupChatRepository(
                     activationStrategy = activationStrategy,
                     allowSelfResponses = allowSelfResponses,
                     includeCharacterExamples = includeCharacterExamples,
+                    agentEnabled = AppModel.defaultAgentEnabled,
                 ),
             )
             // 插入初始群成员列表
@@ -805,6 +809,11 @@ class GroupChatRepository(
             messages = copiedIdBySourceId,
             summaries = copiedSummaryIds,
         )
+        mScenes.copyBranch(
+            ConversationRef.Group(sourceSessionId),
+            ConversationRef.Group(branchSessionId),
+            copiedIdBySourceId
+        )
         branchSessionId
     }
 
@@ -871,6 +880,7 @@ class GroupChatRepository(
     suspend fun deleteMessage(id: Long) {
         mImages.mutate {
             val message = mMessageDao.getMessageById(id) ?: return@mutate
+            mScenes.rollbackFrom(ConversationRef.Group(message.sessionId), message.id)
             mMemory.groupMessageChanged(id, hardDelete = true)
             mSummaryDao.deleteCovering(message.sessionId, message.id)
             mImages.deleteInTransaction(this, MessageType.Group, listOf(id))
@@ -896,6 +906,7 @@ class GroupChatRepository(
     suspend fun deleteMessagesFrom(id: Long) {
         mImages.mutate {
             val message = mMessageDao.getMessageById(id) ?: return@mutate
+            mScenes.rollbackFrom(ConversationRef.Group(message.sessionId), message.id)
             mMemory.invalidateSources(
                 groupIds = mMessageDao.getMessageIdsBySessionId(
                     message.sessionId,
@@ -1045,7 +1056,10 @@ class GroupChatRepository(
         mSessionDao.update(
             session.copy(
                 inheritCharacterMemory = current.inheritCharacterMemory,
-                recallMemoryInNormalChat = current.recallMemoryInNormalChat
+                recallMemoryInNormalChat = current.recallMemoryInNormalChat,
+                agentEnabled = current.agentEnabled,
+                agentSettingsVersion = current.agentSettingsVersion,
+                agentPromptPresetId = current.agentPromptPresetId,
             )
         )
     }

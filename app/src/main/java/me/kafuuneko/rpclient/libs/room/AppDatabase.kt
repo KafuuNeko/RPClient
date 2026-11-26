@@ -5,6 +5,14 @@ import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import me.kafuuneko.rpclient.libs.room.dao.AgentRunDao
+import me.kafuuneko.rpclient.libs.room.dao.SceneStateDao
+import me.kafuuneko.rpclient.libs.room.entity.AgentRun
+import me.kafuuneko.rpclient.libs.room.entity.AgentStep
+import me.kafuuneko.rpclient.libs.room.entity.ConversationToolPolicy
+import me.kafuuneko.rpclient.libs.room.entity.ToolInvocation
+import me.kafuuneko.rpclient.libs.room.entity.SceneState
+import me.kafuuneko.rpclient.libs.room.entity.SceneStateRevision
 import me.kafuuneko.rpclient.libs.room.dao.GroupChatMemoryDao
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMemory
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMemoryRevision
@@ -79,6 +87,12 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration3To4Spe
 /** RPClient 的 Room 数据库入口，集中声明实体、类型转换器和 DAO。 */
 @Database(
     entities = [
+        AgentRun::class,
+        AgentStep::class,
+        ToolInvocation::class,
+        ConversationToolPolicy::class,
+        SceneState::class,
+        SceneStateRevision::class,
         CharacterMemory::class,
         CharacterMemoryRevision::class,
         CharacterMemorySource::class,
@@ -131,6 +145,12 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration3To4Spe
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
+    /** Agent 配置、运行、步骤与调用元数据。 */
+    abstract fun getAgentRunDao(): AgentRunDao
+
+    /** 剧情当前状态与可回滚修订。 */
+    abstract fun getSceneStateDao(): SceneStateDao
+
     /** GroupChat 记忆及证据的类型化数据入口。 */
     abstract fun getGroupChatMemoryDao(): GroupChatMemoryDao
 

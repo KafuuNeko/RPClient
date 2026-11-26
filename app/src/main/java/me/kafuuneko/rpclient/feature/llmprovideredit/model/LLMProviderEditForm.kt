@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.supportsSampling
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
+import me.kafuuneko.rpclient.libs.llm.model.ToolCallingSetting
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.room.entity.DEFAULT_TOKEN_ESTIMATE_RESERVE_PERCENT
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
@@ -76,6 +77,8 @@ data class LLMProviderEditForm(
     val promptPostProcessingMode: PromptPostProcessingMode = PromptPostProcessingMode.None,
     /** 当前记录或配置是否启用。 */
     val imageInputSetting: ImageInputSetting = ImageInputSetting.Auto,
+    /** 保存其他字段时保留独立工具能力配置。 */
+    val toolCallingSetting: ToolCallingSetting = ToolCallingSetting.Auto,
     /** 图片本地预估类别，禁用图片时仍保留选择。 */
     val imageTokenEstimatorType: ImageTokenEstimatorType = ImageTokenEstimatorType.Automatic,
     val isEnabled: Boolean = true
@@ -134,6 +137,7 @@ data class LLMProviderEditForm(
             useServerReportedUsage = useServerReportedUsage,
             promptPostProcessingMode = promptPostProcessingMode.ordinal,
             imageInputSetting = imageInputSetting,
+            toolCallingSetting = toolCallingSetting,
             imageTokenEstimatorType = imageTokenEstimatorType,
             isEnabled = isEnabled,
             createTime = createTime,

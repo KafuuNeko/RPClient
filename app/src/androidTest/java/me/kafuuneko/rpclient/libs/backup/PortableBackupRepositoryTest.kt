@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.libs.backup
 
+import me.kafuuneko.rpclient.libs.room.repository.SceneStateRepository
+import me.kafuuneko.rpclient.libs.room.repository.AgentRunRepository
 import android.content.Context
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
@@ -463,7 +465,8 @@ class PortableBackupRepositoryTest {
             Gson(),
             MessageImageRepository(primary, files),
             UserPersonaRepository(primary, files),
-            memories
+            memories,
+            mScenes = SceneStateRepository(primary, AgentRunRepository(primary)),
         )
         val group = primary.getGroupChatSessionDao()
             .insertOrReplace(GroupChatSession(title = "Source", createTime = 1, latestTime = 1))

@@ -1,6 +1,15 @@
 package me.kafuuneko.rpclient
 
 import android.app.Application
+import android.content.Context
+import java.io.File
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentCheckpointStore
+import me.kafuuneko.rpclient.libs.agent.runtime.FileAgentCheckpointStore
+import me.kafuuneko.rpclient.libs.agent.tool.ToolRegistry
+import me.kafuuneko.rpclient.libs.agent.tool.ToolExecutor
+import me.kafuuneko.rpclient.libs.room.migration.AgentDatabaseConstraints
+import me.kafuuneko.rpclient.libs.room.repository.AgentRunRepository
+import me.kafuuneko.rpclient.libs.room.repository.SceneStateRepository
 import androidx.room.Room
 import com.chibatching.kotpref.Kotpref
 import com.google.gson.Gson
@@ -160,6 +169,18 @@ internal val appModules = module {
     single<PromptPreferences> { PromptTemplateSnapshot.defaults() }
     singleOf(::PromptPresetRepository)
     singleOf(::MemoryRepository)
+    singleOf(::AgentRunRepository)
+    singleOf(::SceneStateRepository)
+    single { ToolRegistry(getAll()) }
+    single<AgentCheckpointStore> {
+        FileAgentCheckpointStore(
+            File(
+                get<Context>().noBackupFilesDir,
+                "agent_checkpoints"
+            )
+        )
+    }
+    singleOf(::ToolExecutor)
     singleOf(::MemoryRetriever)
     singleOf(::MemoryTransferRepository)
     singleOf(::PromptPresetTransferRepository)
@@ -209,6 +230,7 @@ internal val appModules = module {
             .addMigrations(PersonaSchemaMigration)
             .addCallback(SearchDatabaseCallback)
             .addCallback(MemoryDatabaseConstraints)
+            .addCallback(AgentDatabaseConstraints)
             .build()
     }
 

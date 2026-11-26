@@ -1635,4 +1635,13 @@ Thất bại: %2$d</string>
     <string name="memory_inherited_disabled_hint">Tính năng kế thừa đang tắt cho cuộc trò chuyện này.</string>
     <string name="memory_filter_value">%1$s: %2$s</string>
     <string name="memory_override_badge">Ghi đè cục bộ</string>
+
+    <string name="prompt_category_agent">Tác nhân</string>
+    <string name="prompt_scope_agent">Tác nhân</string>
+    <string name="prompt_agent_instruction">Chỉ dẫn cho tác nhân</string>
+    <string name="prompt_agent_group_instruction">Chỉ dẫn cho tác nhân trong nhóm</string>
+    <string name="prompt_agent_tool_guidance">Hướng dẫn dùng công cụ</string>
+    <string name="prompt_agent_finalize">Hướng dẫn trả lời cuối cùng</string>
+    <string name="prompt_agent_tool_error_guidance">Hướng dẫn xử lý lỗi công cụ</string>
+    <string name="prompt_agent_compaction_guidance">Hướng dẫn nén ngữ cảnh</string>
 </resources>

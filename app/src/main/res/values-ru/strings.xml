@@ -1656,4 +1656,13 @@
     <string name="memory_inherited_disabled_hint">Наследование отключено для этого диалога.</string>
     <string name="memory_filter_value">%1$s: %2$s</string>
     <string name="memory_override_badge">Локальная замена</string>
+
+    <string name="prompt_category_agent">Агент</string>
+    <string name="prompt_scope_agent">Агент</string>
+    <string name="prompt_agent_instruction">Инструкции агента</string>
+    <string name="prompt_agent_group_instruction">Инструкции агента в группе</string>
+    <string name="prompt_agent_tool_guidance">Правила использования инструментов</string>
+    <string name="prompt_agent_finalize">Правила итогового ответа</string>
+    <string name="prompt_agent_tool_error_guidance">Обработка ошибок инструментов</string>
+    <string name="prompt_agent_compaction_guidance">Правила сжатия контекста</string>
 </resources>

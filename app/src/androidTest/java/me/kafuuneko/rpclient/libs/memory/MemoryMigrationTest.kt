@@ -4,6 +4,7 @@ import androidx.room.testing.MigrationTestHelper
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import me.kafuuneko.rpclient.libs.agent.model.AgentRestoreValidator
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.migration.PersonaSchemaMigration
 import org.junit.Assert.assertEquals
@@ -28,6 +29,18 @@ class MemoryMigrationTest {
             seed(old, "user_personas", mapOf("id" to 1, "name" to "User"))
             seed(old, "user_persona_settings", mapOf("id" to 1, "defaultPersonaId" to 1))
             seed(old, "character", mapOf("id" to 1, "name" to "Character"))
+            seed(
+                old,
+                "llm_providers",
+                mapOf(
+                    "id" to 1,
+                    "providerType" to "Custom",
+                    "protocol" to "OpenAICompatible",
+                    "imageInputSetting" to "Auto",
+                    "imageTokenEstimatorType" to "Automatic",
+                    "localTokenEstimatorType" to "Automatic"
+                )
+            )
             seed(old, "chat_sessions", mapOf("id" to 1, "characterId" to 1, "userPersonaId" to 1))
             seed(
                 old,
@@ -83,11 +96,14 @@ class MemoryMigrationTest {
             }
             // 两种会话使用同一默认策略；已有内容不会意外开始携带跨会话资料。
             listOf("chat_sessions", "group_chat_sessions").forEach { table ->
-                db.query("SELECT inheritCharacterMemory, recallMemoryInNormalChat FROM $table")
+                db.query("SELECT inheritCharacterMemory, recallMemoryInNormalChat, agentEnabled, agentSettingsVersion, agentPromptPresetId FROM $table")
                     .use {
                         assertTrue(it.moveToFirst())
                         assertEquals(1, it.getInt(0))
                         assertEquals(0, it.getInt(1))
+                        assertEquals(0, it.getInt(2))
+                        assertEquals(0L, it.getLong(3))
+                        assertTrue(it.isNull(4))
                     }
             }
             listOf("character", "chat", "group_chat").forEach { family ->
@@ -97,6 +113,22 @@ class MemoryMigrationTest {
                 }
             }
             MemoryRestoreValidator.validate(db)
+            db.query("SELECT toolCallingSetting FROM llm_providers WHERE id = 1").use {
+                assertTrue(it.moveToFirst())
+                assertEquals("Auto", it.getString(0))
+            }
+            listOf(
+                "conversation_tool_policies",
+                "agent_runs",
+                "agent_steps",
+                "tool_invocations",
+                "scene_states",
+                "scene_state_revisions"
+            ).forEach { table ->
+                db.query("SELECT COUNT(*) FROM $table")
+                    .use { it.moveToFirst(); assertEquals(0, it.getInt(0)) }
+            }
+            AgentRestoreValidator.validate(db)
         }
     }
 

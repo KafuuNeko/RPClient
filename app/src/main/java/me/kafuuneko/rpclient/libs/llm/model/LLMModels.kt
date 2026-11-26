@@ -136,6 +136,8 @@ data class LLMProviderConfig(
     val useServerReportedUsage: Boolean = false,
     /** 图片输入能力的用户设置；Auto 表示按模型目录信息自动判断。 */
     val imageInputSetting: ImageInputSetting = ImageInputSetting.Auto,
+    /** 用户选择的工具调用能力；普通文本请求不读取此字段。 */
+    val toolCallingSetting: ToolCallingSetting = ToolCallingSetting.Auto,
     /** 图片本地预估类别，禁用图片时仍保留选择。 */
     val imageTokenEstimatorType: ImageTokenEstimatorType = ImageTokenEstimatorType.Automatic,
     /** 已持久化配置的主键；编辑页未保存的临时配置为空。 */

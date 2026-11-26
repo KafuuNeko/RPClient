@@ -2,8 +2,741 @@
   "formatVersion": 1,
   "database": {
     "version": 7,
-    "identityHash": "da07371adb23324e56b22d71262890ec",
+    "identityHash": "a33bc923ea7d26f96b3947e2f7da1927",
     "entities": [
+      {
+        "tableName": "agent_runs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `conversationKey` TEXT NOT NULL, `activeConversationKey` TEXT, `state` TEXT NOT NULL, `characterId` INTEGER, `personaId` INTEGER, `settingsVersion` INTEGER NOT NULL, `historyVersion` INTEGER NOT NULL, `executionEpoch` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `activeMillis` INTEGER NOT NULL, `toolRounds` INTEGER NOT NULL, `toolCalls` INTEGER NOT NULL, `modelRequests` INTEGER NOT NULL, `totalTokens` INTEGER NOT NULL, `checkpointKey` TEXT, `expiresAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`conversationKey`) REFERENCES `conversation_tool_policies`(`conversationKey`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`characterId`) REFERENCES `character`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`personaId`) REFERENCES `user_personas`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "conversationKey",
+            "columnName": "conversationKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activeConversationKey",
+            "columnName": "activeConversationKey",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "characterId",
+            "columnName": "characterId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "personaId",
+            "columnName": "personaId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "settingsVersion",
+            "columnName": "settingsVersion",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "historyVersion",
+            "columnName": "historyVersion",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "executionEpoch",
+            "columnName": "executionEpoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activeMillis",
+            "columnName": "activeMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "toolRounds",
+            "columnName": "toolRounds",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "toolCalls",
+            "columnName": "toolCalls",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modelRequests",
+            "columnName": "modelRequests",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalTokens",
+            "columnName": "totalTokens",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "checkpointKey",
+            "columnName": "checkpointKey",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "expiresAt",
+            "columnName": "expiresAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_agent_runs_conversationKey",
+            "unique": false,
+            "columnNames": [
+              "conversationKey"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_agent_runs_conversationKey` ON `${TABLE_NAME}` (`conversationKey`)"
+          },
+          {
+            "name": "index_agent_runs_activeConversationKey",
+            "unique": true,
+            "columnNames": [
+              "activeConversationKey"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_agent_runs_activeConversationKey` ON `${TABLE_NAME}` (`activeConversationKey`)"
+          },
+          {
+            "name": "index_agent_runs_characterId",
+            "unique": false,
+            "columnNames": [
+              "characterId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_agent_runs_characterId` ON `${TABLE_NAME}` (`characterId`)"
+          },
+          {
+            "name": "index_agent_runs_personaId",
+            "unique": false,
+            "columnNames": [
+              "personaId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_agent_runs_personaId` ON `${TABLE_NAME}` (`personaId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "conversation_tool_policies",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "conversationKey"
+            ],
+            "referencedColumns": [
+              "conversationKey"
+            ]
+          },
+          {
+            "table": "character",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "characterId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "user_personas",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "personaId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "agent_steps",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `runId` TEXT NOT NULL, `ordinal` INTEGER NOT NULL, `kind` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `requestId` TEXT, `completedAt` INTEGER, `estimatedTokens` INTEGER NOT NULL, `actualTokens` INTEGER, `outcomeCode` TEXT, FOREIGN KEY(`runId`) REFERENCES `agent_runs`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "runId",
+            "columnName": "runId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ordinal",
+            "columnName": "ordinal",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "requestId",
+            "columnName": "requestId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "completedAt",
+            "columnName": "completedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "estimatedTokens",
+            "columnName": "estimatedTokens",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actualTokens",
+            "columnName": "actualTokens",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "outcomeCode",
+            "columnName": "outcomeCode",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_agent_steps_runId_ordinal",
+            "unique": true,
+            "columnNames": [
+              "runId",
+              "ordinal"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_agent_steps_runId_ordinal` ON `${TABLE_NAME}` (`runId`, `ordinal`)"
+          },
+          {
+            "name": "index_agent_steps_requestId",
+            "unique": true,
+            "columnNames": [
+              "requestId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_agent_steps_requestId` ON `${TABLE_NAME}` (`requestId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "agent_runs",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "runId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "tool_invocations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `runId` TEXT NOT NULL, `stepId` INTEGER NOT NULL, `ordinal` INTEGER NOT NULL, `remoteCallId` TEXT, `toolId` TEXT NOT NULL, `contractVersion` INTEGER NOT NULL, `definitionDigest` TEXT NOT NULL, `argumentsDigest` TEXT NOT NULL, `state` TEXT NOT NULL, `confirmationGranted` INTEGER NOT NULL, `awaitingKind` TEXT, `createdAt` INTEGER NOT NULL, `completedAt` INTEGER, `resultDigest` TEXT, `checkpointKey` TEXT, `writeDisposition` TEXT, PRIMARY KEY(`id`), FOREIGN KEY(`runId`) REFERENCES `agent_runs`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`stepId`) REFERENCES `agent_steps`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "runId",
+            "columnName": "runId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stepId",
+            "columnName": "stepId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ordinal",
+            "columnName": "ordinal",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "remoteCallId",
+            "columnName": "remoteCallId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "toolId",
+            "columnName": "toolId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contractVersion",
+            "columnName": "contractVersion",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "definitionDigest",
+            "columnName": "definitionDigest",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "argumentsDigest",
+            "columnName": "argumentsDigest",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confirmationGranted",
+            "columnName": "confirmationGranted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "awaitingKind",
+            "columnName": "awaitingKind",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "completedAt",
+            "columnName": "completedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "resultDigest",
+            "columnName": "resultDigest",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "checkpointKey",
+            "columnName": "checkpointKey",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "writeDisposition",
+            "columnName": "writeDisposition",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_tool_invocations_runId",
+            "unique": false,
+            "columnNames": [
+              "runId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_tool_invocations_runId` ON `${TABLE_NAME}` (`runId`)"
+          },
+          {
+            "name": "index_tool_invocations_stepId_ordinal",
+            "unique": true,
+            "columnNames": [
+              "stepId",
+              "ordinal"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_tool_invocations_stepId_ordinal` ON `${TABLE_NAME}` (`stepId`, `ordinal`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "agent_runs",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "runId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "agent_steps",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "stepId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "conversation_tool_policies",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`conversationKey` TEXT NOT NULL, `chatId` INTEGER, `groupId` INTEGER, `enabledToolIdsJson` TEXT NOT NULL, `memoryReadOnly` INTEGER NOT NULL, `autoPromoteMemory` INTEGER NOT NULL, `maxToolRounds` INTEGER NOT NULL, `maxToolCalls` INTEGER NOT NULL, `maxModelRequests` INTEGER NOT NULL, `maxTotalTokens` INTEGER NOT NULL, `toolTimeoutMillis` INTEGER NOT NULL, `maxActiveMillis` INTEGER NOT NULL, `compactionWatermarkPercent` INTEGER NOT NULL, `maxGroupModelRequests` INTEGER NOT NULL, `maxGroupTotalTokens` INTEGER NOT NULL, `maxAutoBatches` INTEGER NOT NULL, `maxGroupActiveMillis` INTEGER NOT NULL, `historyVersion` INTEGER NOT NULL, `executionEpoch` INTEGER NOT NULL, PRIMARY KEY(`conversationKey`), FOREIGN KEY(`chatId`) REFERENCES `chat_sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`groupId`) REFERENCES `group_chat_sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "conversationKey",
+            "columnName": "conversationKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chatId",
+            "columnName": "chatId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "groupId",
+            "columnName": "groupId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "enabledToolIdsJson",
+            "columnName": "enabledToolIdsJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "memoryReadOnly",
+            "columnName": "memoryReadOnly",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "autoPromoteMemory",
+            "columnName": "autoPromoteMemory",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxToolRounds",
+            "columnName": "maxToolRounds",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxToolCalls",
+            "columnName": "maxToolCalls",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxModelRequests",
+            "columnName": "maxModelRequests",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxTotalTokens",
+            "columnName": "maxTotalTokens",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "toolTimeoutMillis",
+            "columnName": "toolTimeoutMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxActiveMillis",
+            "columnName": "maxActiveMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "compactionWatermarkPercent",
+            "columnName": "compactionWatermarkPercent",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxGroupModelRequests",
+            "columnName": "maxGroupModelRequests",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxGroupTotalTokens",
+            "columnName": "maxGroupTotalTokens",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxAutoBatches",
+            "columnName": "maxAutoBatches",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maxGroupActiveMillis",
+            "columnName": "maxGroupActiveMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "historyVersion",
+            "columnName": "historyVersion",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "executionEpoch",
+            "columnName": "executionEpoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "conversationKey"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_conversation_tool_policies_chatId",
+            "unique": true,
+            "columnNames": [
+              "chatId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_conversation_tool_policies_chatId` ON `${TABLE_NAME}` (`chatId`)"
+          },
+          {
+            "name": "index_conversation_tool_policies_groupId",
+            "unique": true,
+            "columnNames": [
+              "groupId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_conversation_tool_policies_groupId` ON `${TABLE_NAME}` (`groupId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "chat_sessions",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "chatId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "group_chat_sessions",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "groupId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "scene_states",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`conversationKey` TEXT NOT NULL, `revision` INTEGER NOT NULL, `stateJson` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`conversationKey`), FOREIGN KEY(`conversationKey`) REFERENCES `conversation_tool_policies`(`conversationKey`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "conversationKey",
+            "columnName": "conversationKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stateJson",
+            "columnName": "stateJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "conversationKey"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "conversation_tool_policies",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "conversationKey"
+            ],
+            "referencedColumns": [
+              "conversationKey"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "scene_state_revisions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `conversationKey` TEXT NOT NULL, `revision` INTEGER NOT NULL, `effectiveAfterMessageId` INTEGER NOT NULL, `stateJson` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, FOREIGN KEY(`conversationKey`) REFERENCES `scene_states`(`conversationKey`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "conversationKey",
+            "columnName": "conversationKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "effectiveAfterMessageId",
+            "columnName": "effectiveAfterMessageId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stateJson",
+            "columnName": "stateJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_scene_state_revisions_conversationKey_revision",
+            "unique": true,
+            "columnNames": [
+              "conversationKey",
+              "revision"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_scene_state_revisions_conversationKey_revision` ON `${TABLE_NAME}` (`conversationKey`, `revision`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "scene_states",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "conversationKey"
+            ],
+            "referencedColumns": [
+              "conversationKey"
+            ]
+          }
+        ]
+      },
       {
         "tableName": "character_memories",
         "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `characterId` INTEGER NOT NULL, `uuid` TEXT NOT NULL, `personaId` INTEGER, `subjectKey` TEXT NOT NULL, `factKey` TEXT NOT NULL, `slotKey` TEXT NOT NULL, `currentRevision` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `body` TEXT NOT NULL, `kind` TEXT NOT NULL, `status` TEXT NOT NULL, `importance` INTEGER NOT NULL DEFAULT 50, `pinned` INTEGER NOT NULL DEFAULT 0, FOREIGN KEY(`characterId`) REFERENCES `character`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`personaId`) REFERENCES `user_personas`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
@@ -2677,7 +3410,7 @@
       },
       {
         "tableName": "chat_sessions",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `characterId` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `latestTime` INTEGER NOT NULL, `lorebookEntrySet` TEXT NOT NULL, `title` TEXT NOT NULL, `userNote` TEXT NOT NULL, `userName` TEXT, `userDescription` TEXT, `creatorNotes` TEXT, `worldInfoStateJson` TEXT NOT NULL, `autoSummaryPaused` INTEGER NOT NULL, `includeCharacterExamples` INTEGER NOT NULL DEFAULT 1, `userPersonaId` INTEGER NOT NULL, `inheritCharacterMemory` INTEGER NOT NULL DEFAULT 1, `recallMemoryInNormalChat` INTEGER NOT NULL DEFAULT 0, FOREIGN KEY(`characterId`) REFERENCES `character`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `characterId` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `latestTime` INTEGER NOT NULL, `lorebookEntrySet` TEXT NOT NULL, `title` TEXT NOT NULL, `userNote` TEXT NOT NULL, `userName` TEXT, `userDescription` TEXT, `creatorNotes` TEXT, `worldInfoStateJson` TEXT NOT NULL, `autoSummaryPaused` INTEGER NOT NULL, `includeCharacterExamples` INTEGER NOT NULL DEFAULT 1, `userPersonaId` INTEGER NOT NULL, `inheritCharacterMemory` INTEGER NOT NULL DEFAULT 1, `recallMemoryInNormalChat` INTEGER NOT NULL DEFAULT 0, `agentEnabled` INTEGER NOT NULL DEFAULT 0, `agentSettingsVersion` INTEGER NOT NULL DEFAULT 0, `agentPromptPresetId` INTEGER, FOREIGN KEY(`characterId`) REFERENCES `character`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`agentPromptPresetId`) REFERENCES `prompt_presets`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "id",
@@ -2774,6 +3507,25 @@
             "affinity": "INTEGER",
             "notNull": true,
             "defaultValue": "0"
+          },
+          {
+            "fieldPath": "agentEnabled",
+            "columnName": "agentEnabled",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "agentSettingsVersion",
+            "columnName": "agentSettingsVersion",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "agentPromptPresetId",
+            "columnName": "agentPromptPresetId",
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -2800,6 +3552,15 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_chat_sessions_userPersonaId` ON `${TABLE_NAME}` (`userPersonaId`)"
+          },
+          {
+            "name": "index_chat_sessions_agentPromptPresetId",
+            "unique": false,
+            "columnNames": [
+              "agentPromptPresetId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chat_sessions_agentPromptPresetId` ON `${TABLE_NAME}` (`agentPromptPresetId`)"
           }
         ],
         "foreignKeys": [
@@ -2809,6 +3570,17 @@
             "onUpdate": "NO ACTION",
             "columns": [
               "characterId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "prompt_presets",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "agentPromptPresetId"
             ],
             "referencedColumns": [
               "id"
@@ -2910,7 +3682,7 @@
       },
       {
         "tableName": "llm_providers",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `providerType` TEXT NOT NULL, `protocol` TEXT NOT NULL, `baseUrl` TEXT NOT NULL, `apiKey` TEXT NOT NULL, `model` TEXT NOT NULL, `systemPrompt` TEXT NOT NULL DEFAULT '', `customHeadersJson` TEXT NOT NULL, `requestBodyPatchJson` TEXT NOT NULL DEFAULT '{}', `temperature` REAL NOT NULL, `topP` REAL NOT NULL, `maxTokens` INTEGER NOT NULL, `contextTokens` INTEGER NOT NULL, `tokenEstimateReservePercent` INTEGER NOT NULL DEFAULT 15, `localTokenEstimatorType` TEXT NOT NULL DEFAULT 'Automatic', `sendTemperature` INTEGER NOT NULL, `sendTopP` INTEGER NOT NULL, `useServerReportedUsage` INTEGER NOT NULL DEFAULT 0, `promptPostProcessingMode` INTEGER NOT NULL, `imageInputSetting` TEXT NOT NULL DEFAULT 'Auto', `imageTokenEstimatorType` TEXT NOT NULL DEFAULT 'Automatic', `isEnabled` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `updateTime` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `providerType` TEXT NOT NULL, `protocol` TEXT NOT NULL, `baseUrl` TEXT NOT NULL, `apiKey` TEXT NOT NULL, `model` TEXT NOT NULL, `systemPrompt` TEXT NOT NULL DEFAULT '', `customHeadersJson` TEXT NOT NULL, `requestBodyPatchJson` TEXT NOT NULL DEFAULT '{}', `temperature` REAL NOT NULL, `topP` REAL NOT NULL, `maxTokens` INTEGER NOT NULL, `contextTokens` INTEGER NOT NULL, `tokenEstimateReservePercent` INTEGER NOT NULL DEFAULT 15, `localTokenEstimatorType` TEXT NOT NULL DEFAULT 'Automatic', `sendTemperature` INTEGER NOT NULL, `sendTopP` INTEGER NOT NULL, `useServerReportedUsage` INTEGER NOT NULL DEFAULT 0, `promptPostProcessingMode` INTEGER NOT NULL, `imageInputSetting` TEXT NOT NULL DEFAULT 'Auto', `toolCallingSetting` TEXT NOT NULL DEFAULT 'Auto', `imageTokenEstimatorType` TEXT NOT NULL DEFAULT 'Automatic', `isEnabled` INTEGER NOT NULL, `createTime` INTEGER NOT NULL, `updateTime` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -3045,6 +3817,13 @@
             "defaultValue": "'Auto'"
           },
           {
+            "fieldPath": "toolCallingSetting",
+            "columnName": "toolCallingSetting",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'Auto'"
+          },
+          {
             "fieldPath": "imageTokenEstimatorType",
             "columnName": "imageTokenEstimatorType",
             "affinity": "TEXT",
@@ -3108,7 +3887,7 @@
       },
       {
         "tableName": "group_chat_sessions",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `createTime` INTEGER NOT NULL, `latestTime` INTEGER NOT NULL, `userName` TEXT, `userDescription` TEXT, `scenario` TEXT NOT NULL, `userNote` TEXT NOT NULL, `lorebookEntrySet` TEXT NOT NULL, `worldInfoStateJson` TEXT NOT NULL, `systemPromptOverride` TEXT NOT NULL, `groupNudgePromptOverride` TEXT NOT NULL, `newGroupChatPromptOverride` TEXT NOT NULL, `activationStrategy` TEXT NOT NULL, `allowSelfResponses` INTEGER NOT NULL, `characterCardMode` TEXT NOT NULL, `includeMutedCards` INTEGER NOT NULL, `autoModeEnabled` INTEGER NOT NULL, `trimOtherSpeakers` INTEGER NOT NULL, `autoSummaryPaused` INTEGER NOT NULL, `includeCharacterExamples` INTEGER NOT NULL DEFAULT 1, `userPersonaId` INTEGER NOT NULL, `inheritCharacterMemory` INTEGER NOT NULL DEFAULT 1, `recallMemoryInNormalChat` INTEGER NOT NULL DEFAULT 0)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `createTime` INTEGER NOT NULL, `latestTime` INTEGER NOT NULL, `userName` TEXT, `userDescription` TEXT, `scenario` TEXT NOT NULL, `userNote` TEXT NOT NULL, `lorebookEntrySet` TEXT NOT NULL, `worldInfoStateJson` TEXT NOT NULL, `systemPromptOverride` TEXT NOT NULL, `groupNudgePromptOverride` TEXT NOT NULL, `newGroupChatPromptOverride` TEXT NOT NULL, `activationStrategy` TEXT NOT NULL, `allowSelfResponses` INTEGER NOT NULL, `characterCardMode` TEXT NOT NULL, `includeMutedCards` INTEGER NOT NULL, `autoModeEnabled` INTEGER NOT NULL, `trimOtherSpeakers` INTEGER NOT NULL, `autoSummaryPaused` INTEGER NOT NULL, `includeCharacterExamples` INTEGER NOT NULL DEFAULT 1, `userPersonaId` INTEGER NOT NULL, `inheritCharacterMemory` INTEGER NOT NULL DEFAULT 1, `recallMemoryInNormalChat` INTEGER NOT NULL DEFAULT 0, `agentEnabled` INTEGER NOT NULL DEFAULT 0, `agentSettingsVersion` INTEGER NOT NULL DEFAULT 0, `agentPromptPresetId` INTEGER, FOREIGN KEY(`agentPromptPresetId`) REFERENCES `prompt_presets`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "id",
@@ -3254,6 +4033,25 @@
             "affinity": "INTEGER",
             "notNull": true,
             "defaultValue": "0"
+          },
+          {
+            "fieldPath": "agentEnabled",
+            "columnName": "agentEnabled",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "agentSettingsVersion",
+            "columnName": "agentSettingsVersion",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "agentPromptPresetId",
+            "columnName": "agentPromptPresetId",
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -3271,6 +4069,28 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_group_chat_sessions_userPersonaId` ON `${TABLE_NAME}` (`userPersonaId`)"
+          },
+          {
+            "name": "index_group_chat_sessions_agentPromptPresetId",
+            "unique": false,
+            "columnNames": [
+              "agentPromptPresetId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_group_chat_sessions_agentPromptPresetId` ON `${TABLE_NAME}` (`agentPromptPresetId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "prompt_presets",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "agentPromptPresetId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
           }
         ]
       },
@@ -4374,7 +5194,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'da07371adb23324e56b22d71262890ec')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a33bc923ea7d26f96b3947e2f7da1927')"
     ]
   }
 }

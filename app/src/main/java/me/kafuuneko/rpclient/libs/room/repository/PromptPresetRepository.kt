@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.prompt.preset.PromptTemplateSnapshot
+import me.kafuuneko.rpclient.libs.prompt.preset.AgentPromptSnapshot
 import me.kafuuneko.rpclient.libs.prompt.preset.PromptType
 import me.kafuuneko.rpclient.libs.memory.MemoryPromptRenderer
 import me.kafuuneko.rpclient.libs.prompt.preset.PortablePromptPreset
@@ -86,6 +87,14 @@ class PromptPresetRepository(private val mDatabase: AppDatabase) {
             includeThinkInContext = AppModel.includeThinkInContext,
         )
     }
+
+    /** 在同一数据库快照捕获基础预设和会话绑定覆盖，删除绑定后跟随全局预设。 */
+    suspend fun getAgentSnapshot(agentPresetId: Long?): AgentPromptSnapshot =
+        mDatabase.withTransaction {
+            val base = getActiveSnapshot()
+            val bound = agentPresetId?.let { mDao.getPreset(it) }
+            AgentPromptSnapshot.resolve(base, bound?.let { readSnapshot(it) } ?: base)
+        }
 
     /**
      * 新建预设，复制来源的覆盖项并保留当前启用的预设。

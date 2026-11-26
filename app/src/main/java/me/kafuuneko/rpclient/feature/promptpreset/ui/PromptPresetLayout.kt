@@ -40,6 +40,7 @@ import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.FilterListOff
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.SmartToy
 import androidx.compose.material.icons.rounded.UnfoldLess
 import androidx.compose.material.icons.rounded.UnfoldMore
 import androidx.compose.material.icons.rounded.Visibility
@@ -738,6 +739,7 @@ private fun PromptPresetCategory.icon(): ImageVector = when (this) {
     PromptPresetCategory.Basic -> Icons.Rounded.Tune
     PromptPresetCategory.Generation -> Icons.Rounded.AutoAwesome
     PromptPresetCategory.Memory -> Icons.Rounded.Compress
+    PromptPresetCategory.Agent -> Icons.Rounded.SmartToy
     PromptPresetCategory.Format -> Icons.Rounded.DataObject
 }
 
@@ -745,6 +747,7 @@ private fun PromptPresetCategory.accentColor(): Color = when (this) {
     PromptPresetCategory.Basic -> AccentIndigoColor
     PromptPresetCategory.Generation -> AccentVioletColor
     PromptPresetCategory.Memory -> AccentEmeraldColor
+    PromptPresetCategory.Agent -> AccentIndigoColor
     PromptPresetCategory.Format -> AccentSkyColor
 }
 

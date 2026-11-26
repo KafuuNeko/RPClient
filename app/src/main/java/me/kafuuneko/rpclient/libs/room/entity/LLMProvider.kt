@@ -11,6 +11,7 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
+import me.kafuuneko.rpclient.libs.llm.model.ToolCallingSetting
 
 /** 持久化的模型配置和默认生成参数。 */
 @Entity(tableName = "llm_providers")
@@ -63,6 +64,9 @@ data class LLMProvider(
     // 图片输入能力的用户设置；Auto 表示按模型目录信息自动判断。
     @ColumnInfo(defaultValue = "'Auto'")
     val imageInputSetting: ImageInputSetting = ImageInputSetting.Auto,
+    // 工具能力独立于图片能力，旧配置保持自动判断。
+    @ColumnInfo(defaultValue = "'Auto'")
+    val toolCallingSetting: ToolCallingSetting = ToolCallingSetting.Auto,
     /** 图片本地预估类别，禁用图片时仍保留选择。 */
     @ColumnInfo(defaultValue = "'Automatic'")
     val imageTokenEstimatorType: ImageTokenEstimatorType = ImageTokenEstimatorType.Automatic,
@@ -98,6 +102,7 @@ fun LLMProvider.toConfig() = LLMProviderConfig(
     sendTopP = sendTopP,
     useServerReportedUsage = useServerReportedUsage,
     imageInputSetting = imageInputSetting,
+    toolCallingSetting = toolCallingSetting,
     imageTokenEstimatorType = imageTokenEstimatorType,
     providerId = id,
 )

@@ -36,6 +36,7 @@ internal fun LLMProvider.toEditForm() = LLMProviderEditForm(
     useServerReportedUsage = useServerReportedUsage,
     promptPostProcessingMode = PromptPostProcessingMode.fromOrdinal(promptPostProcessingMode),
     imageInputSetting = imageInputSetting,
+    toolCallingSetting = toolCallingSetting,
     imageTokenEstimatorType = imageTokenEstimatorType,
     isEnabled = isEnabled,
 )

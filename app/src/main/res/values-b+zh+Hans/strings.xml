@@ -1630,4 +1630,13 @@
     <string name="memory_inherited_disabled_hint">当前会话已关闭继承角色通用记忆。</string>
     <string name="memory_filter_value">%1$s：%2$s</string>
     <string name="memory_override_badge">局部覆盖</string>
+
+    <string name="prompt_category_agent">Agent</string>
+    <string name="prompt_scope_agent">Agent</string>
+    <string name="prompt_agent_instruction">Agent 行动指令</string>
+    <string name="prompt_agent_group_instruction">群聊 Agent 指令</string>
+    <string name="prompt_agent_tool_guidance">工具使用引导</string>
+    <string name="prompt_agent_finalize">最终回复引导</string>
+    <string name="prompt_agent_tool_error_guidance">工具错误处理引导</string>
+    <string name="prompt_agent_compaction_guidance">上下文压缩引导</string>
 </resources>

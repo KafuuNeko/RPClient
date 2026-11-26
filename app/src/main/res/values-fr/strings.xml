@@ -1646,4 +1646,13 @@
     <string name="memory_inherited_disabled_hint">L\'héritage est désactivé pour cette conversation.</string>
     <string name="memory_filter_value">%1$s : %2$s</string>
     <string name="memory_override_badge">Variante locale</string>
+
+    <string name="prompt_category_agent">Agent</string>
+    <string name="prompt_scope_agent">Agent</string>
+    <string name="prompt_agent_instruction">Instructions de l’agent</string>
+    <string name="prompt_agent_group_instruction">Instructions de l’agent en groupe</string>
+    <string name="prompt_agent_tool_guidance">Consignes des outils</string>
+    <string name="prompt_agent_finalize">Consignes de réponse finale</string>
+    <string name="prompt_agent_tool_error_guidance">Consignes en cas d’erreur d’outil</string>
+    <string name="prompt_agent_compaction_guidance">Consignes de compression du contexte</string>
 </resources>

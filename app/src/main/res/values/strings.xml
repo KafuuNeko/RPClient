@@ -1646,4 +1646,13 @@
     <string name="memory_inherited_disabled_hint">Inheritance is turned off for this conversation.</string>
     <string name="memory_filter_value">%1$s: %2$s</string>
     <string name="memory_override_badge">Local override</string>
+
+    <string name="prompt_category_agent">Agent</string>
+    <string name="prompt_scope_agent">Agent</string>
+    <string name="prompt_agent_instruction">Agent instructions</string>
+    <string name="prompt_agent_group_instruction">Group Agent instructions</string>
+    <string name="prompt_agent_tool_guidance">Tool guidance</string>
+    <string name="prompt_agent_finalize">Final reply guidance</string>
+    <string name="prompt_agent_tool_error_guidance">Tool error guidance</string>
+    <string name="prompt_agent_compaction_guidance">Context compaction guidance</string>
 </resources>

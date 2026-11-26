@@ -38,6 +38,21 @@ data class PromptTemplateSnapshot(
     override val groupUserWritingPrompt: String get() = values.getValue(PromptType.GroupUserWriting)
     override val newGroupChatPrompt: String get() = values.getValue(PromptType.NewGroupChat)
     val groupSummarizePrompt: String get() = values.getValue(PromptType.GroupSummarize)
+    val agentInstruction: String
+        get() = values[PromptType.AgentInstruction] ?: PromptType.AgentInstruction.defaultValue
+    val agentGroupInstruction: String
+        get() = values[PromptType.AgentGroupInstruction]
+            ?: PromptType.AgentGroupInstruction.defaultValue
+    val agentToolGuidance: String
+        get() = values[PromptType.AgentToolGuidance] ?: PromptType.AgentToolGuidance.defaultValue
+    val agentFinalize: String
+        get() = values[PromptType.AgentFinalize] ?: PromptType.AgentFinalize.defaultValue
+    val agentToolErrorGuidance: String
+        get() = values[PromptType.AgentToolErrorGuidance]
+            ?: PromptType.AgentToolErrorGuidance.defaultValue
+    val agentCompactionGuidance: String
+        get() = values[PromptType.AgentCompactionGuidance]
+            ?: PromptType.AgentCompactionGuidance.defaultValue
     val storyMainPrompt: String get() = values.getValue(PromptType.StoryMain)
     val storyMemoryTemplate: String get() = values.getValue(PromptType.StoryMemory)
     val storySummaryTemplate: String get() = values.getValue(PromptType.StorySummary)

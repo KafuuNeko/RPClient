@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
+import me.kafuuneko.rpclient.libs.room.repository.SceneStateRepository
+import me.kafuuneko.rpclient.libs.room.repository.AgentRunRepository
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.room.Room
@@ -83,12 +85,14 @@ class MessageImageLifecycleTest {
         chat = ChatRepository(
             mAppDatabase = database,
             mMemory = MemoryRepository(database),
-            mPersonas = UserPersonaRepository(database, files), mGson = Gson(), mImages = images
+            mPersonas = UserPersonaRepository(database, files), mGson = Gson(), mImages = images,
+            mScenes = SceneStateRepository(database, AgentRunRepository(database)),
         )
         group = GroupChatRepository(
             mAppDatabase = database,
             mMemory = MemoryRepository(database),
-            mPersonas = UserPersonaRepository(database, files), mGson = Gson(), mImages = images
+            mPersonas = UserPersonaRepository(database, files), mGson = Gson(), mImages = images,
+            mScenes = SceneStateRepository(database, AgentRunRepository(database)),
         )
         characters = CharacterRepository(
             mAppDatabase = database,

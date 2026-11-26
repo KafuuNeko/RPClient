@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
+import me.kafuuneko.rpclient.libs.room.repository.SceneStateRepository
+import me.kafuuneko.rpclient.libs.room.repository.AgentRunRepository
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -41,6 +43,7 @@ class ChatRepositoryGenerationCommitTest {
                     mAppDatabase = database,
                 ),
             ),
+            mScenes = SceneStateRepository(database, AgentRunRepository(database)),
         )
         val characterId = database.getCharacterDao().insertOrReplace(
             data = Character(

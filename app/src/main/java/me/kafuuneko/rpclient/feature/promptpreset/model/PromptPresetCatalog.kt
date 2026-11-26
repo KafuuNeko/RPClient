@@ -10,6 +10,7 @@ enum class PromptPresetCategory(@param:StringRes val titleRes: Int) {
     Basic(R.string.prompt_category_basic),
     Generation(R.string.prompt_category_generation),
     Memory(R.string.prompt_category_memory),
+    Agent(R.string.prompt_category_agent),
     Format(R.string.prompt_category_format),
 }
 
@@ -18,6 +19,7 @@ enum class PromptPresetScope(@param:StringRes val titleRes: Int) {
     All(R.string.filter_all),
     Chat(R.string.prompt_scope_chat),
     Group(R.string.prompt_scope_group),
+    Agent(R.string.prompt_scope_agent),
     Story(R.string.prompt_scope_story),
 }
 
@@ -27,6 +29,7 @@ enum class PromptPresetSection(
     @param:StringRes val titleRes: Int? = null
 ) {
     Basic(PromptPresetCategory.Basic),
+    Agent(PromptPresetCategory.Agent),
     CharacterContinuation(
         PromptPresetCategory.Generation,
         R.string.prompt_section_character_continuation
@@ -56,6 +59,42 @@ private val storyScope = listOf(PromptPresetScope.Story)
 
 /** 每个字段只归属一个用途分区；适用场景按当前构建器的读取关系声明。 */
 val promptPresetFields = listOf(
+    PromptPresetField(
+        PromptType.AgentInstruction,
+        R.string.prompt_agent_instruction,
+        PromptPresetSection.Agent,
+        chatScopes + PromptPresetScope.Agent
+    ),
+    PromptPresetField(
+        PromptType.AgentGroupInstruction,
+        R.string.prompt_agent_group_instruction,
+        PromptPresetSection.Agent,
+        groupChatScope + PromptPresetScope.Agent
+    ),
+    PromptPresetField(
+        PromptType.AgentToolGuidance,
+        R.string.prompt_agent_tool_guidance,
+        PromptPresetSection.Agent,
+        chatScopes + PromptPresetScope.Agent
+    ),
+    PromptPresetField(
+        PromptType.AgentFinalize,
+        R.string.prompt_agent_finalize,
+        PromptPresetSection.Agent,
+        chatScopes + PromptPresetScope.Agent
+    ),
+    PromptPresetField(
+        PromptType.AgentToolErrorGuidance,
+        R.string.prompt_agent_tool_error_guidance,
+        PromptPresetSection.Agent,
+        chatScopes + PromptPresetScope.Agent
+    ),
+    PromptPresetField(
+        PromptType.AgentCompactionGuidance,
+        R.string.prompt_agent_compaction_guidance,
+        PromptPresetSection.Agent,
+        chatScopes + PromptPresetScope.Agent
+    ),
     PromptPresetField(
         type = PromptType.CharacterMemoryContext,
         titleRes = R.string.prompt_character_memory_context,
@@ -323,6 +362,13 @@ internal fun availableMacros(type: PromptType): List<String> {
 
         PromptType.CharacterMemoryItem -> listOf("{{fact}}", "{{char}}", "{{user}}", "{{group}}")
         PromptType.MemoryExtract -> listOf("{{char}}", "{{user}}", "{{group}}")
+        PromptType.AgentInstruction,
+        PromptType.AgentGroupInstruction,
+        PromptType.AgentToolGuidance,
+        PromptType.AgentFinalize,
+        PromptType.AgentToolErrorGuidance,
+        PromptType.AgentCompactionGuidance -> listOf("{{char}}", "{{user}}", "{{group}}")
+
         PromptType.StoryContinuationGuidance -> listOf("{{guidance}}")
         PromptType.WorldInfoFormat -> listOf("{0}")
         PromptType.DescriptionFormat -> listOf("{{description}}", "{{char}}")

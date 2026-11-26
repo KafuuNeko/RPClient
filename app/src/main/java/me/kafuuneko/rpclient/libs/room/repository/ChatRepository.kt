@@ -1,7 +1,9 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
 import me.kafuuneko.rpclient.libs.memory.MemoryTarget
+import me.kafuuneko.rpclient.libs.AppModel
 import androidx.room.withTransaction
+import me.kafuuneko.rpclient.libs.agent.model.ConversationRef
 import com.google.gson.Gson
 import me.kafuuneko.rpclient.libs.prompt.model.SummaryMode
 import me.kafuuneko.rpclient.libs.room.AppDatabase
@@ -113,7 +115,8 @@ class ChatRepository(
     private val mGson: Gson,
     private val mImages: MessageImageRepository,
     private val mPersonas: UserPersonaRepository,
-    private val mMemory: MemoryRepository
+    private val mMemory: MemoryRepository,
+    private val mScenes: SceneStateRepository,
 ) {
     private val mChatSessionDao = mAppDatabase.getChatSessionDao()
     private val mChatMessageDao = mAppDatabase.getChatMessageDao()
@@ -236,7 +239,10 @@ class ChatRepository(
             mChatSessionDao.update(
                 normalized.copy(
                     inheritCharacterMemory = current.inheritCharacterMemory,
-                    recallMemoryInNormalChat = current.recallMemoryInNormalChat
+                    recallMemoryInNormalChat = current.recallMemoryInNormalChat,
+                    agentEnabled = current.agentEnabled,
+                    agentSettingsVersion = current.agentSettingsVersion,
+                    agentPromptPresetId = current.agentPromptPresetId,
                 )
             )
             session.id
@@ -277,6 +283,7 @@ class ChatRepository(
                     userPersonaId = userPersonaId ?: persona.id,
                     creatorNotes = creatorNotes,
                     includeCharacterExamples = includeCharacterExamples,
+                    agentEnabled = AppModel.defaultAgentEnabled,
                 ),
             )
             // 未选中开场白时只创建会话，不补写空的角色消息。
@@ -411,6 +418,11 @@ class ChatRepository(
                 target = MemoryTarget.Chat(branchSessionId),
                 messages = copiedIdBySourceId,
             )
+            mScenes.copyBranch(
+                ConversationRef.Single(sourceSessionId),
+                ConversationRef.Single(branchSessionId),
+                copiedIdBySourceId
+            )
             branchSessionId
         }
     }
@@ -426,7 +438,10 @@ class ChatRepository(
         mChatSessionDao.update(
             session.withNormalizedCreatorNotes().copy(
                 inheritCharacterMemory = current.inheritCharacterMemory,
-                recallMemoryInNormalChat = current.recallMemoryInNormalChat
+                recallMemoryInNormalChat = current.recallMemoryInNormalChat,
+                agentEnabled = current.agentEnabled,
+                agentSettingsVersion = current.agentSettingsVersion,
+                agentPromptPresetId = current.agentPromptPresetId,
             )
         )
     }
@@ -1477,6 +1492,7 @@ class ChatRepository(
     suspend fun deleteMessage(id: Long) {
         mImages.mutate {
             val message = mChatMessageDao.getMessageById(id) ?: return@mutate
+            mScenes.rollbackFrom(ConversationRef.Single(message.sessionId), message.id)
             mMemory.chatMessageChanged(id, hardDelete = true)
             if (message.source != ChatMessage.Source.Summary) {
                 mChatMessageDao.deleteSummariesCoveringMessage(message.sessionId, message.id)
@@ -1493,6 +1509,7 @@ class ChatRepository(
      */
     suspend fun deleteMessagesBySessionId(sessionId: Long) {
         mImages.mutate {
+            mScenes.rollbackFrom(ConversationRef.Single(sessionId), 1)
             mImages.deleteInTransaction(
                 mutation = this,
                 type = MessageType.Single,

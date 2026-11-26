@@ -1635,4 +1635,13 @@ Gagal: %2$d</string>
     <string name="memory_inherited_disabled_hint">Pewarisan dinonaktifkan untuk percakapan ini.</string>
     <string name="memory_filter_value">%1$s: %2$s</string>
     <string name="memory_override_badge">Penggantian lokal</string>
+
+    <string name="prompt_category_agent">Agen</string>
+    <string name="prompt_scope_agent">Agen</string>
+    <string name="prompt_agent_instruction">Instruksi agen</string>
+    <string name="prompt_agent_group_instruction">Instruksi agen grup</string>
+    <string name="prompt_agent_tool_guidance">Panduan penggunaan alat</string>
+    <string name="prompt_agent_finalize">Panduan balasan akhir</string>
+    <string name="prompt_agent_tool_error_guidance">Panduan kesalahan alat</string>
+    <string name="prompt_agent_compaction_guidance">Panduan pemadatan konteks</string>
 </resources>

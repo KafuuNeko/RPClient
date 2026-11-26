@@ -4,6 +4,8 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
 import java.io.File
+import me.kafuuneko.rpclient.libs.agent.model.AgentRestoreValidator
+import me.kafuuneko.rpclient.libs.room.migration.AgentDatabaseConstraints
 import me.kafuuneko.rpclient.libs.memory.MemoryRestoreValidator
 import me.kafuuneko.rpclient.libs.room.migration.MemoryDatabaseConstraints
 import me.kafuuneko.rpclient.libs.room.AppDatabase
@@ -31,12 +33,14 @@ internal object BackupDatabaseValidator {
             SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY)
                 .use { it.version }
         val candidate = Room.databaseBuilder(context, AppDatabase::class.java, file.path)
-            .addMigrations(PersonaSchemaMigration).addCallback(MemoryDatabaseConstraints).build()
+            .addMigrations(PersonaSchemaMigration).addCallback(MemoryDatabaseConstraints)
+            .addCallback(AgentDatabaseConstraints).build()
         try {
             val db = candidate.openHelper.writableDatabase
             PromptPresetRestore.prepare(context, db, sourceVersion, preferences)
             PromptPresetRestore.preparePersonas(db, preferences)
             MemoryRestoreValidator.validate(db)
+            AgentRestoreValidator.prepareForRestore(db)
             SearchDatabaseCallback.resetAfterRestore(db)
         } finally {
             candidate.close()

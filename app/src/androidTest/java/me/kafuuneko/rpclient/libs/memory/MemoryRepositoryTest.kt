@@ -1,5 +1,7 @@
 package me.kafuuneko.rpclient.libs.memory
 
+import me.kafuuneko.rpclient.libs.room.repository.SceneStateRepository
+import me.kafuuneko.rpclient.libs.room.repository.AgentRunRepository
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -67,8 +69,16 @@ class MemoryRepositoryTest {
             mImages = images,
             mPersonas = personas,
             mMemory = mMemory,
+            mScenes = SceneStateRepository(mDatabase, AgentRunRepository(mDatabase)),
         )
-        mGroupChat = GroupChatRepository(mDatabase, Gson(), images, personas, mMemory)
+        mGroupChat = GroupChatRepository(
+            mDatabase,
+            Gson(),
+            images,
+            personas,
+            mMemory,
+            SceneStateRepository(mDatabase, AgentRunRepository(mDatabase))
+        )
         // 创建同名角色卡、单聊会话和群聊成员基线数据。
         mCharA = mDatabase.getCharacterDao().insertOrReplace(character("Same name"))
         mCharB = mDatabase.getCharacterDao().insertOrReplace(character("Same name"))

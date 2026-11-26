@@ -10,6 +10,10 @@ import me.kafuuneko.rpclient.libs.room.model.MessageType
 /** 群聊会话基本信息的数据库访问接口。 */
 @Dao
 interface GroupChatSessionDao : MutableDao<GroupChatSession> {
+    /** 原子修改 Agent 配置并撤销此前读取的设置版本。 */
+    @Query("UPDATE group_chat_sessions SET agentEnabled = :enabled, agentPromptPresetId = :presetId, agentSettingsVersion = agentSettingsVersion + 1 WHERE id = :id")
+    suspend fun updateAgentSettings(id: Long, enabled: Boolean, presetId: Long?)
+
     /** 仅更新记忆开关，避免会话草稿覆盖其他字段。 */
     @Query("UPDATE group_chat_sessions SET inheritCharacterMemory = :inherit, recallMemoryInNormalChat = :recall WHERE id = :id")
     suspend fun updateMemorySettings(id: Long, inherit: Boolean, recall: Boolean)
