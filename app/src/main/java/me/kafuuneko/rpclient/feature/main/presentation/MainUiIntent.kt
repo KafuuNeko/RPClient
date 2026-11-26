@@ -133,6 +133,8 @@ sealed class MainUiIntent {
 
     data class ToggleStreamEnabled(val enabled: Boolean) : MainUiIntent()
 
+    data class ToggleDefaultAgentEnabled(val enabled: Boolean) : MainUiIntent()
+
     data class SelectPostProcessingMode(val mode: PromptPostProcessingMode) : MainUiIntent()
 
     data class SelectExampleDialogueBehavior(

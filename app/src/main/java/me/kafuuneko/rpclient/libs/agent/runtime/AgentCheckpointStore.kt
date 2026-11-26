@@ -13,6 +13,9 @@ interface AgentCheckpointStore {
     /** 删除已完成运行不再需要的载荷。 */
     suspend fun delete(key: String)
 
+    /** 冷启动仅保留仍有恢复或诊断窗口的载荷，测试存储可使用默认空实现。 */
+    suspend fun prune(retainedKeys: Set<String>) {}
+
     /** 全库恢复后清理本机旧载荷，防止跨库 ID 碰撞。 */
     suspend fun clear()
 }

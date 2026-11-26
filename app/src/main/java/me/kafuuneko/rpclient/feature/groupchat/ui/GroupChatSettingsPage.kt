@@ -54,6 +54,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.agent.model.AgentUiState
+import me.kafuuneko.rpclient.feature.agent.ui.AgentSettingsDialogHost
+import me.kafuuneko.rpclient.feature.agent.ui.AgentSettingsPanel
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMemberItem
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatSettingsState
 import me.kafuuneko.rpclient.feature.groupchat.presentation.GroupChatUiIntent
@@ -90,6 +93,7 @@ internal fun GroupChatSettingsPage(
     state: GroupChatSettingsState,
     members: List<GroupChatMemberItem>,
     emitIntent: (GroupChatUiIntent) -> Unit,
+    agentState: AgentUiState = AgentUiState(),
 ) {
     // 设置草稿仍由页面状态持有，保存按钮和各字段沿用原有意图。
     Column(
@@ -147,6 +151,7 @@ internal fun GroupChatSettingsPage(
                     )
                 }
             }
+            item { AgentSettingsPanel(agentState) { emitIntent(GroupChatUiIntent.AgentAction(it)) } }
             item {
                 SettingsSection(
                     title = stringResource(R.string.group_chat_basic_settings),
@@ -410,6 +415,10 @@ internal fun GroupChatSettingsPage(
             }
         }
     }
+    AgentSettingsDialogHost(
+        state = agentState,
+        emit = { action -> emitIntent(GroupChatUiIntent.AgentAction(action)) },
+    )
 }
 
 @Composable

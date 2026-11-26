@@ -3,6 +3,11 @@ package me.kafuuneko.rpclient.libs.llm.adapter
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.IOException
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
@@ -35,10 +40,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.File
-import java.io.IOException
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 internal val JsonMediaType = "application/json; charset=utf-8".toMediaType()
 
@@ -52,7 +53,7 @@ internal data class LLMHttpRequest(
 /**
  * 执行普通 HTTP 请求并读取完整响应体。
  */
-internal suspend fun OkHttpClient.await(request: Request): String {
+internal suspend fun OkHttpClient.await(request: Request, maxBytes: Int? = null): String {
     val call = newCall(request)
     return suspendCancellableCoroutine { continuation ->
         continuation.invokeOnCancellation { call.cancel() }
@@ -66,7 +67,22 @@ internal suspend fun OkHttpClient.await(request: Request): String {
                     // 读取响应期间的断流或取消也必须恢复挂起调用，不能逸出 OkHttp 回调线程。
                     val result = runCatching {
                         response.use { response ->
-                            val body = response.body?.string().orEmpty()
+                            val body = if (maxBytes == null) response.body?.string()
+                                .orEmpty() else response.body?.byteStream()?.use { input ->
+                                val buffer = ByteArrayOutputStream()
+                                val chunk = ByteArray(8192)
+                                while (buffer.size() <= maxBytes) {
+                                    val count = input.read(
+                                        chunk,
+                                        0,
+                                        minOf(chunk.size, maxBytes + 1 - buffer.size())
+                                    )
+                                    if (count < 0) break
+                                    buffer.write(chunk, 0, count)
+                                }
+                                if (buffer.size() > maxBytes) throw IOException("Model response exceeds size limit")
+                                buffer.toString("UTF-8")
+                            }.orEmpty()
                             if (!response.isSuccessful) {
                                 throw LLMHttpStatusException(
                                     statusCode = response.code,

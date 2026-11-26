@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.libs.llm.catalog
 
 import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
+import me.kafuuneko.rpclient.libs.llm.ToolCallingCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.catalog.model.LLMAvailableModel
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 
@@ -11,10 +12,16 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
  */
 class LLMModelCatalogRepository(
     private val mClientFactory: LLMModelCatalogClientFactory,
-    private val mImageCapabilities: ImageInputCapabilityResolver
+    private val mImageCapabilities: ImageInputCapabilityResolver,
+    private val mToolCapabilities: ToolCallingCapabilityResolver = ToolCallingCapabilityResolver()
 ) {
     suspend fun listModels(provider: LLMProviderConfig): List<LLMAvailableModel> {
         return mClientFactory.create(provider).listModels()
-            .also { mImageCapabilities.record(provider, it) }
+            .also {
+                mImageCapabilities.record(provider, it); mToolCapabilities.record(
+                provider,
+                it
+            )
+            }
     }
 }

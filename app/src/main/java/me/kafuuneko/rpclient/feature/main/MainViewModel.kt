@@ -1519,6 +1519,20 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
         ).setup()
     }
 
+    /** 切换新建单聊与群聊默认是否开启 Agent 模式，不影响既有会话。 */
+    @UiIntentObserver(MainUiIntent.ToggleDefaultAgentEnabled::class)
+    private fun onToggleDefaultAgentEnabled(intent: MainUiIntent.ToggleDefaultAgentEnabled) {
+        val uiState = getOrNull<MainUiState.Normal>() ?: return
+        AppModel.defaultAgentEnabled = intent.enabled
+        uiState.copy(
+            settingsState = uiState.settingsState.copy(
+                promptBehaviorState = uiState.settingsState.promptBehaviorState.copy(
+                    defaultAgentEnabled = intent.enabled,
+                ),
+            ),
+        ).setup()
+    }
+
     /** 修改世界书占上下文总量的百分比上限预算。 */
     @UiIntentObserver(MainUiIntent.ChangeWorldInfoBudgetPercent::class)
     private fun onChangeWorldInfoBudgetPercent(intent: MainUiIntent.ChangeWorldInfoBudgetPercent) {
@@ -1769,6 +1783,7 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
                 maxHistoryMessages = AppModel.maxPromptHistoryMessages.coerceAtLeast(0),
                 contextTrimmingAlert = AppModel.contextTrimmingAlert,
                 streamEnabled = AppModel.streamEnabled,
+                defaultAgentEnabled = AppModel.defaultAgentEnabled,
             ),
             worldInfoBudgetState = MainWorldInfoBudgetState(
                 budgetPercent = AppModel.worldInfoBudgetPercent.coerceIn(

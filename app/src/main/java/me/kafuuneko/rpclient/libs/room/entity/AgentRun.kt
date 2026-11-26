@@ -47,12 +47,16 @@ data class AgentRun(
     val executionEpoch: Long,
     val createdAt: Long,
     val updatedAt: Long,
+    val batchId: String? = null,
     val activeMillis: Long = 0,
     val toolRounds: Int = 0,
     val toolCalls: Int = 0,
     val modelRequests: Int = 0,
     val totalTokens: Long = 0,
     val checkpointKey: String? = null,
+    val checkpointDigest: String? = null,
+    val messageId: Long? = null,
+    val outcomeCode: String? = null,
     val expiresAt: Long? = null,
 )
 

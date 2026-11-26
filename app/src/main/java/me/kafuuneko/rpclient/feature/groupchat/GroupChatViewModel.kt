@@ -12,8 +12,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -23,9 +23,10 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.memoryedit.MemoryEditActivity
-import me.kafuuneko.rpclient.libs.memory.MemoryRetriever
-import me.kafuuneko.rpclient.libs.memory.MemoryTarget
+import me.kafuuneko.rpclient.feature.agent.AgentUiCoordinator
+import me.kafuuneko.rpclient.feature.agent.model.AgentSettingsDialog
+import me.kafuuneko.rpclient.feature.agent.model.AgentUiAction
+import me.kafuuneko.rpclient.feature.agent.model.AgentUiState
 import me.kafuuneko.rpclient.feature.groupchat.GroupChatViewModel.Companion.AUTO_MODE_DELAY_MS
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatAvailableCharacterItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
@@ -56,11 +57,16 @@ import me.kafuuneko.rpclient.feature.groupchat.utils.macroContext
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.main.MainActivity
 import me.kafuuneko.rpclient.feature.main.model.Route
-import me.kafuuneko.rpclient.model.GenerationFailureAction
-import me.kafuuneko.rpclient.model.noProviderModelSettingsGuide
-import me.kafuuneko.rpclient.model.toGenerationFailurePresentation
+import me.kafuuneko.rpclient.feature.memoryedit.MemoryEditActivity
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.agent.model.ConversationRef
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentRunManager
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentTurnInput
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentWaitingForUser
+import me.kafuuneko.rpclient.libs.agent.runtime.ChatAgentRuntime
+import me.kafuuneko.rpclient.libs.agent.runtime.ConversationGenerationActivityRegistry
+import me.kafuuneko.rpclient.libs.agent.runtime.GroupChatAgentRuntime
 import me.kafuuneko.rpclient.libs.appearance.BackgroundPage
 import me.kafuuneko.rpclient.libs.appearance.PageBackgroundProvider
 import me.kafuuneko.rpclient.libs.chat.ImpersonationOutput
@@ -76,10 +82,10 @@ import me.kafuuneko.rpclient.libs.groupchat.GroupChatPromptContext
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSpeakerSelector
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatSummaryPromptBuilder
 import me.kafuuneko.rpclient.libs.groupchat.cardMembers
-import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatMessageSource
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookEntryItem
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatLorebookGroupItem
+import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatMessageSource
 import me.kafuuneko.rpclient.libs.groupchat.model.toEntity
 import me.kafuuneko.rpclient.libs.groupchat.model.toGroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.toGroupChatCharacterCardMode
@@ -89,19 +95,24 @@ import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.ImageRequestException
 import me.kafuuneko.rpclient.libs.llm.ImageRequestFailure
 import me.kafuuneko.rpclient.libs.llm.LLMEmptyResponseException
-import me.kafuuneko.rpclient.libs.llm.LLMResponseException
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
+import me.kafuuneko.rpclient.libs.llm.LLMResponseException
+import me.kafuuneko.rpclient.libs.llm.ToolCallingCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
-import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
+import me.kafuuneko.rpclient.libs.llm.model.ToolCallingSetting
+import me.kafuuneko.rpclient.libs.llm.model.UnsupportedToolCalling
 import me.kafuuneko.rpclient.libs.llm.model.isOutputIncomplete
+import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
 import me.kafuuneko.rpclient.libs.macro.MacroExpansionException
 import me.kafuuneko.rpclient.libs.media.CharacterAvatarLoader
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.media.MessageImageCoordinator
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
+import me.kafuuneko.rpclient.libs.memory.MemoryRetriever
+import me.kafuuneko.rpclient.libs.memory.MemoryTarget
 import me.kafuuneko.rpclient.libs.prompt.macro.resolveCharacterUserMacros
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
@@ -121,6 +132,7 @@ import me.kafuuneko.rpclient.libs.regex.ScopedRegexScript
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.room.entity.UserPersona
 import me.kafuuneko.rpclient.libs.room.entity.toConfig
 import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
@@ -139,13 +151,15 @@ import me.kafuuneko.rpclient.libs.room.repository.GroupChatSummaryGenerationData
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
-import me.kafuuneko.rpclient.libs.room.entity.UserPersona
 import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.model.ChatWritingState
+import me.kafuuneko.rpclient.model.GenerationFailureAction
 import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 import me.kafuuneko.rpclient.model.SummaryEditorState
-import me.kafuuneko.rpclient.model.toUiState
+import me.kafuuneko.rpclient.model.noProviderModelSettingsGuide
+import me.kafuuneko.rpclient.model.toGenerationFailurePresentation
 import me.kafuuneko.rpclient.model.toMessageContentParts
+import me.kafuuneko.rpclient.model.toUiState
 import me.kafuuneko.rpclient.utils.MessageEditPolicy
 import me.kafuuneko.rpclient.utils.formatTimestamp
 import me.kafuuneko.rpclient.utils.matchesCharacterQuery
@@ -177,6 +191,129 @@ class GroupChatViewModel :
         GroupChatUiState.None
     ), KoinComponent {
     // 数据仓库与服务依赖注入
+    private val mGenerationActivities by inject<ConversationGenerationActivityRegistry>()
+    private val mAgentCoordinator by inject<AgentUiCoordinator>()
+    private val mAgentManager by inject<AgentRunManager>()
+    private val mAgentRuntime by inject<GroupChatAgentRuntime>()
+    private val mToolCapabilities by inject<ToolCallingCapabilityResolver>()
+    private var mAgentBatchEnabled = false
+    private var mAgentRemainingSpeakers: List<Long> = emptyList()
+    private var mAgentPanelState = AgentUiState()
+    private var mAgentObservation: Job? = null
+
+    /** 订阅低频运行摘要，页面刷新不会丢失按运行 ID 保存的展开态。 */
+    private fun observeAgent(sessionId: Long) {
+        mAgentObservation?.cancel()
+        mAgentObservation = viewModelScope.launch {
+            launch {
+                mAgentCoordinator.progress(ConversationRef.Group(sessionId)).collect {
+                    updateAgentPanel(
+                        mAgentCoordinator.withProgress(
+                            ConversationRef.Group(sessionId),
+                            mAgentPanelState
+                        )
+                    )
+                }
+            }
+            mAgentCoordinator.observe(ConversationRef.Group(sessionId)).collect {
+                val next = withContext(Dispatchers.IO) {
+                    mAgentCoordinator.load(
+                        ConversationRef.Group(sessionId),
+                        mAgentPanelState,
+                    )
+                }
+                updateAgentPanel(next, preserveLocalUi = true)
+            }
+        }
+    }
+
+    /** 同步根状态及页面私有快照，后台刷新时保留本地展开态、输入草稿和已打开的配置弹窗。 */
+    private fun updateAgentPanel(state: AgentUiState, preserveLocalUi: Boolean = false) {
+        // 后台读取期间用户可能正在切换展开态、输入回答或编辑设置弹窗，发布时必须保留最新本地状态。
+        val next = if (preserveLocalUi) {
+            state.copy(
+                expandedRunIds = mAgentPanelState.expandedRunIds,
+                settingsDialog = mAgentPanelState.settingsDialog,
+                answerDraft = mAgentPanelState.answerDraft,
+            )
+        } else {
+            state
+        }
+        mAgentPanelState = next
+        getOrNull<GroupChatUiState.Normal>()?.let { it.copy(agentState = next).setup() }
+    }
+
+    /** Agent 控件经同一个宿主意图入口分发，长运行使用独立的生成 Job。 */
+    @UiIntentObserver(GroupChatUiIntent.AgentAction::class)
+    private suspend fun onAgentAction(intent: GroupChatUiIntent.AgentAction) {
+        val ui = getOrNull<GroupChatUiState.Normal>() ?: return
+        val sessionId = mSessionId ?: return
+        val action = intent.action
+        mAgentCoordinator.local(ui.agentState, action)?.let { updateAgentPanel(it); return }
+        if (action is AgentUiAction.SubmitAnswer) {
+            if (mGenerationJob?.isActive == true) return
+            val draft = mAgentPanelState.answerDraft
+            val waitingSpeakerId = ui.agentState.tasks.firstOrNull { it.waiting }?.characterId
+            val speakerName = ui.members.firstOrNull { it.id == waitingSpeakerId }?.name ?: ui.title
+            mAgentBatchEnabled = true
+            // 恢复运行立即进入生成态，使输入栏停止按钮和顶栏状态同步生效。
+            ui.copy(
+                agentState = mAgentPanelState.copy(errorRes = null),
+                conversationState = ui.conversationState.copy(
+                    generationState = GroupChatGenerationState.Generating(
+                        speakerName = speakerName,
+                        current = 1,
+                        total = 1,
+                    ),
+                ),
+            ).setup()
+            mGenerationJob = viewModelScope.launch {
+                var handledFailure = false
+                try {
+                    mAgentRuntime.resume(sessionId, draft, action.confirmed)
+                } catch (_: AgentWaitingForUser) {
+                    // 新提问继续挂起，不将正常等待显示成生成失败。
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    handledFailure = true
+                    presentGenerationFailure(
+                        sessionId = sessionId,
+                        throwable = error,
+                        fallbackMessageResId = R.string.generation_failed,
+                    )
+                } finally {
+                    withContext(NonCancellable) {
+                        mAgentPanelState = mAgentPanelState.copy(answerDraft = "")
+                        if (!handledFailure) {
+                            refreshState(generationState = GroupChatGenerationState.Idle)
+                        }
+                        updateAgentPanel(
+                            state = mAgentCoordinator.load(
+                                ConversationRef.Group(sessionId),
+                                mAgentPanelState,
+                            ),
+                            preserveLocalUi = true,
+                        )
+                    }
+                }
+            }
+            return
+        }
+        try {
+            val next = withContext(Dispatchers.IO) {
+                mAgentCoordinator.update(
+                    ConversationRef.Group(sessionId), ui.agentState, action
+                )
+            }
+            updateAgentPanel(next)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            updateAgentPanel(mAgentPanelState.copy(errorRes = R.string.agent_invalid_settings))
+        }
+    }
+
     private val mPersonas by inject<UserPersonaRepository>()
     private val mMemoryRetriever by inject<MemoryRetriever>()
     private val mPromptPresets by inject<PromptPresetRepository>()
@@ -291,6 +428,24 @@ class GroupChatViewModel :
         throwable: Throwable,
         fallbackMessageResId: Int,
     ) {
+        if (throwable is AgentWaitingForUser) {
+            clearReplyRetry()
+            refreshState(generationState = GroupChatGenerationState.Idle)
+            return
+        }
+        if (throwable is UnsupportedToolCalling) {
+            clearReplyRetry()
+            if (throwable.models.isEmpty()) AppViewEvent.PopupToastMessageByResId(R.string.agent_unsupported)
+                .tryEmit()
+            else AppViewEvent.PopupToastMessage(
+                mContext.getString(
+                    R.string.agent_unsupported_models,
+                    throwable.models.joinToString(", ")
+                )
+            ).tryEmit()
+            refreshState(generationState = GroupChatGenerationState.Idle)
+            return
+        }
         val failure = throwable.toGenerationFailurePresentation(
             context = mContext,
             fallbackMessageResId = fallbackMessageResId,
@@ -553,6 +708,7 @@ class GroupChatViewModel :
             applyLoadedContext(loaded)
             mSummaryEditor = loaded.summaryEditor
             loaded.state.setup()
+            observeAgent(sessionId)
         }
     }
 
@@ -733,6 +889,7 @@ class GroupChatViewModel :
             return
         }
         // 等待首次读取或生成任务退出，再发布保留当前画面的结束态。
+        mSessionId?.let { mAgentCoordinator.leaveActive(ConversationRef.Group(it)) }
         mInitialLoadJob?.cancelAndJoin()
         mGenerationJob?.cancelAndJoin()
         clearReplyRetry()
@@ -745,11 +902,18 @@ class GroupChatViewModel :
      * 打开群聊设置页面（[GroupChatPage.Settings]）。
      */
     @UiIntentObserver(GroupChatUiIntent.OpenSettings::class)
-    private fun onOpenSettings() {
+    private suspend fun onOpenSettings() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (uiState.page != GroupChatPage.Conversation) return
         if (uiState.dialogState.isBlocking() || mGenerationJob?.isCompleted == false) return
-        uiState.copy(page = GroupChatPage.Settings).setup()
+        updateAgentPanel(withContext(Dispatchers.IO) {
+            mAgentCoordinator.load(
+                ConversationRef.Group(
+                    requireNotNull(mSessionId)
+                ), mAgentPanelState, settings = true
+            )
+        })
+        uiState.copy(agentState = mAgentPanelState, page = GroupChatPage.Settings).setup()
     }
 
     /** 打开当前群聊会话的世界书快捷管理对话框。 */
@@ -1257,6 +1421,9 @@ class GroupChatViewModel :
      */
     @UiIntentObserver(GroupChatUiIntent.OpenPromptInspector::class)
     private fun onOpenPromptInspector() {
+        if (mAgentBatchEnabled) mSessionId?.let {
+            mAgentManager.inspection(ConversationRef.Group(it))?.let(::recordPromptInspection)
+        }
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
         if (uiState.dialogState.isBlocking()) return
         val inspection = mLastPromptInspection
@@ -1327,6 +1494,7 @@ class GroupChatViewModel :
 
     /** 丢弃设置草稿并刷新回群聊对话页，保留对话页原有输入草稿与已选发言人。 */
     private suspend fun closeSettingsWithoutSaving(uiState: GroupChatUiState.Normal) {
+        mAgentPanelState = mAgentPanelState.copy(settingsDialog = AgentSettingsDialog.None)
         refreshState(
             page = GroupChatPage.Conversation,
             inputDraft = uiState.conversationState.inputDraft,
@@ -1470,6 +1638,7 @@ class GroupChatViewModel :
                 return
             }
             val sessionId = mSessionId ?: return
+            mAgentCoordinator.stopActive(ConversationRef.Group(sessionId))
             if (mImageCoordinator.state.loadState.isBusy) return
             clearReplyRetry()
             val images = mImageCoordinator.draftInputs()
@@ -1601,6 +1770,7 @@ class GroupChatViewModel :
      * @param draft 可空的未发送文字快照，null 表示输出到历史记录。
      */
     private suspend fun runUserImpersonation(sessionId: Long, memberId: Long, draft: String?) {
+        mAgentBatchEnabled = false
         try {
             val templates = mPromptPresets.getActiveSnapshot()
             val prepared = prepareGroupRequest(
@@ -1609,14 +1779,13 @@ class GroupChatViewModel :
             ) { members -> members.first { it.character.id == memberId } }
             recordPromptInspection(prepared.result.inspection)
             // 输入框模式不产生持久化轮次，也不推进摘要和世界书时序。
-            if (draft != null) {
-                generateUserDraft(sessionId, prepared, draft)
-            } else {
-                generateUserMessage(sessionId, prepared)
-                if (AppModel.autoSummaryEnabled) {
-                    refreshState(generationState = GroupChatGenerationState.Impersonating())
-                    maybeAutoSummarize(sessionId, templates)
-                }
+            mGenerationActivities.withActivity(ConversationRef.Group(sessionId)) {
+                if (draft != null) generateUserDraft(sessionId, prepared, draft)
+                else generateUserMessage(sessionId, prepared)
+            }
+            if (draft == null && AppModel.autoSummaryEnabled) {
+                refreshState(generationState = GroupChatGenerationState.Impersonating())
+                maybeAutoSummarize(sessionId, templates)
             }
             refreshState(generationState = GroupChatGenerationState.Idle)
         } catch (error: CancellationException) {
@@ -1759,6 +1928,7 @@ class GroupChatViewModel :
     @UiIntentObserver(GroupChatUiIntent.StopGeneration::class)
     private suspend fun onStopGeneration() {
         val uiState = getOrNull<GroupChatUiState.Normal>() ?: return
+        mSessionId?.let { mAgentCoordinator.stopActive(ConversationRef.Group(it)) }
         val generation = uiState.conversationState.generationState
         if (generation !is GroupChatGenerationState.Generating &&
             generation !is GroupChatGenerationState.Impersonating
@@ -2096,6 +2266,9 @@ class GroupChatViewModel :
                 }
             }
             // 持续显示保存进度，刷新标题、策略与摘要基线后才切换到后续操作。
+            if (page == GroupChatPage.Conversation) {
+                mAgentPanelState = mAgentPanelState.copy(settingsDialog = AgentSettingsDialog.None)
+            }
             refreshState(
                 page = page,
                 dialogState = GroupChatDialogState.Saving,
@@ -2857,6 +3030,12 @@ class GroupChatViewModel :
         clearReplyRetry()
         mGenerationJob = viewModelScope.launch {
             runCatching {
+                mAgentCoordinator.stopActive(ConversationRef.Group(sessionId))
+                mAgentBatchEnabled =
+                    mGroupChatRepository.getSessionById(sessionId)?.agentEnabled == true && generationMode != GroupChatGenerationMode.Continue
+                var agentBatches = 0
+                val agentStarted = System.nanoTime()
+
                 var completedTemplates: PromptTemplateSnapshot? = null
                 var batchPersona = initialPersona ?: mPersonas.resolve(
                     mGroupChatRepository.getSessionById(sessionId)
@@ -2869,6 +3048,15 @@ class GroupChatViewModel :
                 var batchIsPartialReplacement = isPartialReplacement
                 // 循环处理待发言角色列表（支持单批次及 AutoMode 自动追加的多轮批次）
                 while (pendingSpeakers.isNotEmpty()) {
+                    if (mAgentBatchEnabled) {
+                        val policy = mAgentCoordinator.policy(ConversationRef.Group(sessionId))
+                        if (++agentBatches > policy.maxAutoBatches || (System.nanoTime() - agentStarted) / 1_000_000 >= policy.maxGroupActiveMillis) {
+                            AppViewEvent.PopupToastMessageByResId(R.string.agent_group_limit)
+                                .tryEmit()
+                            break
+                        }
+                    }
+
                     completedTemplates = generateReplyBatch(
                         batch = ReplyRetryContext(
                             sessionId = sessionId,
@@ -2947,10 +3135,18 @@ class GroupChatViewModel :
         val batchId = UUID.randomUUID().toString()
         var mode = batch.generationMode
         mReplyRetryContext = batch
+        if (mAgentBatchEnabled) {
+            val unsupported =
+                batch.speakers.map { mProviderSelectionResolver.requireCharacterProvider(it.character) }
+                    .filter { mToolCapabilities.resolve(it.toConfig()) == ToolCallingSetting.Disabled }
+                    .map { it.model }.distinct()
+            if (unsupported.isNotEmpty()) throw UnsupportedToolCalling(unsupported)
+        }
         preflightImageSpeakers(batch.sessionId, batch.speakers, batch.triggerUserMessageId)
         // 特殊模式与原位覆盖目标只属于当前队列首位角色，推进后续角色时必须清空。
         batch.speakers.forEachIndexed { index, speaker ->
             currentCoroutineContext().ensureActive()
+            mAgentRemainingSpeakers = batch.speakers.drop(index + 1).map { it.character.id }
             val activeReplacingReply = if (index == 0) batch.replacingReply else null
             generateSpeakerReply(
                 persona = batch.persona,
@@ -3039,71 +3235,109 @@ class GroupChatViewModel :
         ) { speaker }
         val data = prepared.data
         recordPromptInspection(prepared.result.inspection)
-        // 重生成复用原消息的展示位置，普通发言才创建占位记录。
-        mStreamingOriginalReply = replacingReply
-        mStreamingMessageId = replacingReply?.id ?: withContext(Dispatchers.IO) {
-            mGroupChatRepository.createMessage(
-                sessionId = sessionId,
-                source = GroupChatMessage.Source.Character,
-                content = "",
-                speakerCharacterId = speaker.character.id,
-                speakerNameSnapshot = speaker.character.name,
-                generationBatchId = batchId,
+        if (mAgentBatchEnabled && generationMode in setOf(
+                GroupChatGenerationMode.Normal,
+                GroupChatGenerationMode.Regenerate
             )
+        ) {
+            mAgentRuntime.run(
+                AgentTurnInput(
+                    conversation = ConversationRef.Group(sessionId),
+                    characterId = speaker.character.id,
+                    personaId = data.persona.id,
+                    provider = prepared.provider,
+                    request = prepared.result.request,
+                    drafts = prepared.result.retainedDrafts,
+                    templates = templates,
+                    scripts = prepared.scripts,
+                    macros = prepared.macros,
+                    worldInfoStateJson = prepared.result.worldInfoStateJson,
+                    replacingMessageId = replacingReply?.id,
+                    speakerName = speaker.character.name,
+                    otherSpeakerNames = data.members.map { it.character.name }
+                        .filterNot { it == speaker.character.name },
+                    trimOtherSpeakers = data.session.trimOtherSpeakers,
+                    batchId = batchId,
+                    remainingSpeakers = mAgentRemainingSpeakers,
+                    streaming = AppModel.streamEnabled
+                )
+            )
+            refreshState(
+                generationState = GroupChatGenerationState.Generating(
+                    speaker.character.name,
+                    current,
+                    total
+                )
+            )
+            return
         }
-        mStreamingContent = ""
-        mStreamingRegexScripts = prepared.scripts
-        mStreamingRegexMacros = prepared.macros
-        mStreamingRegexApplied = false
-        // 更新 UI 为当前角色的生成中状态
-        refreshState(
-            generationState = GroupChatGenerationState.Generating(
-                speakerName = speaker.character.name,
-                current = current,
-                total = total,
-            ),
-        )
-        // 分发执行流式或非流式大模型调用
-        val streaming = AppModel.streamEnabled
-        collectGroupResponse(sessionId, prepared, streaming) { content ->
-            mStreamingContent = content
-            if (streaming) updateStreamingState(content)
-        }
-        // 清洗模型可能冒充其他成员发言的内容并应用截断策略
-        val sanitizedPart = mOutputSanitizer.sanitize(
-            content = mStreamingContent,
-            currentSpeakerName = speaker.character.name,
-            otherSpeakerNames = data.members
-                .map { it.character.name }
-                .filterNot { it == speaker.character.name },
-            trimOtherSpeakers = data.session.trimOtherSpeakers,
-        )
-        // 执行持久化前的 Source 阶段正则
-        val regexedPart = mRegexProcessor.applyAiResponse(
-            input = sanitizedPart,
-            scripts = mStreamingRegexScripts,
-            macros = mStreamingRegexMacros,
-        )
-        mStreamingContent = regexedPart
-        mStreamingRegexApplied = true
-        // 持久化最终内容并更新世界书激活快照
-        val persisted = persistOrDeleteStreamingMessage(completed = true) != null
-        if (persisted && regexedPart.isNotBlank()) {
-            withContext(Dispatchers.IO) {
-                mGroupChatRepository.updateWorldInfoState(
+        mGenerationActivities.withActivity(ConversationRef.Group(sessionId)) {
+            // 重生成复用原消息的展示位置，普通发言才创建占位记录。
+            mStreamingOriginalReply = replacingReply
+            mStreamingMessageId = replacingReply?.id ?: withContext(Dispatchers.IO) {
+                mGroupChatRepository.createMessage(
                     sessionId = sessionId,
-                    stateJson = prepared.result.worldInfoStateJson,
+                    source = GroupChatMessage.Source.Character,
+                    content = "",
+                    speakerCharacterId = speaker.character.id,
+                    speakerNameSnapshot = speaker.character.name,
+                    generationBatchId = batchId,
                 )
             }
+            mStreamingContent = ""
+            mStreamingRegexScripts = prepared.scripts
+            mStreamingRegexMacros = prepared.macros
+            mStreamingRegexApplied = false
+            // 更新 UI 为当前角色的生成中状态
+            refreshState(
+                generationState = GroupChatGenerationState.Generating(
+                    speakerName = speaker.character.name,
+                    current = current,
+                    total = total,
+                ),
+            )
+            // 分发执行流式或非流式大模型调用
+            val streaming = AppModel.streamEnabled
+            collectGroupResponse(sessionId, prepared, streaming) { content ->
+                mStreamingContent = content
+                if (streaming) updateStreamingState(content)
+            }
+            // 清洗模型可能冒充其他成员发言的内容并应用截断策略
+            val sanitizedPart = mOutputSanitizer.sanitize(
+                content = mStreamingContent,
+                currentSpeakerName = speaker.character.name,
+                otherSpeakerNames = data.members
+                    .map { it.character.name }
+                    .filterNot { it == speaker.character.name },
+                trimOtherSpeakers = data.session.trimOtherSpeakers,
+            )
+            // 执行持久化前的 Source 阶段正则
+            val regexedPart = mRegexProcessor.applyAiResponse(
+                input = sanitizedPart,
+                scripts = mStreamingRegexScripts,
+                macros = mStreamingRegexMacros,
+            )
+            mStreamingContent = regexedPart
+            mStreamingRegexApplied = true
+            // 持久化最终内容并更新世界书激活快照
+            val persisted = persistOrDeleteStreamingMessage(completed = true) != null
+            if (persisted && regexedPart.isNotBlank()) {
+                withContext(Dispatchers.IO) {
+                    mGroupChatRepository.updateWorldInfoState(
+                        sessionId = sessionId,
+                        stateJson = prepared.result.worldInfoStateJson,
+                    )
+                }
+            }
+            // 刷新 UI
+            refreshState(
+                generationState = GroupChatGenerationState.Generating(
+                    speakerName = speaker.character.name,
+                    current = current,
+                    total = total,
+                ),
+            )
         }
-        // 刷新 UI
-        refreshState(
-            generationState = GroupChatGenerationState.Generating(
-                speakerName = speaker.character.name,
-                current = current,
-                total = total,
-            ),
-        )
     }
 
     /**
@@ -3328,6 +3562,8 @@ class GroupChatViewModel :
      * @param sessionId 会话 ID
      */
     private suspend fun maybeAutoSummarize(sessionId: Long, templates: PromptTemplateSnapshot?) {
+        if (mAgentBatchEnabled) return
+
         if (!AppModel.autoSummaryEnabled) return
         val shouldSummarize = withContext(Dispatchers.IO) {
             val session = mGroupChatRepository.getSessionById(sessionId) ?: return@withContext false
@@ -3349,6 +3585,15 @@ class GroupChatViewModel :
      * @param templates 调用方固定的预设快照，省略时读取当前预设。
      */
     private suspend fun summarizeSession(
+        sessionId: Long,
+        manual: Boolean,
+        templates: PromptTemplateSnapshot? = null,
+    ) = mGenerationActivities.withActivity(ConversationRef.Group(sessionId)) {
+        summarizeSessionOrdinary(sessionId, manual, templates)
+    }
+
+    /** 普通摘要仍使用原始历史选择、草稿和提交规则，租约只负责阻止跨页并发。 */
+    private suspend fun summarizeSessionOrdinary(
         sessionId: Long,
         manual: Boolean,
         templates: PromptTemplateSnapshot? = null
@@ -4129,6 +4374,7 @@ class GroupChatViewModel :
             latestMessageId = pageData.latestMessageId,
         )
         val state = GroupChatUiState.Normal(
+            agentState = mAgentPanelState,
             imageState = mImageCoordinator.state,
             sessionId = sessionId,
             title = data.session.title,

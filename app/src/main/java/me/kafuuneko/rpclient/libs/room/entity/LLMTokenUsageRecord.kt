@@ -89,5 +89,8 @@ data class LLMTokenUsageRecord(
     val durationMs: Long,
 
     /** 服务端上报的缓存写入 Token 数；服务端未提供或旧记录无法还原时为空。 */
-    val cacheCreationInputTokens: Long? = null
+    val cacheCreationInputTokens: Long? = null,
+
+    /** Agent 请求所属运行；普通生成保持为空。 */
+    val agentRunId: String? = null
 )

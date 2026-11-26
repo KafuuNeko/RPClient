@@ -1,12 +1,17 @@
 package me.kafuuneko.rpclient.libs.llm
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.LLMToolGenerationRequest
+import me.kafuuneko.rpclient.libs.llm.model.LLMToolStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.LLMToolTurn
+import me.kafuuneko.rpclient.libs.llm.model.UnsupportedToolCalling
 
 /**
  * LLM 通用调用接口。
@@ -14,6 +19,14 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
  * 所有在线模型服务都必须适配到这个接口，业务层只依赖这里的非流式与流式两种能力。
  */
 interface LLMClient {
+    /** 独立原生工具轮次；未适配客户端必须显式失败。 */
+    suspend fun generateToolTurn(request: LLMToolGenerationRequest): LLMToolTurn =
+        throw UnsupportedToolCalling()
+
+    /** 工具流在正常协议终态后才产生可执行调用。 */
+    fun streamToolTurn(request: LLMToolGenerationRequest): Flow<LLMToolStreamEvent> =
+        flow { throw UnsupportedToolCalling() }
+
     /**
      * 一次性生成。等待模型完成后返回完整文本。
      */

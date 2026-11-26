@@ -11,6 +11,7 @@ import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentDataLifecycle
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFiles.copyDirectory
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFiles.copyFile
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFiles.extractArchive
@@ -41,7 +42,8 @@ class PortableBackupRepository(
     private val mDatabase: AppDatabase,
     private val mRequestLogDatabase: RequestLogDatabase,
     private val mLegacyRepository: BackupArchiveRepository,
-    private val mGson: Gson = Gson()
+    private val mGson: Gson = Gson(),
+    private val mAgentLifecycle: AgentDataLifecycle? = null,
 ) {
 
     /**
@@ -257,7 +259,7 @@ class PortableBackupRepository(
         }
 
     /** v3 恢复：文件内容是唯一事实来源，读取后重建数据库并移除缺少父记录的行。 */
-    private fun restoreV3(stage: File, rollback: File, report: BackupReport) {
+    private suspend fun restoreV3(stage: File, rollback: File, report: BackupReport) {
         val primarySchemaFile = File(stage, "app-data/database-schema.json")
         val logsSchemaFile = File(stage, "app-data/request-log-schema.json")
         require(primarySchemaFile.isFile) { "app-data/database-schema.json is missing." }
@@ -318,7 +320,7 @@ class PortableBackupRepository(
     }
 
     /** 校验两个暂存库，再通过统一替换器保存快照并覆盖全部数据。 */
-    private fun replaceLiveData(
+    private suspend fun replaceLiveData(
         rollback: File,
         stagedPrimary: File,
         stagedLogs: File,
@@ -332,6 +334,7 @@ class PortableBackupRepository(
         // 先在暂存库执行正常迁移；不兼容的新版本不能进入覆盖流程。
         BackupDatabaseValidator.preparePrimaryForRestore(mContext, stagedPrimary, stagedPrefs)
         BackupDatabaseValidator.validateLogs(mContext, stagedLogs)
+        mAgentLifecycle?.beforeRestore()
         BackupDataReplacer.replace(
             rollback, listOf(
                 BackupReplacement(
@@ -351,5 +354,6 @@ class PortableBackupRepository(
             mDatabase.close()
             mRequestLogDatabase.close()
         }
+        mAgentLifecycle?.afterRestore()
     }
 }

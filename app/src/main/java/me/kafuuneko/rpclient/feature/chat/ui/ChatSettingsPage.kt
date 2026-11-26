@@ -30,6 +30,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.agent.model.AgentUiState
+import me.kafuuneko.rpclient.feature.agent.ui.AgentSettingsDialogHost
+import me.kafuuneko.rpclient.feature.agent.ui.AgentSettingsPanel
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLoadState
 import me.kafuuneko.rpclient.feature.chat.presentation.ChatLorebookState
@@ -64,6 +67,7 @@ internal fun ChatSettingsPage(
     loadState: ChatLoadState,
     showCharacterExamplesSwitch: Boolean,
     emit: ChatUiIntent.() -> Unit,
+    agentState: AgentUiState = AgentUiState(),
 ) {
     // 草稿由 ViewModel 持有，列表项移出视口或页面恢复都不会丢失输入。
     Column(
@@ -126,6 +130,7 @@ internal fun ChatSettingsPage(
                     )
                 }
             }
+            item { AgentSettingsPanel(agentState) { ChatUiIntent.AgentAction(it).emit() } }
             item {
                 SettingsSection(title = stringResource(R.string.session)) {
                     if (showCharacterExamplesSwitch) {
@@ -259,6 +264,10 @@ internal fun ChatSettingsPage(
             }
         }
     }
+    AgentSettingsDialogHost(
+        state = agentState,
+        emit = { action -> ChatUiIntent.AgentAction(action).emit() },
+    )
 }
 
 /** 将单聊世界书分组转换为设置页通用世界书展示模型。 */

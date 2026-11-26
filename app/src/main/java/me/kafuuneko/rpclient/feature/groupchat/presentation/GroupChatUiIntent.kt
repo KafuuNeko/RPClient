@@ -1,11 +1,14 @@
 package me.kafuuneko.rpclient.feature.groupchat.presentation
 
+import me.kafuuneko.rpclient.feature.agent.model.AgentUiAction
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatActivationStrategy
 import me.kafuuneko.rpclient.libs.groupchat.model.GroupChatCharacterCardMode
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
 
 /** 群聊页面可接收的全部用户意图和生命周期事件。 */
 sealed class GroupChatUiIntent {
+    data class AgentAction(val action: AgentUiAction) : GroupChatUiIntent()
+
     data object OpenMemory : GroupChatUiIntent()
 
     data class ChangeUserName(val value: String) : GroupChatUiIntent()

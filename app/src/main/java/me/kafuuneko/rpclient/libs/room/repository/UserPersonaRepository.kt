@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
 import androidx.room.withTransaction
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentDataLifecycle
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
@@ -14,7 +15,8 @@ import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
  */
 class UserPersonaRepository(
     private val mDatabase: AppDatabase,
-    private val mFiles: FileRepository
+    private val mFiles: FileRepository,
+    private val mAgentLifecycle: AgentDataLifecycle? = null,
 ) {
     private val mDao = mDatabase.getUserPersonaDao()
 
@@ -116,23 +118,26 @@ class UserPersonaRepository(
      * @param id 待删除的人设 ID。
      * @return 是否删除了指定身份。
      */
-    suspend fun delete(id: Long): Boolean = mFiles.mutate {
-        // 先确定替代默认项，保证解绑和删除期间默认指针始终有效。
-        val persona = mDao.find(id) ?: return@mutate false
-        val wasDefault = mDao.active().id == id
-        if (wasDefault) {
-            val replacement =
-                mDao.list().firstOrNull { it.id != id }?.id ?: mDao.insert(UserPersona())
-            select(replacement)
-        }
+    suspend fun delete(id: Long): Boolean {
+        mAgentLifecycle?.beforePersonaDelete(id)
+        return mFiles.mutate {
+            // 先确定替代默认项，保证解绑和删除期间默认指针始终有效。
+            val persona = mDao.find(id) ?: return@mutate false
+            val wasDefault = mDao.active().id == id
+            if (wasDefault) {
+                val replacement =
+                    mDao.list().firstOrNull { it.id != id }?.id ?: mDao.insert(UserPersona())
+                select(replacement)
+            }
 
-        // 会话保留原发言者姓名，故事切换为不注入；最后交还独立的头像 UUID。
-        mDao.detachChats(id, persona.name, wasDefault)
-        mDao.detachGroups(id, persona.name, wasDefault)
-        mDao.detachStories(id)
-        mDao.delete(id)
-        persona.avatarFileUuid?.let { removeFiles(listOf(it)) }
-        true
+            // 会话保留原发言者姓名，故事切换为不注入；最后交还独立的头像 UUID。
+            mDao.detachChats(id, persona.name, wasDefault)
+            mDao.detachGroups(id, persona.name, wasDefault)
+            mDao.detachStories(id)
+            mDao.delete(id)
+            persona.avatarFileUuid?.let { removeFiles(listOf(it)) }
+            true
+        }
     }
 
     /**

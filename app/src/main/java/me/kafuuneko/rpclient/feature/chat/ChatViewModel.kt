@@ -20,10 +20,11 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.libs.memory.MemoryRetriever
-import me.kafuuneko.rpclient.libs.memory.MemoryTarget
+import me.kafuuneko.rpclient.feature.agent.AgentUiCoordinator
+import me.kafuuneko.rpclient.feature.agent.model.AgentSettingsDialog
+import me.kafuuneko.rpclient.feature.agent.model.AgentUiAction
+import me.kafuuneko.rpclient.feature.agent.model.AgentUiState
 import me.kafuuneko.rpclient.feature.characteredit.CharacterEditActivity
-import me.kafuuneko.rpclient.feature.memoryedit.MemoryEditActivity
 import me.kafuuneko.rpclient.feature.chat.model.ActiveStreamingGeneration
 import me.kafuuneko.rpclient.feature.chat.model.AutoSummaryData
 import me.kafuuneko.rpclient.feature.chat.model.BuiltGenerationRequest
@@ -34,9 +35,9 @@ import me.kafuuneko.rpclient.feature.chat.model.ChatMessageDisplayContext
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
 import me.kafuuneko.rpclient.feature.chat.model.ChatReplyRetryTarget
 import me.kafuuneko.rpclient.feature.chat.model.GenerationOutput
+import me.kafuuneko.rpclient.feature.chat.model.GenerationRegexContext
 import me.kafuuneko.rpclient.feature.chat.model.LoadedChatMessagePage
 import me.kafuuneko.rpclient.feature.chat.model.PreparedSummaryRequest
-import me.kafuuneko.rpclient.feature.chat.model.GenerationRegexContext
 import me.kafuuneko.rpclient.feature.chat.model.filterForQuery
 import me.kafuuneko.rpclient.feature.chat.model.hasCreatorNotesChange
 import me.kafuuneko.rpclient.feature.chat.model.hasUnsavedChanges
@@ -63,11 +64,16 @@ import me.kafuuneko.rpclient.feature.chat.utils.toChatSettingsState
 import me.kafuuneko.rpclient.feature.llmproviderlist.LLMProviderListActivity
 import me.kafuuneko.rpclient.feature.main.MainActivity
 import me.kafuuneko.rpclient.feature.main.model.Route
-import me.kafuuneko.rpclient.model.GenerationFailureAction
-import me.kafuuneko.rpclient.model.noProviderModelSettingsGuide
-import me.kafuuneko.rpclient.model.toGenerationFailurePresentation
+import me.kafuuneko.rpclient.feature.memoryedit.MemoryEditActivity
 import me.kafuuneko.rpclient.feature.worldbooklist.WorldBookListActivity
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.agent.model.ConversationRef
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentRunManager
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentTurnInput
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentWaitingForUser
+import me.kafuuneko.rpclient.libs.agent.runtime.ChatAgentRuntime
+import me.kafuuneko.rpclient.libs.agent.runtime.ConversationGenerationActivityRegistry
+import me.kafuuneko.rpclient.libs.agent.runtime.GroupChatAgentRuntime
 import me.kafuuneko.rpclient.libs.appearance.PageBackgroundProvider
 import me.kafuuneko.rpclient.libs.chat.ChatArchiveRepository
 import me.kafuuneko.rpclient.libs.chat.ImpersonationOutput
@@ -80,14 +86,18 @@ import me.kafuuneko.rpclient.libs.llm.GenerationFailure
 import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
 import me.kafuuneko.rpclient.libs.llm.LLMResponseException
+import me.kafuuneko.rpclient.libs.llm.ToolCallingCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.classifyGenerationFailure
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.UnsupportedToolCalling
 import me.kafuuneko.rpclient.libs.llm.model.isOutputIncomplete
 import me.kafuuneko.rpclient.libs.llm.model.isOutputTokenLimitReached
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
 import me.kafuuneko.rpclient.libs.media.MessageImageCoordinator
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
+import me.kafuuneko.rpclient.libs.memory.MemoryRetriever
+import me.kafuuneko.rpclient.libs.memory.MemoryTarget
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
@@ -110,11 +120,12 @@ import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
 import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
 import me.kafuuneko.rpclient.libs.room.entity.ChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.room.entity.UserPersona
 import me.kafuuneko.rpclient.libs.room.entity.toConfig
 import me.kafuuneko.rpclient.libs.room.model.MessageImageInput
 import me.kafuuneko.rpclient.libs.room.model.MessageWithImages
-import me.kafuuneko.rpclient.libs.room.model.SummaryDraftContext
 import me.kafuuneko.rpclient.libs.room.model.SummaryDraftConflictException
+import me.kafuuneko.rpclient.libs.room.model.SummaryDraftContext
 import me.kafuuneko.rpclient.libs.room.model.SummaryDraftVersion
 import me.kafuuneko.rpclient.libs.room.model.SummaryVersion
 import me.kafuuneko.rpclient.libs.room.model.withDependency
@@ -126,11 +137,13 @@ import me.kafuuneko.rpclient.libs.room.repository.FileRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
-import me.kafuuneko.rpclient.libs.room.entity.UserPersona
 import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.model.ChatWritingState
+import me.kafuuneko.rpclient.model.GenerationFailureAction
 import me.kafuuneko.rpclient.model.MessageHistoryLoadState
 import me.kafuuneko.rpclient.model.SummaryEditorState
+import me.kafuuneko.rpclient.model.noProviderModelSettingsGuide
+import me.kafuuneko.rpclient.model.toGenerationFailurePresentation
 import me.kafuuneko.rpclient.model.toUiState
 import me.kafuuneko.rpclient.utils.MessageEditPolicy
 import me.kafuuneko.rpclient.utils.formatTimestamp
@@ -158,6 +171,125 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     ChatUiState.None
 ), KoinComponent {
     // 数据仓库与领域服务注入
+    private val mGenerationActivities by inject<ConversationGenerationActivityRegistry>()
+    private val mAgentCoordinator by inject<AgentUiCoordinator>()
+    private val mAgentManager by inject<AgentRunManager>()
+    private val mAgentRuntime by inject<ChatAgentRuntime>()
+    private val mToolCapabilities by inject<ToolCallingCapabilityResolver>()
+    private var mLastGenerationUsedAgent = false
+    private var mAgentPanelState = AgentUiState()
+    private var mAgentObservation: Job? = null
+
+    /** 订阅低频运行摘要，页面刷新不会丢失按运行 ID 保存的展开态。 */
+    private fun observeAgent(sessionId: Long) {
+        mAgentObservation?.cancel()
+        mAgentObservation = viewModelScope.launch {
+            launch {
+                mAgentCoordinator.progress(ConversationRef.Single(sessionId)).collect {
+                    updateAgentPanel(
+                        mAgentCoordinator.withProgress(
+                            ConversationRef.Single(sessionId),
+                            mAgentPanelState
+                        )
+                    )
+                }
+            }
+            mAgentCoordinator.observe(ConversationRef.Single(sessionId)).collect {
+                val next = withContext(Dispatchers.IO) {
+                    mAgentCoordinator.load(
+                        ConversationRef.Single(sessionId),
+                        mAgentPanelState,
+                    )
+                }
+                updateAgentPanel(next, preserveLocalUi = true)
+            }
+        }
+    }
+
+    /** 同步根状态及页面私有快照，后台刷新时保留本地展开态、输入草稿和已打开的配置弹窗。 */
+    private fun updateAgentPanel(state: AgentUiState, preserveLocalUi: Boolean = false) {
+        // 后台读取期间用户可能正在切换展开态、输入回答或编辑设置弹窗，发布时必须保留最新本地状态。
+        val next = if (preserveLocalUi) {
+            state.copy(
+                expandedRunIds = mAgentPanelState.expandedRunIds,
+                settingsDialog = mAgentPanelState.settingsDialog,
+                answerDraft = mAgentPanelState.answerDraft,
+            )
+        } else {
+            state
+        }
+        mAgentPanelState = next
+        getOrNull<ChatUiState.Normal>()?.let { it.copy(agentState = next).setup() }
+    }
+
+    /** Agent 控件经同一个宿主意图入口分发，长运行使用独立的生成 Job。 */
+    @UiIntentObserver(ChatUiIntent.AgentAction::class)
+    private suspend fun onAgentAction(intent: ChatUiIntent.AgentAction) {
+        val ui = getOrNull<ChatUiState.Normal>() ?: return
+        val sessionId = mSessionId ?: return
+        val action = intent.action
+        mAgentCoordinator.local(ui.agentState, action)?.let { updateAgentPanel(it); return }
+        if (action is AgentUiAction.SubmitAnswer) {
+            if (mGenerationJob?.isActive == true) return
+            val draft = mAgentPanelState.answerDraft
+            mLastGenerationUsedAgent = true
+            // 恢复运行立即进入请求态，使输入栏停止按钮和顶栏状态同步生效。
+            ui.copy(
+                agentState = mAgentPanelState.copy(errorRes = null),
+                conversationState = ui.conversationState.copy(
+                    generationState = ChatGenerationState.Requesting,
+                ),
+            ).setup()
+            mGenerationJob = viewModelScope.launch {
+                var handledFailure = false
+                try {
+                    mAgentRuntime.resume(sessionId, draft, action.confirmed)
+                } catch (_: AgentWaitingForUser) {
+                    // 新提问继续挂起，不将正常等待显示成生成失败。
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    handledFailure = true
+                    presentGenerationFailure(
+                        sessionId = sessionId,
+                        throwable = error,
+                        fallbackMessageResId = R.string.generation_failed,
+                    )
+                } finally {
+                    withContext(NonCancellable) {
+                        mAgentPanelState = mAgentPanelState.copy(answerDraft = "")
+                        if (!handledFailure) {
+                            refreshUiState(
+                                sessionId = sessionId,
+                                generationState = ChatGenerationState.Idle,
+                            )
+                        }
+                        updateAgentPanel(
+                            state = mAgentCoordinator.load(
+                                ConversationRef.Single(sessionId),
+                                mAgentPanelState,
+                            ),
+                            preserveLocalUi = true,
+                        )
+                    }
+                }
+            }
+            return
+        }
+        try {
+            val next = withContext(Dispatchers.IO) {
+                mAgentCoordinator.update(
+                    ConversationRef.Single(sessionId), ui.agentState, action
+                )
+            }
+            updateAgentPanel(next)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            updateAgentPanel(mAgentPanelState.copy(errorRes = R.string.agent_invalid_settings))
+        }
+    }
+
     private var mRetryTarget: ChatReplyRetryTarget? = null
 
     /** 重试当前失败弹窗对应的生成任务；流式中断产生残缺回复时原位覆盖，不另起新气泡。 */
@@ -293,6 +425,24 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         fallbackMessageResId: Int,
         inputDraft: String? = null,
     ) {
+        if (throwable is AgentWaitingForUser) {
+            clearReplyRetry()
+            refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Idle)
+            return
+        }
+        if (throwable is UnsupportedToolCalling) {
+            clearReplyRetry()
+            if (throwable.models.isEmpty()) AppViewEvent.PopupToastMessageByResId(R.string.agent_unsupported)
+                .tryEmit()
+            else AppViewEvent.PopupToastMessage(
+                mContext.getString(
+                    R.string.agent_unsupported_models,
+                    throwable.models.joinToString(", ")
+                )
+            ).tryEmit()
+            refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Idle)
+            return
+        }
         val failure = throwable.toGenerationFailurePresentation(
             context = mContext,
             fallbackMessageResId = fallbackMessageResId,
@@ -535,6 +685,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             // 完整会话状态准备好后再开放交互。
             mSummaryEditor = loaded.summaryEditor
             loaded.state.setup()
+            observeAgent(sessionId)
         }
     }
 
@@ -751,6 +902,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             return
         }
         // 等待读取和生成任务退出，防止结束态被迟到的结果覆盖。
+        mSessionId?.let { mAgentCoordinator.leaveActive(ConversationRef.Single(it)) }
         mInitialLoadJob?.cancelAndJoin()
         cancelActiveGeneration()
         ChatUiState.finished(uiStateFlow.value).setup()
@@ -817,6 +969,16 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         mGenerationJob = viewModelScope.launch {
             var committed = false
             runCatching {
+                mAgentCoordinator.stopActive(ConversationRef.Single(sessionId))
+                if (mChatRepository.getSessionById(sessionId)?.agentEnabled == true) {
+                    val character =
+                        requireNotNull(mCharacterRepository.getCharacterById(uiState.character.id))
+                    mToolCapabilities.requireSupported(
+                        mProviderSelectionResolver.requireCharacterProvider(
+                            character
+                        ).toConfig()
+                    )
+                }
                 // 在任何输入转换之前固定身份，读取失败也走发送流程的错误处理。
                 val persona = mPersonas.resolveChat(sessionId) ?: return@runCatching
                 // 已知不支持时保留草稿，防止先清空输入后才发现模型能力不足。
@@ -925,6 +1087,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @return 若有活跃任务被取消返回 true，否则返回 false
      */
     private suspend fun cancelActiveGeneration(): Boolean {
+        mSessionId?.let { mAgentCoordinator.stopActive(ConversationRef.Single(it)) }
         clearReplyRetry()
         val job = mGenerationJob ?: return false
         if (job.isCompleted) return false
@@ -1034,16 +1197,18 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 )
             }
             recordPromptInspection(built.inspection)
-            mWritingRuntime.generate(
-                provider = built.provider,
-                request = built.request,
-                routingSessionKey = "chat:$sessionId",
-                streaming = streaming,
-            ).collect { progress ->
-                currentCoroutineContext().ensureActive()
-                if (mActiveWritingToken !== token) return@collect
-                hasBody = progress.body.isNotBlank()
-                updateUserWriting(originalDraft, progress)
+            mGenerationActivities.withActivity(ConversationRef.Single(sessionId)) {
+                mWritingRuntime.generate(
+                    provider = built.provider,
+                    request = built.request,
+                    routingSessionKey = "chat:$sessionId",
+                    streaming = streaming,
+                ).collect { progress ->
+                    currentCoroutineContext().ensureActive()
+                    if (mActiveWritingToken !== token) return@collect
+                    hasBody = progress.body.isNotBlank()
+                    updateUserWriting(originalDraft, progress)
+                }
             }
             if (!hasBody) {
                 failureDialog =
@@ -1518,12 +1683,20 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * 切换至单聊设置页面（[ChatPage.Settings]）。
      */
     @UiIntentObserver(ChatUiIntent.OpenChatSettings::class)
-    private fun onOpenChatSettings() {
+    private suspend fun onOpenChatSettings() {
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         if (uiState.page != ChatPage.Conversation) return
         if (mGenerationJob?.isCompleted == false || mSummaryJob?.isActive == true) return
         if (uiState.dialogState.isBlocking()) return
+        updateAgentPanel(withContext(Dispatchers.IO) {
+            mAgentCoordinator.load(
+                ConversationRef.Single(
+                    requireNotNull(mSessionId)
+                ), mAgentPanelState, settings = true
+            )
+        })
         uiState.copy(
+            agentState = mAgentPanelState,
             page = ChatPage.Settings,
             settingsState = uiState.session.toChatSettingsState(
                 inheritedCreatorNotes = uiState.character.creatorNotes,
@@ -1537,6 +1710,13 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      */
     @UiIntentObserver(ChatUiIntent.OpenPromptInspector::class)
     private fun onOpenPromptInspector() {
+        if (mLastGenerationUsedAgent) mSessionId?.let {
+            mAgentManager.inspection(
+                ConversationRef.Single(
+                    it
+                )
+            )?.let(::recordPromptInspection)
+        }
         val uiState = getOrNull<ChatUiState.Normal>() ?: return
         if (uiState.dialogState.isBlocking() || mSummaryJob?.isActive == true) return
         val inspection = mLastPromptInspection
@@ -1589,6 +1769,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
 
     /** 重新加载已保存设置后切回对话，保留聊天输入草稿。 */
     private suspend fun closeSettingsWithoutSaving(uiState: ChatUiState.Normal) {
+        mAgentPanelState = mAgentPanelState.copy(settingsDialog = AgentSettingsDialog.None)
         refreshUiState(
             sessionId = uiState.session.id,
             page = ChatPage.Conversation,
@@ -1980,6 +2161,9 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
                 }
             }
             // 导出不离开设置页，也必须重建已保存基线，避免返回时再次询问保存。
+            if (page == ChatPage.Conversation) {
+                mAgentPanelState = mAgentPanelState.copy(settingsDialog = AgentSettingsDialog.None)
+            }
             refreshUiState(
                 sessionId = state.session.id,
                 page = page,
@@ -2567,11 +2751,56 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
      * @param built Prompt、模型与本次生成共用的正则宏快照
      * @param output 生成输出目标描述（创建新消息或更新已有消息）
      */
+    /** 将只读生成快照交给运行层；后续正文与提案提交不依赖页面回调。 */
+    private suspend fun generateAgentReply(
+        sessionId: Long,
+        built: BuiltGenerationRequest,
+        output: GenerationOutput
+    ) {
+        mAgentRuntime.run(
+            AgentTurnInput(
+                conversation = ConversationRef.Single(sessionId),
+                characterId = requireNotNull(mChatRepository.getSessionById(sessionId)).characterId,
+                personaId = built.persona.id,
+                provider = built.provider,
+                request = built.request,
+                drafts = built.retainedDrafts,
+                templates = built.templates,
+                scripts = built.regex.scripts,
+                macros = built.regex.macros,
+                worldInfoStateJson = built.worldInfoStateJson,
+                replacingMessageId = (output as? GenerationOutput.Update)?.messageId,
+                streaming = AppModel.streamEnabled
+            )
+        )
+        refreshUiState(sessionId = sessionId, generationState = ChatGenerationState.Idle)
+    }
+
     private suspend fun generateOnce(
+        sessionId: Long,
+        built: BuiltGenerationRequest,
+        output: GenerationOutput
+    ) {
+        mLastGenerationUsedAgent = built.agentEligible && output.source() == ChatMessage.Source.Char
+        if (mLastGenerationUsedAgent) {
+            generateAgentReply(sessionId, built, output)
+            return
+        }
+        mGenerationActivities.withActivity(ConversationRef.Single(sessionId)) {
+            generateOnceOrdinary(
+                sessionId,
+                built,
+                output
+            )
+        }
+    }
+
+    private suspend fun generateOnceOrdinary(
         sessionId: Long,
         built: BuiltGenerationRequest,
         output: GenerationOutput,
     ) {
+
         // 异步调用模型生成完整响应
         val response = withContext(Dispatchers.IO) {
             mLLMRepository.generateWithProvider(
@@ -2628,8 +2857,28 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
     private suspend fun generateStreaming(
         sessionId: Long,
         built: BuiltGenerationRequest,
+        output: GenerationOutput
+    ) {
+        mLastGenerationUsedAgent = built.agentEligible && output.source() == ChatMessage.Source.Char
+        if (mLastGenerationUsedAgent) {
+            generateAgentReply(sessionId, built, output)
+            return
+        }
+        mGenerationActivities.withActivity(ConversationRef.Single(sessionId)) {
+            generateStreamingOrdinary(
+                sessionId,
+                built,
+                output
+            )
+        }
+    }
+
+    private suspend fun generateStreamingOrdinary(
+        sessionId: Long,
+        built: BuiltGenerationRequest,
         output: GenerationOutput,
     ) {
+
         // 构建活跃流式生成状态跟踪对象
         val token = Any()
         var active = ActiveStreamingGeneration(
@@ -2760,7 +3009,14 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             // 启动新的总结协程任务
             viewModelScope.launch {
                 try {
-                    summarizeSession(sessionId, manual, templates, persona)
+                    mGenerationActivities.withActivity(ConversationRef.Single(sessionId)) {
+                        summarizeSession(
+                            sessionId,
+                            manual,
+                            templates,
+                            persona
+                        )
+                    }
                 } finally {
                     // 收尾处理：若弹窗仍处于“总结中”状态，则安全关闭弹窗
                     withContext(NonCancellable) {
@@ -2791,6 +3047,8 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         templates: PromptTemplateSnapshot,
         persona: UserPersona,
     ) {
+        if (mLastGenerationUsedAgent) return
+
         // 只重新检查摘要触发条件，人设沿用已完成回复的快照。
         if (!AppModel.autoSummaryEnabled) return
         val shouldSummarize = withContext(Dispatchers.IO) {
@@ -3412,6 +3670,11 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
             )
         }
         return BuiltGenerationRequest(
+            agentEligible = session.agentEnabled && generationMode in setOf(
+                PromptGenerationMode.Normal,
+                PromptGenerationMode.Regenerate
+            ) && summaryInstruction == null && userWritingDraft == null,
+            retainedDrafts = buildResult.retainedDrafts,
             persona = persona,
             regex = GenerationRegexContext(
                 scripts = regexScripts,
@@ -3543,6 +3806,7 @@ class ChatViewModel : CoreViewModelWithEvent<ChatUiIntent, ChatUiState>(
         )
         // 状态与编辑基线一起返回，由主线程决定是否替换当前草稿。
         val state = ChatUiState.Normal(
+            agentState = mAgentPanelState,
             imageState = mImageCoordinator.state,
             page = page,
             loadState = loadState,

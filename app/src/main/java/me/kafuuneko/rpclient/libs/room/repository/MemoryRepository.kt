@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.libs.room.repository
 
 import androidx.room.withTransaction
+import java.util.UUID
 import kotlinx.coroutines.flow.map
 import me.kafuuneko.rpclient.libs.memory.MemoryConflictException
 import me.kafuuneko.rpclient.libs.memory.MemoryDraft
@@ -19,7 +20,6 @@ import me.kafuuneko.rpclient.libs.room.entity.MemoryContent
 import me.kafuuneko.rpclient.libs.room.entity.MemoryFields
 import me.kafuuneko.rpclient.libs.room.entity.MemoryRevisionFields
 import me.kafuuneko.rpclient.libs.room.entity.MemorySourceFields
-import java.util.UUID
 
 /** 目标标题、合法私有读者和实际人设，供编辑器及授权共同使用。 */
 data class MemoryTargetInfo(
@@ -176,6 +176,21 @@ class MemoryRepository(private val mDatabase: AppDatabase) {
         draft: MemoryDraft,
         ref: MemoryRef? = null,
         expectedRevision: Long = 0,
+    ): MemoryEntry = saveInternal(target, draft, ref, expectedRevision)
+
+    /** 由工具层提供已经核验的消息证据，避免把模型写入冒充用户手动确认。 */
+    internal suspend fun saveAgent(
+        target: MemoryTarget, draft: MemoryDraft, ref: MemoryRef?, expectedRevision: Long,
+        evidence: List<MemorySourceFields>,
+    ): MemoryEntry {
+        require(evidence.isNotEmpty()) { "Agent memory requires evidence" }
+        evidence.forEach(MemoryWriteValidator::validateSource)
+        return saveInternal(target, draft, ref, expectedRevision, evidence)
+    }
+
+    private suspend fun saveInternal(
+        target: MemoryTarget, draft: MemoryDraft, ref: MemoryRef?, expectedRevision: Long,
+        agentEvidence: List<MemorySourceFields>? = null,
     ): MemoryEntry = mDatabase.withTransaction {
         // 前置校验目标、受众、版本号及身份不可在普通编辑中隐式更改。
         require(ref != null || expectedRevision == 0L) { "New memory cannot have a revision" }
@@ -238,14 +253,27 @@ class MemoryRepository(private val mDatabase: AppDatabase) {
         val confirmsBody = old == null ||
             old.fields.content.body != draft.body ||
             (old.fields.content.status != MemoryStatus.Active.name && draft.status == MemoryStatus.Active)
-        val evidence = if (confirmsBody) listOf(userEvidence(now)) else existingSources
+        // 同一事实的工具 upsert 合并独立证据；正文修正仍使用本次新依据。
+        val evidence = if (agentEvidence != null) {
+            val retained = existingSources.filter { it.valid }
+                .takeIf { old?.fields?.content?.body == draft.body && draft.status == MemoryStatus.Active }
+                .orEmpty()
+            (retained + agentEvidence).distinctBy {
+                listOf(
+                    it.sourceKind,
+                    it.sourceKey,
+                    it.fingerprint,
+                    it.quote
+                )
+            }
+        } else if (confirmsBody) listOf(userEvidence(now)) else existingSources
         appendRevision(
             dao = dao,
             id = id,
             fields = fields,
             boundary = boundary(target),
             sources = evidence,
-            origin = "UserEdit",
+            origin = if (agentEvidence == null) "UserEdit" else "AgentTool",
             overrideUuid = overrideEntry?.fields?.uuid,
         )
         requireNotNull(dao.get(id))
@@ -722,6 +750,18 @@ class MemoryRepository(private val mDatabase: AppDatabase) {
                 excludedGroupId = excludedGroup,
             )
             .filterNot { it.ref.id in overridden }
+    }
+
+    /** 模型可见的会话及继承记忆，先在 SQL 层按实际发言者与人设过滤。 */
+    internal suspend fun visibleToAgent(
+        target: MemoryTarget,
+        speakerId: Long,
+        personaId: Long
+    ): List<MemoryEntry> = mDatabase.withTransaction {
+        val info = targetInfo(target)
+        require(info.personaId == personaId && info.characters.any { it.id == speakerId }) { "Invalid memory reader" }
+        val local = store(target).eligible(target.id, personaId, speakerId, 0, 0)
+        local + if (info.inherit) inherited(target, speakerId, personaId) else emptyList()
     }
 
     /**

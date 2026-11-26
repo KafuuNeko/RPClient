@@ -1,7 +1,7 @@
 package me.kafuuneko.rpclient.feature.groupchat.presentation
 
 import androidx.compose.ui.graphics.ImageBitmap
-import me.kafuuneko.rpclient.model.ModelSettingsGuideContent
+import me.kafuuneko.rpclient.feature.agent.model.AgentUiState
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatAvailableCharacterItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMemberItem
@@ -14,6 +14,7 @@ import me.kafuuneko.rpclient.libs.media.MessageImageState
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 import me.kafuuneko.rpclient.model.MessageHistoryLoadState
+import me.kafuuneko.rpclient.model.ModelSettingsGuideContent
 import me.kafuuneko.rpclient.model.SummaryEditorUiState
 
 /** 群聊页面状态树，统一承载会话、成员、消息、设置草稿和生成状态。 */
@@ -32,6 +33,7 @@ sealed class GroupChatUiState {
      * [dialogState] 统一表达设置保存、分支创建、会话删除与手动摘要的进度。
      */
     data class Normal(
+        val agentState: AgentUiState = AgentUiState(),
         val imageState: MessageImageState = MessageImageState(),
         /** 当前操作关联的会话 ID。 */
         val sessionId: Long,

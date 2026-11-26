@@ -2,21 +2,33 @@ package me.kafuuneko.rpclient
 
 import android.app.Application
 import android.content.Context
-import java.io.File
-import me.kafuuneko.rpclient.libs.agent.runtime.AgentCheckpointStore
-import me.kafuuneko.rpclient.libs.agent.runtime.FileAgentCheckpointStore
-import me.kafuuneko.rpclient.libs.agent.tool.ToolRegistry
-import me.kafuuneko.rpclient.libs.agent.tool.ToolExecutor
-import me.kafuuneko.rpclient.libs.room.migration.AgentDatabaseConstraints
-import me.kafuuneko.rpclient.libs.room.repository.AgentRunRepository
-import me.kafuuneko.rpclient.libs.room.repository.SceneStateRepository
 import androidx.room.Room
 import com.chibatching.kotpref.Kotpref
 import com.google.gson.Gson
+import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import me.kafuuneko.rpclient.feature.agent.AgentUiCoordinator
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentApplicationScope
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentCheckpointCodec
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentCheckpointStore
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentDataLifecycle
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentProgressStore
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentPromptComposer
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentReplyCommitter
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentRunManager
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentRuntime
+import me.kafuuneko.rpclient.libs.agent.runtime.ChatAgentRuntime
+import me.kafuuneko.rpclient.libs.agent.runtime.ConversationGenerationActivityRegistry
+import me.kafuuneko.rpclient.libs.agent.runtime.FileAgentCheckpointStore
+import me.kafuuneko.rpclient.libs.agent.runtime.GroupChatAgentRuntime
+import me.kafuuneko.rpclient.libs.agent.tool.AgentTool
+import me.kafuuneko.rpclient.libs.agent.tool.ToolExecutor
+import me.kafuuneko.rpclient.libs.agent.tool.ToolRegistry
+import me.kafuuneko.rpclient.libs.agent.tool.builtin.BuiltinAgentTools
 import me.kafuuneko.rpclient.libs.appearance.BackgroundImageRuntime
 import me.kafuuneko.rpclient.libs.appearance.DialogAppearanceManager
 import me.kafuuneko.rpclient.libs.appearance.PageBackgroundProvider
@@ -37,17 +49,21 @@ import me.kafuuneko.rpclient.libs.json.JsonExportRepository
 import me.kafuuneko.rpclient.libs.llm.ImageInputCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.LLMClientFactory
 import me.kafuuneko.rpclient.libs.llm.LLMProviderSelectionResolver
+import me.kafuuneko.rpclient.libs.llm.ToolCallingCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogClientFactory
 import me.kafuuneko.rpclient.libs.llm.catalog.LLMModelCatalogRepository
 import me.kafuuneko.rpclient.libs.llm.image.ImageTokenEstimatorRegistry
 import me.kafuuneko.rpclient.libs.media.ImageCropCodec
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
+import me.kafuuneko.rpclient.libs.memory.MemoryRetriever
+import me.kafuuneko.rpclient.libs.memory.MemoryTransferRepository
 import me.kafuuneko.rpclient.libs.prompt.ChatPromptBuilder
 import me.kafuuneko.rpclient.libs.prompt.FormattedHistoryBuilder
 import me.kafuuneko.rpclient.libs.prompt.macro.PromptMacroResolver
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
 import me.kafuuneko.rpclient.libs.prompt.preset.PromptPreferences
+import me.kafuuneko.rpclient.libs.prompt.preset.PromptPresetTransferRepository
 import me.kafuuneko.rpclient.libs.prompt.preset.PromptTemplateSnapshot
 import me.kafuuneko.rpclient.libs.prompt.request.PromptRequestFinalizer
 import me.kafuuneko.rpclient.libs.prompt.request.PromptTokenizerRegistry
@@ -60,8 +76,11 @@ import me.kafuuneko.rpclient.libs.regex.RegexScriptRepository
 import me.kafuuneko.rpclient.libs.regex.RegexScriptRuntime
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
+import me.kafuuneko.rpclient.libs.room.migration.AgentDatabaseConstraints
 import me.kafuuneko.rpclient.libs.room.migration.MemoryDatabaseConstraints
 import me.kafuuneko.rpclient.libs.room.migration.PersonaSchemaMigration
+import me.kafuuneko.rpclient.libs.room.repository.AgentLocalDataRepository
+import me.kafuuneko.rpclient.libs.room.repository.AgentRunRepository
 import me.kafuuneko.rpclient.libs.room.repository.CharacterRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.ContentSearchRepository
@@ -71,13 +90,11 @@ import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMTokenUsageRepository
 import me.kafuuneko.rpclient.libs.room.repository.LorebookRepository
+import me.kafuuneko.rpclient.libs.room.repository.MemoryRepository
 import me.kafuuneko.rpclient.libs.room.repository.MessageImageRepository
 import me.kafuuneko.rpclient.libs.room.repository.PageBackgroundRepository
-import me.kafuuneko.rpclient.libs.room.repository.MemoryRepository
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
-import me.kafuuneko.rpclient.libs.memory.MemoryTransferRepository
-import me.kafuuneko.rpclient.libs.memory.MemoryRetriever
-import me.kafuuneko.rpclient.libs.prompt.preset.PromptPresetTransferRepository
+import me.kafuuneko.rpclient.libs.room.repository.SceneStateRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
 import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.libs.search.SearchDatabaseCallback
@@ -88,12 +105,12 @@ import me.kafuuneko.rpclient.libs.story.StoryContextSelector
 import me.kafuuneko.rpclient.libs.story.StoryOutputSanitizer
 import me.kafuuneko.rpclient.libs.story.StoryPromptBuilder
 import me.kafuuneko.rpclient.libs.story.StorySummaryPromptBuilder
-import me.kafuuneko.rpclient.ui.theme.AppThemeManager
 import me.kafuuneko.rpclient.libs.upgrade.AndroidAppVersionCodeProvider
 import me.kafuuneko.rpclient.libs.upgrade.AppModelUpgradeVersionStore
 import me.kafuuneko.rpclient.libs.upgrade.AppUpgradeManager
 import me.kafuuneko.rpclient.libs.upgrade.steps.Upgrade20260103
 import me.kafuuneko.rpclient.libs.upgrade.steps.Upgrade20260404
+import me.kafuuneko.rpclient.ui.theme.AppThemeManager
 import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
@@ -108,8 +125,9 @@ class RPClientApp : Application() {
         Kotpref.init(this)
         val koinApplication = startKoin {
             androidContext(this@RPClientApp)
-            modules(appModules)
+            modules(createAppModules())
         }
+        koinApplication.koin.get<AgentApplicationScope>().scope.launch { koinApplication.koin.get<AgentRunManager>() }
         runBlocking(Dispatchers.IO) {
             contentResolver.releaseObsoletePersistedUriPermissions()
             koinApplication.koin.get<AppUpgradeManager>().upgrade()
@@ -122,9 +140,10 @@ class RPClientApp : Application() {
 /**
  * 应用级单例依赖。
  *
- * 业务对象保持无 Activity 引用；页面 ViewModel 通过 KoinComponent 按需获取这些实例。
+ * - 业务对象保持无 Activity 引用；页面 ViewModel 按需获取实例。
+ * - 每个容器创建独立定义，隔离验证或多容器不能复用其他数据库的单例缓存。
  */
-internal val appModules = module {
+internal fun createAppModules() = module {
     single {
         OkHttpClient.Builder()
             .connectTimeout(timeout = 30, unit = TimeUnit.SECONDS)
@@ -171,7 +190,32 @@ internal val appModules = module {
     singleOf(::MemoryRepository)
     singleOf(::AgentRunRepository)
     singleOf(::SceneStateRepository)
-    single { ToolRegistry(getAll()) }
+    singleOf(::AgentLocalDataRepository)
+    singleOf(::BuiltinAgentTools)
+    single { ToolRegistry(get<BuiltinAgentTools>().create() + getAll<AgentTool>()) }
+    singleOf(::ToolCallingCapabilityResolver)
+    singleOf(::AgentApplicationScope)
+    singleOf(::AgentCheckpointCodec)
+    singleOf(::AgentPromptComposer)
+    singleOf(::AgentReplyCommitter)
+    singleOf(::AgentProgressStore)
+    singleOf(::AgentRuntime)
+    singleOf(::ConversationGenerationActivityRegistry)
+    single { AgentDataLifecycle({ get<AgentRunManager>() }, get(), get()) }
+    singleOf(::AgentRunManager)
+    single {
+        AgentUiCoordinator(
+            get(),
+            { get<AgentRunManager>() },
+            get(),
+            get(),
+            get(),
+            get(),
+            get()
+        )
+    }
+    singleOf(::ChatAgentRuntime)
+    singleOf(::GroupChatAgentRuntime)
     single<AgentCheckpointStore> {
         FileAgentCheckpointStore(
             File(

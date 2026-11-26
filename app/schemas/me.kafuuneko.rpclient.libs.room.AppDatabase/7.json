@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 7,
-    "identityHash": "a33bc923ea7d26f96b3947e2f7da1927",
+    "identityHash": "cf98227069ca825c0aebcc9db3d40a8c",
     "entities": [
       {
         "tableName": "agent_runs",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `conversationKey` TEXT NOT NULL, `activeConversationKey` TEXT, `state` TEXT NOT NULL, `characterId` INTEGER, `personaId` INTEGER, `settingsVersion` INTEGER NOT NULL, `historyVersion` INTEGER NOT NULL, `executionEpoch` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `activeMillis` INTEGER NOT NULL, `toolRounds` INTEGER NOT NULL, `toolCalls` INTEGER NOT NULL, `modelRequests` INTEGER NOT NULL, `totalTokens` INTEGER NOT NULL, `checkpointKey` TEXT, `expiresAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`conversationKey`) REFERENCES `conversation_tool_policies`(`conversationKey`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`characterId`) REFERENCES `character`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`personaId`) REFERENCES `user_personas`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `conversationKey` TEXT NOT NULL, `activeConversationKey` TEXT, `state` TEXT NOT NULL, `characterId` INTEGER, `personaId` INTEGER, `settingsVersion` INTEGER NOT NULL, `historyVersion` INTEGER NOT NULL, `executionEpoch` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `batchId` TEXT, `activeMillis` INTEGER NOT NULL, `toolRounds` INTEGER NOT NULL, `toolCalls` INTEGER NOT NULL, `modelRequests` INTEGER NOT NULL, `totalTokens` INTEGER NOT NULL, `checkpointKey` TEXT, `checkpointDigest` TEXT, `messageId` INTEGER, `outcomeCode` TEXT, `expiresAt` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`conversationKey`) REFERENCES `conversation_tool_policies`(`conversationKey`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`characterId`) REFERENCES `character`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`personaId`) REFERENCES `user_personas`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "id",
@@ -72,6 +72,11 @@
             "notNull": true
           },
           {
+            "fieldPath": "batchId",
+            "columnName": "batchId",
+            "affinity": "TEXT"
+          },
+          {
             "fieldPath": "activeMillis",
             "columnName": "activeMillis",
             "affinity": "INTEGER",
@@ -104,6 +109,21 @@
           {
             "fieldPath": "checkpointKey",
             "columnName": "checkpointKey",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "checkpointDigest",
+            "columnName": "checkpointDigest",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "messageId",
+            "columnName": "messageId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "outcomeCode",
+            "columnName": "outcomeCode",
             "affinity": "TEXT"
           },
           {
@@ -4970,7 +4990,7 @@
       },
       {
         "tableName": "llm_token_usage_records",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `createTime` INTEGER NOT NULL, `providerId` INTEGER, `providerName` TEXT NOT NULL, `providerType` TEXT NOT NULL, `protocol` TEXT NOT NULL, `apiHost` TEXT NOT NULL, `apiPort` INTEGER NOT NULL, `requestedModel` TEXT NOT NULL, `effectiveModel` TEXT NOT NULL, `isStreaming` INTEGER NOT NULL, `inputTokens` INTEGER NOT NULL, `outputTokens` INTEGER NOT NULL, `inputTokenSource` TEXT NOT NULL, `outputTokenSource` TEXT NOT NULL, `cachedInputTokens` INTEGER, `reasoningTokens` INTEGER, `tokenizerName` TEXT, `durationMs` INTEGER NOT NULL, `cacheCreationInputTokens` INTEGER)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `createTime` INTEGER NOT NULL, `providerId` INTEGER, `providerName` TEXT NOT NULL, `providerType` TEXT NOT NULL, `protocol` TEXT NOT NULL, `apiHost` TEXT NOT NULL, `apiPort` INTEGER NOT NULL, `requestedModel` TEXT NOT NULL, `effectiveModel` TEXT NOT NULL, `isStreaming` INTEGER NOT NULL, `inputTokens` INTEGER NOT NULL, `outputTokens` INTEGER NOT NULL, `inputTokenSource` TEXT NOT NULL, `outputTokenSource` TEXT NOT NULL, `cachedInputTokens` INTEGER, `reasoningTokens` INTEGER, `tokenizerName` TEXT, `durationMs` INTEGER NOT NULL, `cacheCreationInputTokens` INTEGER, `agentRunId` TEXT)",
         "fields": [
           {
             "fieldPath": "id",
@@ -5086,6 +5106,11 @@
             "fieldPath": "cacheCreationInputTokens",
             "columnName": "cacheCreationInputTokens",
             "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "agentRunId",
+            "columnName": "agentRunId",
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -5194,7 +5219,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a33bc923ea7d26f96b3947e2f7da1927')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'cf98227069ca825c0aebcc9db3d40a8c')"
     ]
   }
 }

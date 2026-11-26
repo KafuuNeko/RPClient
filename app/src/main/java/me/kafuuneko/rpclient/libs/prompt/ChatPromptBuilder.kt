@@ -1,10 +1,10 @@
 package me.kafuuneko.rpclient.libs.prompt
 
-import me.kafuuneko.rpclient.libs.macro.MacroScope
-import me.kafuuneko.rpclient.libs.macro.MacroValue
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.macro.MacroScope
+import me.kafuuneko.rpclient.libs.macro.MacroValue
 import me.kafuuneko.rpclient.libs.prompt.macro.PromptMacroResolver
 import me.kafuuneko.rpclient.libs.prompt.macro.promptMacroExpander
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
@@ -65,6 +65,12 @@ class ChatPromptBuilder(
         ExampleDialogueBehaviorProvider { ExampleDialogueBehavior.default },
     private val mRegexProcessor: RegexMessageProcessor = RegexMessageProcessor(mRegexRuntime)
 ) {
+    /** Agent 复用普通构建的宏、正则和世界书结果，并取得只读来源草稿。 */
+    fun buildAgentDraft(
+        context: PromptBuildContext,
+        preferences: PromptPreferences = mPreferences
+    ): PromptBuildResult = buildWithMetadata(context, preferences)
+
     /** 使用调用方捕获的偏好构建请求，测试可复用构造时的固定配置。 */
     fun build(
         context: PromptBuildContext,
@@ -337,6 +343,7 @@ private class ChatPromptBuildSession(
         )
         return PromptBuildResult(
             request = finalized.request,
+            retainedDrafts = finalized.retainedDrafts,
             worldInfoStateJson = stateResult.nextStateJson,
             inspection = inspection,
         )
@@ -1147,7 +1154,9 @@ data class PromptBuildResult(
     /** 本次构建后的世界书 timed effects 状态，需要由会话持久化。 */
     val worldInfoStateJson: String,
     /** 宏展开、后处理和最终预算完成后的可解释 Prompt 明细。 */
-    val inspection: PromptInspection
+    val inspection: PromptInspection,
+    /** 最终化前保留来源的只读草稿，Agent 在此基础上加入工具预算。 */
+    @Transient val retainedDrafts: List<PromptMessageDraft> = emptyList()
 )
 
 /** 将世界书条目设定的角色 Int 值映射为大模型消息角色枚举。 */

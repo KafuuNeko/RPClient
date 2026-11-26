@@ -1,13 +1,13 @@
 package me.kafuuneko.rpclient.libs.groupchat
 
-import me.kafuuneko.rpclient.libs.memory.MemoryPromptInput
-import me.kafuuneko.rpclient.libs.macro.MacroExpansion
-import me.kafuuneko.rpclient.libs.macro.MacroValue
-import me.kafuuneko.rpclient.libs.prompt.buildUserWritingPrompt
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMImageReference
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
+import me.kafuuneko.rpclient.libs.macro.MacroExpansion
+import me.kafuuneko.rpclient.libs.macro.MacroValue
+import me.kafuuneko.rpclient.libs.memory.MemoryPromptInput
+import me.kafuuneko.rpclient.libs.prompt.buildUserWritingPrompt
 import me.kafuuneko.rpclient.libs.prompt.macro.promptMacroExpander
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehavior
 import me.kafuuneko.rpclient.libs.prompt.model.ExampleDialogueBehaviorProvider
@@ -127,7 +127,9 @@ data class GroupChatPromptBuildResult(
     /** 本次构建推进后的世界书时序状态 JSON。 */
     val worldInfoStateJson: String,
     /** 宏展开、后处理和最终预算完成后的可解释 Prompt 明细。 */
-    val inspection: PromptInspection
+    val inspection: PromptInspection,
+    /** 最终化前保留来源的只读草稿，Agent 在此基础上加入工具预算。 */
+    @Transient val retainedDrafts: List<PromptMessageDraft> = emptyList()
 )
 
 /**
@@ -375,6 +377,7 @@ private class GroupChatPromptBuildSession(
         )
         return GroupChatPromptBuildResult(
             request = finalized.request,
+            retainedDrafts = finalized.retainedDrafts,
             worldInfoStateJson = stateResult.nextStateJson,
             inspection = inspection,
         )

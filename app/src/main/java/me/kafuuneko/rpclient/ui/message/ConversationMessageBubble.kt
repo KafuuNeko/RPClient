@@ -136,6 +136,7 @@ internal data class ConversationMessageItem(
  * @param onImageAction 消息图片预览或编辑操作回调
  * @param actions 气泡外下方悬浮操作栏中的业务操作按钮槽位
  * @param modifier 整行消息容器的修饰符
+ * @param agentContent 正文前的 Agent 任务卡，展开状态由宿主保存
  */
 @Composable
 internal fun ConversationMessageBubble(
@@ -151,6 +152,8 @@ internal fun ConversationMessageBubble(
     onImageAction: (MessageImageAction) -> Unit,
     actions: @Composable RowScope.() -> Unit,
     modifier: Modifier = Modifier,
+    agentContent: @Composable () -> Unit = {},
+    showEmptyStreamingPlaceholder: Boolean = true,
 ) {
     val isUser = message.role == ConversationMessageRole.User
     var showActions by remember(message.id) { mutableStateOf(false) }
@@ -184,6 +187,8 @@ internal fun ConversationMessageBubble(
                 onSaveEdit = onSaveEdit,
                 onCancelEdit = onCancelEdit,
                 onImageAction = onImageAction,
+                agentContent = agentContent,
+                showEmptyStreamingPlaceholder = showEmptyStreamingPlaceholder,
             )
 
             // 编辑态和流式生成态均隐藏操作栏，避免对未落库或编辑中消息触发并发操作。
@@ -250,6 +255,8 @@ private fun ConversationBubbleCard(
     onSaveEdit: () -> Unit,
     onCancelEdit: () -> Unit,
     onImageAction: (MessageImageAction) -> Unit,
+    agentContent: @Composable () -> Unit,
+    showEmptyStreamingPlaceholder: Boolean,
 ) {
     val isUser = message.role == ConversationMessageRole.User
     // 供应商对助手图片的支持不一致，暂只向用户消息开放新增入口，保留所有消息既有附件的编辑能力。
@@ -306,6 +313,9 @@ private fun ConversationBubbleCard(
                 }
             }
 
+            // Agent 过程位于气泡内部、正文之前，保持与既有思考区域相同的阅读顺序。
+            if (!editing) agentContent()
+
             // 按当前是否编辑切换内联编辑框与富文本正文渲染。
             if (editing) {
                 ConversationMessageEditContent(
@@ -321,6 +331,7 @@ private fun ConversationBubbleCard(
                     message = message,
                     expandedThinkBlockIds = expandedThinkBlockIds,
                     isUser = isUser,
+                    showEmptyStreamingPlaceholder = showEmptyStreamingPlaceholder,
                     onToggleThinkBlock = onToggleThinkBlock,
                 )
             }
@@ -420,6 +431,7 @@ private fun ConversationMessageContent(
     message: ConversationMessageItem,
     expandedThinkBlockIds: Set<String>,
     isUser: Boolean,
+    showEmptyStreamingPlaceholder: Boolean,
     onToggleThinkBlock: (String) -> Unit,
 ) {
     // 扮演用户流式输出时可能出现主色用户气泡，需要为等待提示切换高对比前景色。
@@ -435,7 +447,7 @@ private fun ConversationMessageContent(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (message.isStreaming && (message.content.isBlank() || message.parts.isEmpty())) {
+        if (showEmptyStreamingPlaceholder && message.isStreaming && (message.content.isBlank() || message.parts.isEmpty())) {
             ConversationStreamingStatus(
                 text = stringResource(R.string.waiting_for_response),
                 color = waitingTextColor,

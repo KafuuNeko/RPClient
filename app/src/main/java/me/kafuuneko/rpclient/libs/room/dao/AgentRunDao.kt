@@ -41,6 +41,14 @@ interface AgentRunDao {
     @Query("SELECT * FROM agent_runs WHERE activeConversationKey IS NOT NULL")
     suspend fun activeRuns(): List<AgentRun>
 
+    /** 本机检查点仅为一天内等待和七天内中断运行保留。 */
+    @Query("SELECT * FROM agent_runs WHERE (state = 'WaitingForUser' AND expiresAt > :now) OR (state = 'Interrupted' AND updatedAt > :since)")
+    suspend fun recoverableRuns(now: Long, since: Long): List<AgentRun>
+
+    /** 读取同批次累计成本，不把后继群成员当作全新根限额。 */
+    @Query("SELECT * FROM agent_runs WHERE batchId = :batchId AND conversationKey = :key")
+    suspend fun batchRuns(batchId: String, key: String): List<AgentRun>
+
     /** 插入独占运行，数据库唯一索引阻止同会话并发准入。 */
     @Insert
     suspend fun insertRun(value: AgentRun)
@@ -64,6 +72,14 @@ interface AgentRunDao {
     /** 插入步骤，序号与 requestId 冲突时拒绝重复记账。 */
     @Insert
     suspend fun insertStep(value: AgentStep): Long
+
+    /** 完成步骤账本，运行仓库按 requestId 只核销一次。 */
+    @Update
+    suspend fun updateStep(value: AgentStep)
+
+    /** 读取运行的全部有序调用，用于恢复和提案投影。 */
+    @Query("SELECT * FROM tool_invocations WHERE runId = :runId ORDER BY stepId, ordinal")
+    suspend fun invocations(runId: String): List<ToolInvocation>
 
     /** 读取幂等调用元数据。 */
     @Query("SELECT * FROM tool_invocations WHERE id = :id")

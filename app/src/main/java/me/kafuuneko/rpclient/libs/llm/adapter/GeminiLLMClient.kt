@@ -12,6 +12,9 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessage
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.LLMToolGenerationRequest
+import me.kafuuneko.rpclient.libs.llm.model.LLMToolStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.LLMToolTurn
 import me.kafuuneko.rpclient.libs.llm.model.LLMUsage
 import me.kafuuneko.rpclient.libs.llm.model.resolveFor
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
@@ -35,6 +38,24 @@ class GeminiLLMClient(
     private val mImageRuntime: MessageImageRuntime? = null,
     private val mImageCapabilities: ImageInputCapabilityResolver = ImageInputCapabilityResolver()
 ) : LLMClient {
+    private val mToolClient by lazy {
+        NativeToolTurnClient(
+            mOkHttpClient,
+            mLLMRequestLogRepository,
+            mProvider,
+            mImageRuntime,
+            mImageCapabilities
+        )
+    }
+
+    /** 原生工具请求与普通文本生成分别编码。 */
+    override suspend fun generateToolTurn(request: LLMToolGenerationRequest): LLMToolTurn =
+        mToolClient.generate(request)
+
+    /** 仅完整工具轮次可交给运行引擎执行。 */
+    override fun streamToolTurn(request: LLMToolGenerationRequest): Flow<LLMToolStreamEvent> =
+        mToolClient.stream(request)
+
     /**
      * Gemini 非流式调用，等待 generateContent 返回完整文本。
      */

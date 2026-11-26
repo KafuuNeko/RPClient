@@ -169,6 +169,11 @@ class LLMProviderEditViewModel :
     private fun onChangeImageInput(intent: LLMProviderEditUiIntent.ChangeImageInput) =
         updateForm { copy(imageInputSetting = intent.value) }
 
+    /** 用户覆盖原生工具能力，不触发额外付费探测。 */
+    @UiIntentObserver(LLMProviderEditUiIntent.ChangeToolCalling::class)
+    private fun onChangeToolCalling(intent: LLMProviderEditUiIntent.ChangeToolCalling) =
+        updateForm { copy(toolCallingSetting = intent.value) }
+
     /** 修改模型配置显示名称。 */
     @UiIntentObserver(LLMProviderEditUiIntent.ChangeName::class)
     private fun onChangeName(intent: LLMProviderEditUiIntent.ChangeName) =

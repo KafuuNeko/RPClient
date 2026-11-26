@@ -1,6 +1,6 @@
 package me.kafuuneko.rpclient.feature.chat.presentation
 
-import me.kafuuneko.rpclient.model.ModelSettingsGuideContent
+import me.kafuuneko.rpclient.feature.agent.model.AgentUiState
 import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
 import me.kafuuneko.rpclient.feature.chat.model.ChatLorebookGroupItem
@@ -12,6 +12,7 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
 import me.kafuuneko.rpclient.libs.room.model.PersonaSelection
 import me.kafuuneko.rpclient.model.ChatWritingState
 import me.kafuuneko.rpclient.model.MessageHistoryLoadState
+import me.kafuuneko.rpclient.model.ModelSettingsGuideContent
 import me.kafuuneko.rpclient.model.SummaryEditorUiState
 
 /** 单聊页面状态树，覆盖会话加载、聊天、设置、编辑和对话框状态。 */
@@ -24,6 +25,7 @@ sealed class ChatUiState {
 
     /** 单聊页面稳定可渲染状态；所有 Compose 临时交互数据也集中保存在此。 */
     data class Normal(
+        val agentState: AgentUiState = AgentUiState(),
         val imageState: MessageImageState = MessageImageState(),
         /** 当前页面正在展示的一级功能区域。 */
         val page: ChatPage = ChatPage.Conversation,

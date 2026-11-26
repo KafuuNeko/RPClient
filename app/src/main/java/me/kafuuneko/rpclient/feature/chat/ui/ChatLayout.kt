@@ -85,6 +85,7 @@ fun ChatLayout(
                     when (uiState.page) {
                         ChatPage.Conversation -> ChatNormalPage(uiState, emit)
                         ChatPage.Settings -> ChatSettingsPage(
+                            agentState = uiState.agentState,
                             state = uiState.settingsState,
                             lorebookState = uiState.lorebookState,
                             loadState = uiState.loadState,

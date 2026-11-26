@@ -718,6 +718,18 @@ private fun PromptBehaviorPanel(
             checked = state.streamEnabled,
             onCheckedChange = { enabled -> MainUiIntent.ToggleStreamEnabled(enabled).emit() },
         )
+        RpSettingsDivider()
+        RpSettingsSwitchTile(
+            icon = Icons.Rounded.AutoAwesome,
+            iconColor = AccentVioletColor,
+            iconContainerColor = AccentVioletColor.copy(alpha = 0.14f),
+            title = stringResource(R.string.agent_default_enabled_title),
+            subtitle = stringResource(R.string.agent_default_enabled_desc),
+            checked = state.defaultAgentEnabled,
+            onCheckedChange = { enabled ->
+                MainUiIntent.ToggleDefaultAgentEnabled(enabled).emit()
+            },
+        )
     }
 }
 

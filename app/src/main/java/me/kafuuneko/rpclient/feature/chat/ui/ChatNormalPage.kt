@@ -57,6 +57,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.agent.model.AgentTaskItem
+import me.kafuuneko.rpclient.feature.agent.model.AgentUiState
+import me.kafuuneko.rpclient.feature.agent.ui.AgentMessageTasks
+import me.kafuuneko.rpclient.feature.agent.ui.AgentPendingTasks
+import me.kafuuneko.rpclient.feature.agent.ui.AgentTaskCard
+import me.kafuuneko.rpclient.libs.agent.model.AgentRunState
 import me.kafuuneko.rpclient.feature.chat.model.ChatCharacterItem
 import me.kafuuneko.rpclient.feature.chat.model.ChatGenerationState
 import me.kafuuneko.rpclient.feature.chat.model.ChatMessageUiModel
@@ -91,6 +97,8 @@ import me.kafuuneko.rpclient.ui.widgets.PageSurface
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.utils.toPreview
 
+private const val AGENT_LIVE_MESSAGE_PREFIX = "agent-live-"
+
 /**
  * 渲染单聊会话主页，保留消息滚动、输入与生成状态的原有组合位置。
  *
@@ -103,6 +111,35 @@ internal fun ChatNormalPage(
     emit: ChatUiIntent.() -> Unit,
 ) {
     val conversation = state.conversationState
+    // 活动中的 Agent 运行作为流式助手气泡自然融入消息列表，不以悬浮不透明卡片遮挡对话。
+    val activeLiveAgentTask = remember(state.agentState.tasks) {
+        state.agentState.tasks.firstOrNull { it.messageId == null && it.active && !it.waiting }
+    }
+    val waitingAgentTask = remember(state.agentState.tasks) {
+        state.agentState.tasks.firstOrNull { it.messageId == null && it.waiting }
+    }
+    val displayMessages =
+        remember(conversation.messages, activeLiveAgentTask, state.character.name) {
+            if (activeLiveAgentTask == null) {
+                conversation.messages
+            } else {
+                val liveParts = if (activeLiveAgentTask.liveText.isNotBlank()) {
+                    listOf(MessageContentPart.Text(activeLiveAgentTask.liveText))
+                } else {
+                    emptyList()
+                }
+                conversation.messages + ChatMessageUiModel(
+                    id = "$AGENT_LIVE_MESSAGE_PREFIX${activeLiveAgentTask.id}",
+                    role = MessageRole.Assistant,
+                    speaker = state.character.name,
+                    content = activeLiveAgentTask.liveText,
+                    parts = liveParts,
+                    time = "",
+                    tokenCount = 0,
+                    isStreaming = true,
+                )
+            }
+        }
 
     // 顶栏、共享消息列表与底栏按纵向堆叠，各自负责对应区域的安全区与背景透明度。
     Column(
@@ -116,6 +153,8 @@ internal fun ChatNormalPage(
             generationState = conversation.generationState,
             loadState = state.loadState,
             streamEnabled = state.streamEnabled,
+            agentEnabled = state.agentState.enabled,
+            activeAgentTask = activeLiveAgentTask ?: waitingAgentTask,
             hasPromptInspection = state.hasPromptInspection,
             hasAvailableProvider = state.hasAvailableProvider,
             settingsEnabled = !conversation.generationState.isGenerating() &&
@@ -128,10 +167,22 @@ internal fun ChatNormalPage(
             NoProviderBanner(onClick = { ChatUiIntent.OpenProviderSettings.emit() })
         }
         ConversationMessageList(
-            messages = conversation.messages,
+            messages = displayMessages,
             itemId = { message -> message.id },
             itemContentType = { message -> message.role },
-            itemContentKey = { message -> message.content },
+            itemContentKey = { message ->
+                if (activeLiveAgentTask != null && message.id == "$AGENT_LIVE_MESSAGE_PREFIX${activeLiveAgentTask.id}") {
+                    listOf(
+                        message.content,
+                        activeLiveAgentTask.steps.size,
+                        activeLiveAgentTask.toolCalls,
+                        activeLiveAgentTask.reasoning.length,
+                        activeLiveAgentTask.runState,
+                    )
+                } else {
+                    message.content
+                }
+            },
             canLoadOlderMessages = conversation.canLoadOlderMessages,
             historyLoadState = conversation.historyLoadState,
             searchAnchorMessageId = conversation.searchAnchorMessageId,
@@ -141,7 +192,9 @@ internal fun ChatNormalPage(
             onLoadNewerMessages = { ChatUiIntent.LoadNewerMessages.emit() },
             onReturnToLatest = { ChatUiIntent.ReturnToLatest.emit() },
             onReachLatestMessage = { message ->
-                ChatUiIntent.ReachLatestMessage(message.id).emit()
+                if (!message.id.startsWith(AGENT_LIVE_MESSAGE_PREFIX)) {
+                    ChatUiIntent.ReachLatestMessage(message.id).emit()
+                }
             },
             modifier = Modifier.weight(1f),
             startHeader = {
@@ -154,7 +207,12 @@ internal fun ChatNormalPage(
                 )
             },
             messageContent = { index, message ->
+                val liveTask = activeLiveAgentTask?.takeIf {
+                    message.id == "$AGENT_LIVE_MESSAGE_PREFIX${it.id}"
+                }
                 ChatMessageBubble(
+                    agentState = state.agentState,
+                    liveAgentTask = liveTask,
                     imageState = state.imageState,
                     message = message,
                     character = state.character,
@@ -172,6 +230,7 @@ internal fun ChatNormalPage(
             state = state.imageState,
             emit = { action -> ChatUiIntent.ImageAction(action).emit() },
         )
+        AgentPendingTasks(state.agentState) { ChatUiIntent.AgentAction(it).emit() }
         ChatInputBar(
             draft = conversation.inputDraft,
             writingState = conversation.writingState,
@@ -191,6 +250,8 @@ private fun CustomChatTopBar(
     generationState: ChatGenerationState,
     loadState: ChatLoadState,
     streamEnabled: Boolean,
+    agentEnabled: Boolean,
+    activeAgentTask: AgentTaskItem?,
     hasPromptInspection: Boolean,
     hasAvailableProvider: Boolean = true,
     settingsEnabled: Boolean,
@@ -237,13 +298,35 @@ private fun CustomChatTopBar(
             Spacer(modifier = Modifier.width(8.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = character.name,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = character.name,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(weight = 1f, fill = false),
+                    )
+                    if (agentEnabled) {
+                        AppSurface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.agent_title),
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                softWrap = false,
+                            )
+                        }
+                    }
+                }
                 Text(
                     text = buildString {
                         append(session.title)
@@ -251,6 +334,7 @@ private fun CustomChatTopBar(
                             loadState = loadState,
                             generationState = generationState,
                             streamEnabled = streamEnabled,
+                            activeAgentTask = activeAgentTask,
                             hasAvailableProvider = hasAvailableProvider,
                         )
                         if (status.isNotBlank()) {
@@ -403,6 +487,8 @@ private fun ChatMessageBubble(
     editingDraft: String,
     isFirstMessage: Boolean,
     emit: ChatUiIntent.() -> Unit,
+    agentState: AgentUiState = AgentUiState(),
+    liveAgentTask: AgentTaskItem? = null,
 ) {
     val item = remember(message, character) {
         message.toConversationMessageItem(character = character)
@@ -410,6 +496,25 @@ private fun ChatMessageBubble(
     // 单聊消息复用公共气泡布局，并通过操作栏槽位保留分叉与首条限制规则。
     ConversationMessageBubble(
         message = item,
+        agentContent = {
+            if (liveAgentTask != null) {
+                AgentTaskCard(
+                    task = liveAgentTask,
+                    state = agentState,
+                    emit = { action -> ChatUiIntent.AgentAction(action).emit() },
+                    embeddedInBubble = true,
+                )
+            } else {
+                message.id.toLongOrNull()?.let { numericId ->
+                    AgentMessageTasks(
+                        messageId = numericId,
+                        state = agentState,
+                        emit = { action -> ChatUiIntent.AgentAction(action).emit() },
+                    )
+                }
+            }
+        },
+        showEmptyStreamingPlaceholder = liveAgentTask == null,
         imageState = imageState,
         expandedThinkBlockIds = expandedThinkBlockIds,
         editing = editing,
@@ -589,11 +694,21 @@ private fun chatStatusText(
     loadState: ChatLoadState,
     generationState: ChatGenerationState,
     streamEnabled: Boolean,
+    activeAgentTask: AgentTaskItem? = null,
     hasAvailableProvider: Boolean = true,
 ): String {
-    return if (loadState == ChatLoadState.Saving) {
-        stringResource(R.string.updating_summary)
-    } else if (!hasAvailableProvider && generationState == ChatGenerationState.Idle) {
+    if (loadState == ChatLoadState.Saving) {
+        return stringResource(R.string.updating_summary)
+    }
+    if (activeAgentTask != null) {
+        return when {
+            activeAgentTask.waiting -> stringResource(R.string.agent_state_waiting)
+            activeAgentTask.runState == AgentRunState.ExecutingTools -> stringResource(R.string.agent_step_tools)
+            activeAgentTask.liveText.isNotBlank() -> stringResource(R.string.generating)
+            else -> stringResource(R.string.requesting_model)
+        }
+    }
+    return if (!hasAvailableProvider && generationState == ChatGenerationState.Idle) {
         stringResource(R.string.no_model_configured)
     } else {
         generationState.label(streamEnabled)

@@ -19,12 +19,15 @@ import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_GROK_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENAI_RESPONSES_MODEL
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENAI_RESPONSES_REQUEST_BODY_PATCH_JSON
 import me.kafuuneko.rpclient.libs.llm.model.DEFAULT_OPENROUTER_REQUEST_BODY_PATCH_JSON
+import me.kafuuneko.rpclient.libs.llm.model.GEMINI_INTERACTIONS_BASE_URL
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
-import me.kafuuneko.rpclient.libs.llm.model.GEMINI_INTERACTIONS_BASE_URL
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.LLMToolGenerationRequest
+import me.kafuuneko.rpclient.libs.llm.model.LLMToolStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.LLMToolTurn
 import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
 import me.kafuuneko.rpclient.libs.llm.requireNonEmptyContent
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
@@ -55,6 +58,24 @@ class LLMRepository(
     private val mAppDatabase: AppDatabase,
     private val mLLMClientFactory: LLMClientFactory
 ) {
+    /** Agent 已完成最终化和系统指令预算，不能再套用普通路径后处理。 */
+    suspend fun generateToolTurn(
+        provider: LLMProvider,
+        request: LLMToolGenerationRequest
+    ): LLMToolTurn {
+        require(request.base.isPromptFinalized && request.systemPromptApplied) { "Agent prompt must be finalized" }
+        return mLLMClientFactory.create(provider.toConfig()).generateToolTurn(request)
+    }
+
+    /** 原生工具流保持结构化调用，错误由运行层映射为本地化提示。 */
+    fun streamToolTurn(
+        provider: LLMProvider,
+        request: LLMToolGenerationRequest
+    ): Flow<LLMToolStreamEvent> {
+        require(request.base.isPromptFinalized && request.systemPromptApplied) { "Agent prompt must be finalized" }
+        return mLLMClientFactory.create(provider.toConfig()).streamToolTurn(request)
+    }
+
     /** 模型配置表访问入口，仅在 Repository 内暴露。 */
     private val mLLMProviderDao = mAppDatabase.getLLMProviderDao()
     private val mCharacterLLMProviderAssociationDao =

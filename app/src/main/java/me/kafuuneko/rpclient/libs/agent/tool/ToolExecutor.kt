@@ -125,7 +125,20 @@ class ToolExecutor(
         context: ToolExecutionContext,
         onDispatched: () -> Unit,
     ): ToolResult {
-        val action = tool.handler.prepare(context, arguments.deepCopy())
+        val action = try {
+            tool.handler.prepare(context, arguments.deepCopy())
+        } catch (error: ToolPreparationException) {
+            // 准备失败也发布确定结果，恢复不能因后续状态变更把旧错误重新执行成写入。
+            mRuns.dispatchInvocation(token, invocation.id, tool.definition)
+            onDispatched()
+            return saveResult(
+                token,
+                tool,
+                invocation,
+                arguments,
+                ToolResult.RecoverableError(error.code)
+            )
+        }
         validateAction(tool.definition, action)
         // 外部写入先展示固定目标与受控参数摘要，普通提问不能授予外发权限。
         if (action is ToolAction.ExternalWrite && !invocation.confirmationGranted) {
@@ -138,6 +151,9 @@ class ToolExecutor(
                 },
             )
             return saveResult(token, tool, invocation, arguments, request)
+        }
+        if (action is ToolAction.LocalWrite && action.confirmation != null && !invocation.confirmationGranted) {
+            return saveResult(token, tool, invocation, arguments, action.confirmation)
         }
         if (action is ToolAction.AwaitingUser) return saveResult(
             token,

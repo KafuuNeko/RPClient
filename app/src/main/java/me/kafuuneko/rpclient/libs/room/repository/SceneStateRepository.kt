@@ -61,6 +61,23 @@ class SceneStateRepository(
         return requireNotNull(result)
     }
 
+    /** 仅供已获执行器或正文提交事务授权的内置工具调用，不另行撤权或嵌套校验旧历史时钟。 */
+    internal suspend fun applyAgentProposal(
+        conversation: ConversationRef,
+        expectedRevision: Long,
+        changes: List<SceneStateChange>,
+        boundary: Long
+    ) {
+        val current = get(conversation)
+        check(current.revision == expectedRevision) { "Scene revision conflict" }
+        validateBoundary(conversation, boundary)
+        check(
+            boundary >= (mDao.revisions(conversation.key).lastOrNull()?.effectiveAfterMessageId
+                ?: 0)
+        ) { "Scene boundary cannot move backwards" }
+        append(current, SceneStateCodec.apply(current.stateJson, changes), boundary)
+    }
+
     /** 在分支事务中复制策略与截断点有效状态，重映射消息边界。 */
     suspend fun copyBranch(
         source: ConversationRef,

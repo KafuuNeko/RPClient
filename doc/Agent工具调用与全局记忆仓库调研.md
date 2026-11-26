@@ -185,7 +185,7 @@ feature/toolsettings → ToolConfigRepository / ToolCredentialRepository
 | OpenAI Responses | `tools`（`type: "function"`）、`function_call`、`function_call_output` 与有序 `output` Item | 沿用 `store = false` 本地历史，禁用 `previous_response_id`；原样保留工具链所需的 `reasoning` Item 及 `encrypted_content`（不以展示摘要替代）；未实现客户端 Item 继续显式报错 |
 | Anthropic Messages | `tools`（`input_schema`）、`tool_choice`、`tool_use` 与 `tool_result` 块 | `tool_result` 紧随对应 `assistant` 轮次且置于 `user` 内容数组首部；开启扩展思考时必须在 `tool_use` 之前原样回传带 `signature` 的 `thinking` / `redacted_thinking` 块 |
 | Gemini GenerateContent | `tools[].functionDeclarations`、`toolConfig`、`functionCall` 与 `functionResponse` Part | `functionResponse.response` **必须是 JSON Object**（纯文本或数组须包装为对象）；保留原序、可选 `id` 及 Part 级 `thoughtSignature`（不跨 Part 合并）；模型未返回 `id` 时严格按出现顺序关联 |
-| Gemini Interactions | `POST /v1/interactions`，`store = false`，`tools`（`type: "function"`）、`generation_config.tool_choice`、`function_call` 与 `function_result` 步骤 | 将本轮模型返回的全部有序步骤（含签名）追加至原 `input` 历史，再附带 `name`、`call_id`、`result` 的 `function_result` 步骤；SSE 按步骤索引处理 `step.start`、`step.delta`（拼合 `arguments_delta` 并保留签名）、`step.stop`，仅在交互终态为 `requires_action` 且调用完整后派发工具 |
+| Gemini Interactions | `POST /v1/interactions`，`store = false`，`tools`（`type: "function"`）、`generation_config.tool_choice`、`function_call` 与 `function_result` 步骤 | 将本轮模型返回的全部有序步骤（含签名）追加至原 `input` 历史，再附带 `name`、`call_id`、`result` 的 `function_result` 步骤；SSE 按步骤索引处理 `step.start`、`step.delta`（拼合 `arguments` 字符串增量并保留签名）、`step.stop`，仅在交互终态为 `requires_action` 且调用完整后派发工具 |
 
 高级请求 JSON 合并规则：
 
@@ -202,11 +202,11 @@ feature/toolsettings → ToolConfigRepository / ToolCredentialRepository
 
 | 协议 | Schema 与定义编码 | 非流式往返 | 流式分片与多调用关联 | 续接载荷（签名/推理）回传 | 截断、错误、停止与资源释放 |
 | --- | --- | --- | --- | --- | --- |
-| OpenAI Compatible | 必验 | 必验 | 必验 | 必验 | 必验 |
-| OpenAI Responses | 必验 | 必验 | 必验 | 必验 | 必验 |
-| Anthropic Messages | 必验 | 必验 | 必验 | 必验 | 必验 |
-| Gemini GenerateContent | 必验 | 必验 | 必验 | 必验 | 必验 |
-| Gemini Interactions | 必验 | 必验 | 必验 | 必验 | 必验 |
+| OpenAI Compatible | 通过 | 通过 | 通过 | 通过 | 通过 |
+| OpenAI Responses | 通过 | 通过 | 通过 | 通过 | 通过 |
+| Anthropic Messages | 通过 | 通过 | 通过 | 通过 | 通过 |
+| Gemini GenerateContent | 通过 | 通过 | 通过 | 通过 | 通过 |
+| Gemini Interactions | 通过 | 通过 | 通过 | 通过 | 通过 |
 
 每行均须验证：关闭 Agent 时零工具字段；仅工具调用无正文可继续执行；未知或禁用工具拒绝执行；受控写入重试不重复提交；流式截断不触发执行。
 
@@ -389,11 +389,11 @@ flowchart TD
 
 里程碑 A 验收判据：
 
-- [ ] 普通路径差异回归矩阵（关闭 Agent 下单聊/群聊的请求树、历史选择、partial、原位重生成、代写、续写、消息数摘要与世界书状态）对照 [NormalPromptBaselineTest](../app/src/test/java/me/kafuuneko/rpclient/libs/prompt/NormalPromptBaselineTest.kt) 及真实 Room 集成测试零语义回归。
-- [ ] 五协议工具调用矩阵（Schema 编码、非流式、流式分片与多调用、签名/推理续接、截断取消、仅工具调用无正文）全部通过本地合成服务验收。
-- [ ] 同角色不同单聊/群聊开关独立持久化；普通生成中开启不中途升级；运行或等待中关闭先撤权再有界收尾，迟到回调零提交。
-- [ ] 工具循环内前缀字节冻结且同源投影计量准确；80% 水位压缩保护活动工具链且不混用旧摘要边界；`SceneState` 支持分支快照与群聊 `deleteMessagesFrom` 回滚。
-- [ ] 全部 6 组本地内置工具通过正向、错误、取消、幂等重试与作用域隔离测试；`ask_user` 挂起经退出重进及重启后可恢复或取消；单聊/群聊折叠任务卡在浅深色主题与小屏大字号下验证通过。
+- [x] 普通路径差异回归矩阵（关闭 Agent 下单聊/群聊的请求树、历史选择、partial、原位重生成、代写、续写、消息数摘要与世界书状态）对照 [NormalPromptBaselineTest](../app/src/test/java/me/kafuuneko/rpclient/libs/prompt/NormalPromptBaselineTest.kt) 及真实 Room 集成测试零语义回归。
+- [x] 五协议工具调用矩阵（Schema 编码、非流式、流式分片与多调用、签名/推理续接、截断取消、仅工具调用无正文）全部通过本地合成服务验收。
+- [x] 同角色不同单聊/群聊开关独立持久化；普通生成中开启不中途升级；运行或等待中关闭先撤权再有界收尾，迟到回调零提交。
+- [x] 工具循环内前缀字节冻结且同源投影计量准确；80% 水位压缩保护活动工具链且不混用旧摘要边界；`SceneState` 支持分支快照与群聊 `deleteMessagesFrom` 回滚。
+- [x] 全部 6 组本地内置工具通过正向、错误、取消、幂等重试与作用域隔离测试；`ask_user` 挂起经退出重进及重启后可恢复或取消；单聊/群聊折叠任务卡在浅深色主题与小屏大字号下验证通过。
 
 ### 里程碑 B：配置化 HTTP 工具、联网查询与安全防线
 
@@ -412,25 +412,40 @@ flowchart TD
 
 ## 实施进度
 
-本次按里程碑 A 的“数据层与通用契约”推进，尚未开放聊天内 Agent 运行入口。
+本轮继续实施里程碑 A，已接通五协议、本地工具运行及单聊／群聊入口。里程碑 B 的配置化 HTTP 工具与联网安全围栏仍按后续增量实施。
 
-- 已实现会话独立开关、设置版本与 Agent 预设绑定、Provider 工具能力持久化；旧设置草稿保留最新 Agent 字段。
-- 已加入运行、步骤、调用、工具策略、剧情当前状态和修订表，保持 Room `v7`，通过自动迁移维护正式版 `v6 → v7`。
-- 已加入六个 Agent 提示词键、分类与场景筛选，绑定预设仅覆盖 Agent 段及压缩摘要模板；新增标签补齐全部现有语言。
-- 已实现工具 Schema、稳定目录、统一执行器、短事务授权及本机原子检查点；已派发但未定案的调用不自动重试。
-- 剧情状态采用受限 JSON 域及增量路径修改，支持版本冲突检查、最近 200 个完整修订、会话分支复制与消息删除回滚。
-- 整库恢复验证 Agent 所有者、调用归属和剧情消息边界，撤销恢复库中的执行资格与不可恢复检查点引用。
-- 下一任务为五协议独立工具轮次模型、`LLMClient` / `LLMRepository` 方法、协议 Codec 与本地合成 HTTP 验收；之后实现运行管理器、内置工具处理器及聊天设置/任务卡。全局停止活动 Job 和恢复后清理本机旧载荷随运行管理器及全量生命周期接入完成。
+### 已完成实现
 
-本轮验证结果：
+- 新增独立 `LLMToolGenerationRequest` / `LLMToolTurn` / `LLMToolStreamEvent`，五个客户端及系统指令、用量装饰器全部接入；普通生成接口和消息角色不变。
+- 五协议编解码保留调用顺序、推理／签名及结果关联；按原生终态派发，EOF、截断、拒绝、重复调用 ID、非法参数均不能触发半截工具执行。高级请求补丁不能覆盖工具授权、续接历史和收尾禁工具策略。
+- `AgentRunManager` / `AgentRuntime` 共用运行循环、授权时钟、唯一请求成本账本和本机检查点；等待用户释放连接与执行栈，退出重进或进程重启后复核版本恢复。停止先撤权，随后有界取消，旧任务收尾只能终止自身。
+- 六组共 15 个本地工具全部注册，统一 Schema、作用域、分页、错误分类及幂等回放；记忆提升确认独立于 `ask_user` 开关，准备失败的结果也固定回放，不能在后续版本变化后重新变成写入。
+- 用户消息证据在工具事务中核验；待生成剧情先暂存为提案，读取返回叠加视图，最终清洗后正文支持的变更与回复、世界书状态一起提交。没有成立的前序提案时，后续依赖版本不会强行套用。
+- 单聊／群聊设置支持独立开关、预设绑定、工具选择、只读记忆、提升策略和成本／水位限额；提供剧情快照、最近修订差异及撤销。共用气泡内接入默认折叠任务卡，支持过程预览、提问、显式确认、恢复和取消。
+- Provider 设置提供 `Auto` / `Enabled` / `Disabled`；未知能力不额外付费探测，明确不支持时列出模型并阻断，不静默回退普通生成。
+- 全量恢复前停止运行及搜索工作器，恢复后清理检查点、预览及检查器缓存；人设删除前撤销实际使用该身份的运行。物理删除回复时同步清理关联任务，恢复校验检查消息归属。
+- 保持 Room `v7`，更新未发布版本的表结构及正式版 `v6 → v7` 自动迁移；新增 Agent 文案覆盖默认英文和全部 12 个已支持译文目录。
 
-- 范围 `formatApply` / `formatCheck`：60 个 Kotlin 文件通过；修正仪器测试声明后对该文件再次执行两项检查。
-- `:app:testDebugUnitTest`：528 项通过，无失败、错误或跳过，包含普通 Prompt 基线回归。
-- `:app:connectedDebugAndroidTest`：隔离 Android 34 模拟器上 76 项通过，无失败、错误或跳过；覆盖新增 12 项 Agent 基础回归，以及迁移、普通消息提交、摘要、分支、记忆与可移植备份回归。
-- `:app:assembleDebug`、`:app:assembleDemo`：均通过，Demo 包含 R8 混淆和 Lint 检查。
-- `git diff --check`、全部现有语言目录的新增资源校验通过；隔离测试模拟器及临时数据已清理。
+### 实现边界与续接约定
 
-本机使用项目指定 Android Studio 内置 JBR 21 运行验证，并为命令设置 `JAVA_TOOL_OPTIONS=-XX:+UseSerialGC` 避开本机 JBR 的 G1 崩溃。Demo 首次验证所缺的既有依赖缓存通过联网补齐，未修改依赖声明。当前尚未进行五协议工具调用矩阵或真实模型账号联调；这些属于下一实施任务。
+- 80% 水位按包含工具 Schema、Provider 系统指令和协议开销的实际发送投影计算。首次工具请求前最多压缩一次旧历史；工具交换链只追加，原生续接和已发送提示不会在下一轮被删除或重排。压缩请求本身也计入根运行及用量账本。
+- 压缩摘要存于本次运行检查点，`coveredMessageId` 只覆盖实际处理的草稿消息；不写入普通摘要实体，不推进手动 Raw／Classic 摘要窗口。新运行按新的历史快照重新评估水位。
+- 群聊等待恢复继续原批次已冻结的剩余成员；后继成员重新读取公共历史、共享剧情及自身获准记忆，不继承前一成员的私密回答、工具原始结果或协议签名。恢复不会自行开启新的自动选人批次。
+- Gemini GenerateContent 使用完整函数 Part 模式及 `parametersJsonSchema`，不主动开启 `partialArgs` 模式；收到尚未闭合的参数增量时明确拒绝派发。Interactions 使用官方 `generation_config.tool_choice` 字符串／`allowed_tools` 对象，以及步骤中的 `arguments` 字符串增量。
+- 普通回复、真实续写、代写及手动摘要保留原有生成和持久化规则，只通过会话租约拦截跨页面并发；普通生成中开启 Agent 只影响下次操作。
+
+### 验收记录
+
+- 先前数据层增量：528 项 JVM 测试、76 项仪器测试，以及 Debug／Demo 打包通过。
+- 本轮纯算法及协议回归：538 项 JVM 测试通过，包括原普通 Prompt 快照基线、受限计算／骰子语法、五协议 Schema／截断与错误提示续接前缀回归。
+- 本轮范围原生格式化：86 个 Kotlin 文件已执行 `formatApply`，同范围 `formatCheck` 通过。
+- 本轮仪器验收：隔离 Android 34 模拟器上 142 项通过，无失败、错误或跳过；包含五协议本地 HTTP 矩阵 25 项、运行引擎 9 项、界面／真实 Intent 流程 4 项，以及原有基础、迁移、普通消息／图片／摘要、分支、记忆和备份回归 104 项。
+- `:app:assembleDebug`、AndroidTest APK 打包与 `:app:assembleDemo` 全部通过；Demo 完成 R8、资源压缩及 Lint Vital。三个 APK 的 ZIP 和 DEX 校验均通过，仪器测试开始前另已比对设备安装后 SHA-256。
+- `git diff --check`、新增 Kotlin 文件空白／编码、55 个 Agent 字符串在全部 13 个语言目录的完整性与占位符校验通过。浅深色主题、320dp 窄屏及 1.5 倍字号截图已检查；隔离验收模拟器已停止。
+
+本机 JVM 曾发生原生崩溃，最终使用已校验的 Temurin JDK 21，设置 SerialGC、限制 JIT、关闭压缩指针并使用单 Gradle worker 完成验证，未修改依赖声明。Gradle 设备测试曾因安装副本出现字节差异而无法启动；最后改用 ADB 无增量、无流式安装并比对设备 SHA-256，再由 AndroidJUnitRunner 完成上述 142 项测试。
+
+真实模型账号联调未执行；协议验收使用本地合成 HTTP 服务、真实客户端、Room 和本机文件检查点，不将合成结果视为真实服务商兼容性实测。
 
 ## 官方资料索引
 

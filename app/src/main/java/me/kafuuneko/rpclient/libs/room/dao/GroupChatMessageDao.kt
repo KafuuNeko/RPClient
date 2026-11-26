@@ -8,6 +8,15 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatMessage
 /** 群聊消息的顺序查询、更新和截断删除接口。 */
 @Dao
 interface GroupChatMessageDao : MutableDao<GroupChatMessage> {
+    /** 工具有限邻域读取：同会话锚点前后各取至多五条消息。 */
+    @Query(
+        """SELECT id FROM group_chat_messages WHERE sessionId = :sessionId AND id IN (
+        SELECT id FROM (SELECT id FROM group_chat_messages WHERE sessionId = :sessionId AND id <= :anchor ORDER BY id DESC LIMIT :radius + 1)
+        UNION SELECT id FROM (SELECT id FROM group_chat_messages WHERE sessionId = :sessionId AND id > :anchor ORDER BY id LIMIT :radius)
+    ) ORDER BY createTime, id"""
+    )
+    suspend fun agentWindow(sessionId: Long, anchor: Long, radius: Int): List<Long>
+
     /** 统计定位窗口之后的消息数，保持 Display Regex 的全历史深度语义。 */
     @Query(
         """SELECT COUNT(*) FROM group_chat_messages WHERE sessionId = :sessionId

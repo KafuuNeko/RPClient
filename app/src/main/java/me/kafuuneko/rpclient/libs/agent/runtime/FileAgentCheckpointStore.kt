@@ -1,9 +1,9 @@
 package me.kafuuneko.rpclient.libs.agent.runtime
 
 import com.google.gson.JsonObject
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
-import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 import java.nio.file.Files
@@ -95,6 +95,17 @@ class FileAgentCheckpointStore(private val mRoot: File) : AgentCheckpointStore {
     /** 只删除哈希命名的受管文件。 */
     override suspend fun delete(key: String) = withContext(Dispatchers.IO) {
         mMutex.withLock { Files.deleteIfExists(file(key).toPath()); Unit }
+    }
+
+    /** 冷启动删除孤立结果与崩溃临时文件，文件名由可信客户端键派生。 */
+    override suspend fun prune(retainedKeys: Set<String>) = withContext(Dispatchers.IO) {
+        val retained = retainedKeys.map { file(it).name }.toSet()
+        mMutex.withLock {
+            mRoot.listFiles()?.filter { it.isFile && it.name !in retained }?.forEach {
+                check(it.delete()) { "Cannot prune checkpoint file" }
+            }
+            Unit
+        }
     }
 
     /** 恢复后清理整个专用目录，包括崩溃遗留的临时文件。 */

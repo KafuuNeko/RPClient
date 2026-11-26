@@ -12,6 +12,15 @@ import me.kafuuneko.rpclient.libs.room.entity.ChatMessage
  */
 @Dao
 interface ChatMessageDao : MutableDao<ChatMessage> {
+    /** 工具有限邻域读取：同会话锚点前后各取至多五条消息。 */
+    @Query(
+        """SELECT id FROM chat_messages WHERE sessionId = :sessionId AND source != 'Summary' AND id IN (
+        SELECT id FROM (SELECT id FROM chat_messages WHERE sessionId = :sessionId AND source != 'Summary' AND id <= :anchor ORDER BY id DESC LIMIT :radius + 1)
+        UNION SELECT id FROM (SELECT id FROM chat_messages WHERE sessionId = :sessionId AND source != 'Summary' AND id > :anchor ORDER BY id LIMIT :radius)
+    ) ORDER BY createTime, id"""
+    )
+    suspend fun agentWindow(sessionId: Long, anchor: Long, radius: Int): List<Long>
+
     /** 记忆来源清理使用完整 ID 集合，包含摘要。 */
     @Query("SELECT id FROM chat_messages WHERE sessionId = :sessionId")
     suspend fun memoryAllIds(sessionId: Long): List<Long>

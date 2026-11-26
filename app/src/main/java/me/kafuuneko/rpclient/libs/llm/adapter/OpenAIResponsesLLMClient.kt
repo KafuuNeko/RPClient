@@ -10,6 +10,9 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.LLMToolGenerationRequest
+import me.kafuuneko.rpclient.libs.llm.model.LLMToolStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.LLMToolTurn
 import me.kafuuneko.rpclient.libs.media.MessageImageRuntime
 import me.kafuuneko.rpclient.libs.room.repository.LLMRequestLogRepository
 import okhttp3.OkHttpClient
@@ -28,6 +31,24 @@ class OpenAIResponsesLLMClient(
     private val mImageRuntime: MessageImageRuntime? = null,
     private val mImageCapabilities: ImageInputCapabilityResolver = ImageInputCapabilityResolver()
 ) : LLMClient {
+    private val mToolClient by lazy {
+        NativeToolTurnClient(
+            mOkHttpClient,
+            mLLMRequestLogRepository,
+            mProvider,
+            mImageRuntime,
+            mImageCapabilities
+        )
+    }
+
+    /** 原生工具请求与普通文本生成分别编码。 */
+    override suspend fun generateToolTurn(request: LLMToolGenerationRequest): LLMToolTurn =
+        mToolClient.generate(request)
+
+    /** 仅完整工具轮次可交给运行引擎执行。 */
+    override fun streamToolTurn(request: LLMToolGenerationRequest): Flow<LLMToolStreamEvent> =
+        mToolClient.stream(request)
+
     /** 发送完整请求并解析所有原生输出 Item。 */
     override suspend fun generate(request: LLMGenerationRequest): LLMGenerationResponse {
         val model = request.model ?: mProvider.model

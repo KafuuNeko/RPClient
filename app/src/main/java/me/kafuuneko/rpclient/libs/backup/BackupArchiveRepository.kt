@@ -5,6 +5,7 @@ import android.net.Uri
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentDataLifecycle
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFiles.extractArchive
 import me.kafuuneko.rpclient.libs.backup.BackupArchiveFiles.sha256
 import me.kafuuneko.rpclient.libs.room.AppDatabase
@@ -17,7 +18,8 @@ import org.json.JSONObject
  */
 class BackupArchiveRepository(
     private val mContext: Context,
-    private val mDatabase: AppDatabase
+    private val mDatabase: AppDatabase,
+    private val mAgentLifecycle: AgentDataLifecycle? = null,
 ) {
     companion object {
         private const val FORMAT = "rpclient-backup"
@@ -65,6 +67,7 @@ class BackupArchiveRepository(
             stagedPrefs.mkdirs()
             BackupDatabaseValidator.preparePrimaryForRestore(mContext, stagedDatabase, stagedPrefs)
             stagedRepository.mkdirs()
+            mAgentLifecycle?.beforeRestore()
             BackupDataReplacer.replace(
                 rollback = rollbackRoot,
                 replacements = listOf(
@@ -80,6 +83,7 @@ class BackupArchiveRepository(
                     ),
                 ),
             ) { mDatabase.close() }
+            mAgentLifecycle?.afterRestore()
         } finally {
             stageRoot.deleteRecursively()
         }

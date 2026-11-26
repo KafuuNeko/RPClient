@@ -8,6 +8,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import kotlin.math.roundToInt
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.memory.MemoryTable
@@ -17,7 +18,6 @@ import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
 import me.kafuuneko.rpclient.ui.theme.AccentEmeraldColor
 import me.kafuuneko.rpclient.ui.theme.LocalAppDarkTheme
-import kotlin.math.roundToInt
 
 /** Prompt 检查器顶部主分区 Tab。 */
 internal enum class PromptInspectorTab {
@@ -359,6 +359,7 @@ internal fun resolveRoleColors(role: LLMMessageRole): PromptRoleColors {
 internal fun PromptSourceKind.baseLabel(): String {
     // 统一维护全部 Prompt 来源枚举与多语言资源映射，供归组胶囊和分段标题复用
     val sourceLabelResId = when (this) {
+        PromptSourceKind.SceneState -> R.string.agent_tool_get_scene_state
         PromptSourceKind.Memory -> R.string.prompt_character_memory_context
         PromptSourceKind.MainPrompt -> R.string.prompt_source_main
         PromptSourceKind.WorldInfo -> R.string.prompt_source_world_info

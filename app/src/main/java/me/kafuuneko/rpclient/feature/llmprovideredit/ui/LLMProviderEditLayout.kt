@@ -80,9 +80,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
@@ -90,6 +90,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.CredentialEditMode
 import me.kafuuneko.rpclient.feature.llmprovideredit.model.LLMProviderEditForm
@@ -107,9 +108,10 @@ import me.kafuuneko.rpclient.libs.llm.catalog.model.LLMAvailableModel
 import me.kafuuneko.rpclient.libs.llm.model.ImageInputSetting
 import me.kafuuneko.rpclient.libs.llm.model.ImageTokenEstimatorType
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
-import me.kafuuneko.rpclient.libs.llm.model.supportsSampling
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.llm.model.LocalTokenEstimatorType
+import me.kafuuneko.rpclient.libs.llm.model.ToolCallingSetting
+import me.kafuuneko.rpclient.libs.llm.model.supportsSampling
 import me.kafuuneko.rpclient.libs.prompt.model.PromptPostProcessingMode
 import me.kafuuneko.rpclient.libs.room.entity.MAX_TOKEN_ESTIMATE_RESERVE_PERCENT
 import me.kafuuneko.rpclient.libs.room.entity.MIN_TOKEN_ESTIMATE_RESERVE_PERCENT
@@ -123,8 +125,13 @@ import me.kafuuneko.rpclient.ui.theme.AppTheme
 import me.kafuuneko.rpclient.ui.widgets.AppCard
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.AppTopBar
+import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedButton as OutlinedButton
+import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
+import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
 import me.kafuuneko.rpclient.ui.widgets.RpIconBubble
 import me.kafuuneko.rpclient.ui.widgets.RpLazyColumn
+import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 import me.kafuuneko.rpclient.ui.widgets.RpSectionHeader
 import me.kafuuneko.rpclient.ui.widgets.draggableScrollIndicator
 import me.kafuuneko.rpclient.ui.widgets.generalContentBackground
@@ -134,12 +141,6 @@ import me.kafuuneko.rpclient.ui.widgets.pageSliderColors
 import me.kafuuneko.rpclient.utils.JsonSyntaxTokenType
 import me.kafuuneko.rpclient.utils.rememberDefaultJsonSyntaxColors
 import me.kafuuneko.rpclient.utils.tokenizeJsonSyntax
-import kotlin.math.roundToInt
-import me.kafuuneko.rpclient.ui.widgets.PageFilterChip as FilterChip
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedButton as OutlinedButton
-import me.kafuuneko.rpclient.ui.widgets.PageOutlinedTextField as OutlinedTextField
-import me.kafuuneko.rpclient.ui.widgets.PageSwitch as Switch
-import me.kafuuneko.rpclient.ui.widgets.RpPanel as Panel
 
 /** 模型配置创建与编辑页 Compose 入口。 */
 @Composable
@@ -327,6 +328,11 @@ private fun BasicPanel(
             catalogState = modelCatalogState,
             emit = emit,
         )
+        ToolCallingCapabilityField(form.toolCallingSetting) {
+            LLMProviderEditUiIntent.ChangeToolCalling(
+                it
+            ).emit()
+        }
         ImageInputCapabilityField(
             selected = form.imageInputSetting,
             onSelect = { imageInputSetting ->
@@ -357,6 +363,56 @@ private fun BasicPanel(
                 },
             )
         }
+    }
+}
+
+/** 原生工具能力与图片能力独立，开关只控制 Agent 请求准入。 */
+@Composable
+private fun ToolCallingCapabilityField(
+    selected: ToolCallingSetting,
+    onSelect: (ToolCallingSetting) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = stringResource(R.string.agent_tool_capability),
+            style = MaterialTheme.typography.titleSmall,
+        )
+        // 与相邻模型能力控件保持统一圆角与选中配色，保留窄屏和长译文的可点击区域。
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ToolCallingSetting.entries.forEach { setting ->
+                FilterChip(
+                    selected = selected == setting,
+                    onClick = { onSelect(setting) },
+                    label = {
+                        val labelResId = when (setting) {
+                            ToolCallingSetting.Auto -> R.string.image_capability_auto
+                            ToolCallingSetting.Enabled -> R.string.enabled
+                            ToolCallingSetting.Disabled -> R.string.disabled
+                        }
+                        Text(
+                            text = stringResource(id = labelResId),
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = pageFilterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(
+                            alpha = 0.7f,
+                        ),
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
+                )
+            }
+        }
+        Text(
+            text = stringResource(R.string.agent_model_capability_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+        )
     }
 }
 

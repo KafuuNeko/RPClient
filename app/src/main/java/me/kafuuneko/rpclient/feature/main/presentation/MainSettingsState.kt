@@ -119,7 +119,9 @@ data class MainPromptBehaviorState(
     /** 上下文裁剪风险提示是否启用。 */
     val contextTrimmingAlert: Boolean,
     /** 当前会话是否启用流式生成。 */
-    val streamEnabled: Boolean
+    val streamEnabled: Boolean,
+    /** 新建单聊或群聊时默认是否启用 Agent 模式。 */
+    val defaultAgentEnabled: Boolean = false,
 )
 
 /** 仅在存在当前模型配置时允许修改其 Prompt 后处理模式。 */

@@ -7,7 +7,11 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationResponse
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderConfig
 import me.kafuuneko.rpclient.libs.llm.model.LLMStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.LLMToolGenerationRequest
+import me.kafuuneko.rpclient.libs.llm.model.LLMToolStreamEvent
+import me.kafuuneko.rpclient.libs.llm.model.LLMToolTurn
 import me.kafuuneko.rpclient.libs.llm.model.LLMUsage
+import me.kafuuneko.rpclient.libs.llm.tool.ToolWireRequest
 import me.kafuuneko.rpclient.libs.prompt.model.PromptTokenizerStrategy
 import me.kafuuneko.rpclient.libs.prompt.request.PromptTokenizerRegistry
 import me.kafuuneko.rpclient.libs.room.entity.LLMTokenUsageRecord
@@ -29,6 +33,42 @@ internal class LLMTokenUsageTrackingClient(
     private val mRepository: LLMTokenUsageRepository,
     private val mTokenizerRegistry: PromptTokenizerRegistry
 ) : LLMClient {
+    /** 工具用量包含 Schema、原生续接和系统指令，并关联本地运行。 */
+    override suspend fun generateToolTurn(request: LLMToolGenerationRequest): LLMToolTurn {
+        val start = System.nanoTime()
+        val turn = mDelegate.generateToolTurn(request)
+        saveToolUsage(request, turn, false, start)
+        return turn
+    }
+
+    /** 只有正常消费完整流后才保存用量，取消不制造成功记录。 */
+    override fun streamToolTurn(request: LLMToolGenerationRequest): Flow<LLMToolStreamEvent> =
+        flow {
+            val start = System.nanoTime()
+            var turn: LLMToolTurn? = null
+            mDelegate.streamToolTurn(request).collect { event ->
+                if (event is LLMToolStreamEvent.Finished) turn = event.turn
+                emit(event)
+            }
+            turn?.let { saveToolUsage(request, it, true, start) }
+        }
+
+    private suspend fun saveToolUsage(
+        request: LLMToolGenerationRequest,
+        turn: LLMToolTurn,
+        streaming: Boolean,
+        start: Long
+    ) {
+        val tokenizer = mTokenizerRegistry.resolveForUsage(mProvider)
+        val projection = ToolWireRequest.encode(mProvider, request, streaming) { it.uuid }
+        trySaveRecord(
+            request.base, turn.model, streaming, turn.continuation.toString(), turn.usage, start,
+            inputEstimate = tokenizer.countText(projection)
+                .toLong() + tokenizer.countImages(request.base.messages.flatMap { it.images }),
+            runId = request.runId
+        )
+    }
+
     /** 执行非流式生成，并在模型服务成功返回后保存一条用量记录。 */
     override suspend fun generate(request: LLMGenerationRequest): LLMGenerationResponse {
         val startNanos = System.nanoTime()
@@ -96,6 +136,8 @@ internal class LLMTokenUsageTrackingClient(
         outputText: String,
         usage: LLMUsage?,
         startNanos: Long,
+        inputEstimate: Long? = null,
+        runId: String? = null,
     ) {
         val tokenizer =
             mTokenizerRegistry.resolveForUsage(mProvider.copy(model = request.model?.takeIf { it.isNotBlank() }
@@ -105,13 +147,14 @@ internal class LLMTokenUsageTrackingClient(
         val reportedInput = acceptedUsage.reportedInputTokens()
         val reportedOutput = acceptedUsage.reportedOutputTokens()
         val input = reportedInput?.toLong()
-            ?: tokenizer.countMessages(request.messages).toLong()
+            ?: inputEstimate ?: tokenizer.countMessages(request.messages).toLong()
         val output = reportedOutput?.toLong()
             ?: tokenizer.countText(outputText).toLong()
         val endpoint = mProvider.baseUrl.toHttpUrlOrNull()
         val hasEstimate = reportedInput == null || reportedOutput == null
         // 只记录 endpoint 的 Host 与端口，不保留路径、查询参数和可能的鉴权信息
         val record = LLMTokenUsageRecord(
+            agentRunId = runId,
             providerId = mProvider.providerId?.takeIf { it != 0L },
             providerName = mProvider.name,
             providerType = mProvider.providerType,

@@ -38,7 +38,7 @@ object AgentRestoreValidator {
             validate(db)
             // 不将未备份的协议历史当作可续接状态，防止恢复后重发副作用。
             db.execSQL("UPDATE agent_runs SET state = 'Interrupted', activeConversationKey = NULL WHERE activeConversationKey IS NOT NULL")
-            db.execSQL("UPDATE agent_runs SET checkpointKey = NULL, expiresAt = NULL")
+            db.execSQL("UPDATE agent_runs SET checkpointKey = NULL, checkpointDigest = NULL, expiresAt = NULL")
             db.execSQL("UPDATE tool_invocations SET state = 'UnknownOutcome' WHERE state = 'Dispatching'")
             db.execSQL("UPDATE tool_invocations SET state = 'Failed' WHERE state IN ('Prepared', 'AwaitingUser')")
             db.execSQL("UPDATE tool_invocations SET checkpointKey = NULL, resultDigest = NULL")
@@ -49,6 +49,15 @@ object AgentRestoreValidator {
     }
 
     private fun validateRuns(db: SupportSQLiteDatabase) {
+        // 消息关联没有跨表外键，恢复时必须验证任务卡仍属于相同会话和助手回复。
+        rejectRows(
+            db, """
+            SELECT 1 FROM agent_runs r JOIN conversation_tool_policies p USING (conversationKey)
+            WHERE r.messageId IS NOT NULL AND
+            ((p.chatId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM chat_messages m WHERE m.id = r.messageId AND m.sessionId = p.chatId AND m.source = 'Char'))
+            OR (p.groupId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM group_chat_messages m WHERE m.id = r.messageId AND m.sessionId = p.groupId AND m.source = 'Character')))
+        """.trimIndent()
+        )
         rejectRows(
             db, """
             SELECT 1 FROM agent_runs WHERE state NOT IN

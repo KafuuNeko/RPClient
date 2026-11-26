@@ -31,7 +31,7 @@ data class ToolExecutionContext(
 enum class ToolWriteDisposition { Proposed, Committed }
 
 /** 确认与普通提问分别处理，不能把 ask_user 的回答当作外部写入授权。 */
-enum class ToolUserRequestKind { Input, ExternalWriteConfirmation }
+enum class ToolUserRequestKind { Input, ExternalWriteConfirmation, LocalWriteConfirmation }
 
 /**
  * 工具执行结果，只进入工具交换链及本机检查点。
@@ -63,7 +63,12 @@ sealed interface ToolResult {
  */
 sealed interface ToolAction {
     class Read(val execute: suspend () -> ToolResult) : ToolAction
-    class LocalWrite(val result: ToolResult.Success, val commit: suspend () -> Unit) : ToolAction
+    class LocalWrite(
+        val result: ToolResult.Success,
+        val confirmation: ToolResult.AwaitingUser? = null,
+        val commit: suspend () -> Unit
+    ) : ToolAction
+
     class ExternalWrite(
         val destinationHost: String,
         val parameterSummary: JsonObject,
@@ -72,6 +77,10 @@ sealed interface ToolAction {
 
     data class AwaitingUser(val result: ToolResult.AwaitingUser) : ToolAction
 }
+
+/** 参数或领域版本变化属于可恢复错误，不应把运行标记为未知副作用。 */
+class ToolPreparationException(val code: String) :
+    IllegalArgumentException("Tool preparation failed: $code")
 
 /**
  * 内置与 HTTP 工具的真实多实现边界。

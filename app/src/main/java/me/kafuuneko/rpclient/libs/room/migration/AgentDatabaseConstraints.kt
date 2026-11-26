@@ -65,6 +65,15 @@ object AgentDatabaseConstraints : RoomDatabase.Callback() {
     }
 
     private fun installHistoryClock(db: SupportSQLiteDatabase, family: String, prefix: String) {
+        // 物理删除正文时同步移除其任务卡与调用索引，不能把旧消息 ID 关联到后续导入的正文。
+        db.execSQL(
+            """
+            CREATE TRIGGER IF NOT EXISTS agent_${family}_message_delete
+            AFTER DELETE ON ${family}_messages
+            BEGIN DELETE FROM agent_runs WHERE messageId = OLD.id
+                AND conversationKey = '$prefix' || OLD.sessionId; END
+        """.trimIndent()
+        )
         // 更新消息时同时失效旧归属和新归属；普通路径无需读取或初始化 Agent 策略。
         listOf("INSERT", "UPDATE", "DELETE").forEach { action ->
             val owners = when (action) {

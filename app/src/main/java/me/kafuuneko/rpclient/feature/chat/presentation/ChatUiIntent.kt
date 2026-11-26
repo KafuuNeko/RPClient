@@ -1,10 +1,13 @@
 package me.kafuuneko.rpclient.feature.chat.presentation
 
 import android.net.Uri
+import me.kafuuneko.rpclient.feature.agent.model.AgentUiAction
 import me.kafuuneko.rpclient.libs.media.MessageImageAction
 
 /** 单聊页面可接收的全部用户意图和生命周期事件。 */
 sealed class ChatUiIntent {
+    data class AgentAction(val action: AgentUiAction) : ChatUiIntent()
+
     data object OpenMemory : ChatUiIntent()
 
     data class SelectPersona(val id: Long) : ChatUiIntent()

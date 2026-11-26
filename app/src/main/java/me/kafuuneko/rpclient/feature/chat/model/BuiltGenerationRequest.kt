@@ -2,9 +2,10 @@ package me.kafuuneko.rpclient.feature.chat.model
 
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
 import me.kafuuneko.rpclient.libs.prompt.model.PromptInspection
+import me.kafuuneko.rpclient.libs.prompt.model.PromptMessageDraft
 import me.kafuuneko.rpclient.libs.prompt.preset.PromptTemplateSnapshot
-import me.kafuuneko.rpclient.libs.room.entity.UserPersona
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
+import me.kafuuneko.rpclient.libs.room.entity.UserPersona
 
 /**
  * 构建好的 LLM 请求及元数据包装。
@@ -29,4 +30,6 @@ internal data class BuiltGenerationRequest(
     val worldInfoStateJson: String,
     /** 回复和 Prompt 共享本轮的人设与正则脚本。 */
     val regex: GenerationRegexContext,
+    val agentEligible: Boolean = false,
+    val retainedDrafts: List<PromptMessageDraft> = emptyList(),
 )

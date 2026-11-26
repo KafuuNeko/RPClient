@@ -57,6 +57,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import me.kafuuneko.rpclient.R
+import me.kafuuneko.rpclient.feature.agent.model.AgentTaskItem
+import me.kafuuneko.rpclient.feature.agent.model.AgentUiState
+import me.kafuuneko.rpclient.feature.agent.ui.AgentMessageTasks
+import me.kafuuneko.rpclient.feature.agent.ui.AgentPendingTasks
+import me.kafuuneko.rpclient.feature.agent.ui.AgentTaskCard
+import me.kafuuneko.rpclient.libs.agent.model.AgentRunState
+import me.kafuuneko.rpclient.model.MessageContentPart
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatGenerationState
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMemberItem
 import me.kafuuneko.rpclient.feature.groupchat.model.GroupChatMessageItem
@@ -90,6 +97,8 @@ import me.kafuuneko.rpclient.ui.widgets.PageSurface
 import me.kafuuneko.rpclient.ui.widgets.RpAvatar
 import me.kafuuneko.rpclient.ui.widgets.pageSurfaceBlur
 
+private const val AGENT_LIVE_GROUP_MESSAGE_ID = -100L
+
 /**
  * 渲染群聊会话主页，保留成员、消息列表与输入区的状态归属。
  *
@@ -111,9 +120,44 @@ internal fun GroupChatNormalPage(
         && conversation.editingMessageId == null
         && !state.imageState.loadState.isBusy
     val canContinue = conversation.hasCharacterMessage
-    val displayMessages = remember(conversation.messages, impersonating?.preview) {
-        impersonating?.preview?.let { preview -> conversation.messages + preview }
+    val activeLiveAgentTask = remember(state.agentState.tasks) {
+        state.agentState.tasks.firstOrNull { it.messageId == null && it.active && !it.waiting }
+    }
+    val waitingAgentTask = remember(state.agentState.tasks) {
+        state.agentState.tasks.firstOrNull { it.messageId == null && it.waiting }
+    }
+    val displayMessages = remember(
+        conversation.messages,
+        impersonating?.preview,
+        activeLiveAgentTask,
+        state.members,
+        generation,
+    ) {
+        val base = impersonating?.preview?.let { preview -> conversation.messages + preview }
             ?: conversation.messages
+        if (activeLiveAgentTask == null) {
+            base
+        } else {
+            val speaker = state.members.firstOrNull { it.id == activeLiveAgentTask.characterId }
+            val fallbackName = (generation as? GroupChatGenerationState.Generating)?.speakerName
+                ?: speaker?.name
+                ?: state.title
+            val liveParts = if (activeLiveAgentTask.liveText.isNotBlank()) {
+                listOf(MessageContentPart.Text(activeLiveAgentTask.liveText))
+            } else {
+                emptyList()
+            }
+            base + GroupChatMessageItem(
+                id = AGENT_LIVE_GROUP_MESSAGE_ID,
+                source = GroupChatMessageSource.Character,
+                speakerName = speaker?.name ?: fallbackName,
+                content = activeLiveAgentTask.liveText,
+                parts = liveParts,
+                time = "",
+                isStreaming = true,
+                avatarImage = speaker?.avatarImage,
+            )
+        }
     }
 
     // 顶栏、成员轨、共享消息列表与输入区各自消费对应安全区，Scaffold 本身不重复追加系统栏留白。
@@ -125,6 +169,8 @@ internal fun GroupChatNormalPage(
                 title = state.title,
                 strategy = state.activeActivationStrategy,
                 generationState = conversation.generationState,
+                agentEnabled = state.agentState.enabled,
+                activeAgentTask = activeLiveAgentTask ?: waitingAgentTask,
                 hasAvailableProvider = state.hasAvailableProvider,
                 hasPromptInspection = state.hasPromptInspection,
                 sessionLoreDialogVisible = state.dialogState is GroupChatDialogState.SessionLorebook,
@@ -140,6 +186,7 @@ internal fun GroupChatNormalPage(
                     emitIntent(GroupChatUiIntent.ImageAction(action = action))
                 },
             )
+            AgentPendingTasks(state.agentState) { emitIntent(GroupChatUiIntent.AgentAction(it)) }
             Composer(
                 draft = conversation.inputDraft,
                 generating = generating,
@@ -180,9 +227,27 @@ internal fun GroupChatNormalPage(
                 )
                 ConversationMessageList(
                     messages = displayMessages,
-                    itemId = { message -> message.id.toString() },
+                    itemId = { message ->
+                        if (message.id == AGENT_LIVE_GROUP_MESSAGE_ID && activeLiveAgentTask != null) {
+                            "agent-live-${activeLiveAgentTask.id}"
+                        } else {
+                            message.id.toString()
+                        }
+                    },
                     itemContentType = { message -> message.source },
-                    itemContentKey = { message -> message.content },
+                    itemContentKey = { message ->
+                        if (message.id == AGENT_LIVE_GROUP_MESSAGE_ID && activeLiveAgentTask != null) {
+                            listOf(
+                                message.content,
+                                activeLiveAgentTask.steps.size,
+                                activeLiveAgentTask.toolCalls,
+                                activeLiveAgentTask.reasoning.length,
+                                activeLiveAgentTask.runState,
+                            )
+                        } else {
+                            message.content
+                        }
+                    },
                     canLoadOlderMessages = conversation.canLoadOlderMessages,
                     historyLoadState = conversation.historyLoadState,
                     searchAnchorMessageId = conversation.searchAnchorMessageId?.toString(),
@@ -192,7 +257,9 @@ internal fun GroupChatNormalPage(
                     onLoadNewerMessages = { emitIntent(GroupChatUiIntent.LoadNewerMessages) },
                     onReturnToLatest = { emitIntent(GroupChatUiIntent.ReturnToLatest) },
                     onReachLatestMessage = { message ->
-                        emitIntent(GroupChatUiIntent.ReachLatestMessage(message.id))
+                        if (message.id > 0L) {
+                            emitIntent(GroupChatUiIntent.ReachLatestMessage(message.id))
+                        }
                     },
                     modifier = Modifier.weight(1f),
                     emptyContent = { emptyModifier ->
@@ -200,7 +267,12 @@ internal fun GroupChatNormalPage(
                     },
                     messageContent = { _, message ->
                         val isEditing = conversation.editingMessageId == message.id
+                        val liveTask = activeLiveAgentTask?.takeIf {
+                            message.id == AGENT_LIVE_GROUP_MESSAGE_ID
+                        }
                         GroupChatMessageBubble(
+                            agentState = state.agentState,
+                            liveAgentTask = liveTask,
                             imageState = state.imageState,
                             message = message,
                             canBranch = canBranch,
@@ -229,6 +301,8 @@ private fun CustomGroupChatTopBar(
     title: String,
     strategy: GroupChatActivationStrategy,
     generationState: GroupChatGenerationState,
+    agentEnabled: Boolean,
+    activeAgentTask: AgentTaskItem?,
     hasAvailableProvider: Boolean,
     hasPromptInspection: Boolean,
     sessionLoreDialogVisible: Boolean,
@@ -240,12 +314,14 @@ private fun CustomGroupChatTopBar(
         R.string.group_chat_turn_order,
         stringResource(strategy.titleRes()),
     )
-    val statusText = when (generationState) {
-        GroupChatGenerationState.Idle ->
+    val statusText = when {
+        activeAgentTask?.waiting == true -> stringResource(R.string.agent_state_waiting)
+        activeAgentTask?.runState == AgentRunState.ExecutingTools -> stringResource(R.string.agent_step_tools)
+        generationState is GroupChatGenerationState.Idle ->
             if (!hasAvailableProvider) stringResource(R.string.no_model_configured)
             else stringResource(R.string.group_chat_cast_ready)
 
-        is GroupChatGenerationState.Generating ->
+        generationState is GroupChatGenerationState.Generating ->
             stringResource(
                 R.string.group_chat_speaker_replying,
                 generationState.speakerName,
@@ -253,8 +329,9 @@ private fun CustomGroupChatTopBar(
                 generationState.total,
             )
 
-        is GroupChatGenerationState.Impersonating -> stringResource(R.string.impersonate_user)
-        is GroupChatGenerationState.Failed -> stringResource(R.string.generation_failed)
+        generationState is GroupChatGenerationState.Impersonating -> stringResource(R.string.impersonate_user)
+        generationState is GroupChatGenerationState.Failed -> stringResource(R.string.generation_failed)
+        else -> stringResource(R.string.group_chat_cast_ready)
     }
 
     // 采用与单聊一致的顶部底板与毛玻璃样式。
@@ -291,13 +368,35 @@ private fun CustomGroupChatTopBar(
 
             // 群聊标题与副状态（发言策略与当前状态合一）。
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(weight = 1f, fill = false),
+                    )
+                    if (agentEnabled) {
+                        AppSurface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.agent_title),
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                softWrap = false,
+                            )
+                        }
+                    }
+                }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -552,11 +651,30 @@ private fun GroupChatMessageBubble(
     editingDraft: String,
     expandedThinkBlockIds: Set<String>,
     emitIntent: (GroupChatUiIntent) -> Unit,
+    agentState: AgentUiState = AgentUiState(),
+    liveAgentTask: AgentTaskItem? = null,
 ) {
     val item = remember(message) { message.toConversationMessageItem() }
     // 群聊消息完全复用单聊标准的气泡与外置悬浮操作栏，只注入群聊支持的业务操作。
     ConversationMessageBubble(
         message = item,
+        agentContent = {
+            if (liveAgentTask != null) {
+                AgentTaskCard(
+                    task = liveAgentTask,
+                    state = agentState,
+                    emit = { action -> emitIntent(GroupChatUiIntent.AgentAction(action)) },
+                    embeddedInBubble = true,
+                )
+            } else if (message.id > 0L) {
+                AgentMessageTasks(
+                    messageId = message.id,
+                    state = agentState,
+                    emit = { action -> emitIntent(GroupChatUiIntent.AgentAction(action)) },
+                )
+            }
+        },
+        showEmptyStreamingPlaceholder = liveAgentTask == null,
         imageState = imageState,
         expandedThinkBlockIds = expandedThinkBlockIds,
         editing = editing,

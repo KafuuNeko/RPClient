@@ -87,6 +87,7 @@ fun GroupChatLayout(
                 pageStateHolder.SaveableStateProvider("${uiState.sessionId}:${uiState.page.name}") {
                     if (uiState.page == GroupChatPage.Settings) {
                         GroupChatSettingsPage(
+                            agentState = uiState.agentState,
                             state = uiState.settingsState,
                             members = uiState.members,
                             emitIntent = emitIntent,

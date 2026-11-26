@@ -80,7 +80,8 @@ class AgentRunRepository(private val mDatabase: AppDatabase) {
     suspend fun start(
         conversation: ConversationRef,
         characterId: Long,
-        personaId: Long
+        personaId: Long,
+        batchId: String? = null,
     ): AgentExecutionToken = mDatabase.withTransaction {
         val settings = settings(conversation)
         if (!settings.enabled || mDao.activeRun(conversation.key) != null) throw AgentAuthorizationException()
@@ -93,6 +94,7 @@ class AgentRunRepository(private val mDatabase: AppDatabase) {
         val now = System.currentTimeMillis()
         val run = AgentRun(
             id = UUID.randomUUID().toString(),
+            batchId = batchId,
             conversationKey = conversation.key,
             activeConversationKey = conversation.key,
             characterId = characterId,
@@ -172,7 +174,10 @@ class AgentRunRepository(private val mDatabase: AppDatabase) {
             val invocation = requireNotNull(mDao.invocation(invocationId))
             check(
                 invocation.runId == run.id && invocation.state == ToolInvocationState.AwaitingUser &&
-                    invocation.awaitingKind == ToolUserRequestKind.ExternalWriteConfirmation.name
+                    invocation.awaitingKind in setOf(
+                    ToolUserRequestKind.ExternalWriteConfirmation.name,
+                    ToolUserRequestKind.LocalWriteConfirmation.name
+                )
             ) { "Tool invocation is not awaiting confirmation" }
             mDao.updateInvocation(
                 invocation.copy(
@@ -307,7 +312,7 @@ class AgentRunRepository(private val mDatabase: AppDatabase) {
         commit()
         val historyVersion = requireNotNull(mDao.policy(token.conversation.key)).historyVersion
         mDao.updateRun(
-            run.copy(
+            requireNotNull(mDao.run(token.runId)).copy(
                 historyVersion = historyVersion,
                 updatedAt = System.currentTimeMillis()
             )
@@ -320,6 +325,45 @@ class AgentRunRepository(private val mDatabase: AppDatabase) {
         val policy = policy(conversation)
         mDao.updatePolicy(policy.copy(executionEpoch = policy.executionEpoch + 1))
         revokeActive(conversation, AgentRunState.Cancelled)
+    }
+
+    /**
+     * 先独立提交撤权，再在另一短事务中挽救合法 partial，挽救失败不能恢复旧授权。
+     * @param partialToken 只来自已明确禁工具的收尾请求，其他阶段为空。
+     * @param persistPartial 已完成清洗的本地正文变更，禁止 IO 或提案提交。
+     */
+    suspend fun revokeWithPartial(
+        conversation: ConversationRef,
+        partialToken: AgentExecutionToken?,
+        persistPartial: suspend () -> Long?
+    ) {
+        val proof = mDatabase.withTransaction {
+            val run = mDao.activeRun(conversation.key) ?: return@withTransaction null
+            val authorized = partialToken?.takeIf { it.runId == run.id }
+                ?.let { token -> runCatching { checkAuthorized(token) }.isSuccess } == true
+            val policy = policy(conversation)
+            mDao.updatePolicy(policy.copy(executionEpoch = policy.executionEpoch + 1))
+            interrupt(run, AgentRunState.Cancelled)
+            if (authorized) run to (policy.executionEpoch + 1) else null
+        } ?: return
+        // 挽救失败不能回滚已经提交的撤权；新消息或新运行出现时放弃旧片段。
+        runCatching {
+            mDatabase.withTransaction {
+                val (run, epoch) = proof
+                val policy = mDao.policy(conversation.key) ?: return@withTransaction
+                if (mDao.activeRun(conversation.key) != null || policy.executionEpoch != epoch || policy.historyVersion != run.historyVersion || settings(
+                        conversation
+                    ).version != run.settingsVersion
+                ) return@withTransaction
+                persistPartial()?.let { messageId ->
+                    mDao.updateRun(
+                        requireNotNull(mDao.run(run.id)).copy(
+                            messageId = messageId
+                        )
+                    )
+                }
+            }
+        }
     }
 
     /** 全库替换前撤销全部资格，不依赖页面存活。 */
@@ -354,6 +398,221 @@ class AgentRunRepository(private val mDatabase: AppDatabase) {
             val run = checkAuthorized(token).first
             interrupt(run, state)
         }
+
+    /** 仅撤销仍归属于旧运行的执行权；历史冲突后也不能遗留锁死的占有者。 */
+    suspend fun abortOwned(token: AgentExecutionToken, state: AgentRunState) =
+        mDatabase.withTransaction {
+            val run = mDao.run(token.runId) ?: return@withTransaction
+            if (run.activeConversationKey != token.conversation.key) return@withTransaction
+            interrupt(run, state)
+        }
+
+    /** 等待超时独立于冷启动回收，不能误中止同进程仍在执行的网络请求。 */
+    suspend fun expireWaiting(now: Long = System.currentTimeMillis()) = mDatabase.withTransaction {
+        mDao.activeRuns()
+            .filter { it.state == AgentRunState.WaitingForUser && (it.expiresAt ?: 0) <= now }
+            .forEach { interrupt(it, AgentRunState.Expired) }
+    }
+
+    /** 后台初始化收集仍可保留的本机载荷键，不包含已完成运行。 */
+    suspend fun recoveryKeys(now: Long = System.currentTimeMillis()): Set<String> =
+        mDao.recoverableRuns(now, now - 604_800_000L).flatMap { run ->
+            listOfNotNull(run.checkpointKey) + mDao.invocations(run.id)
+                .mapNotNull { it.checkpointKey }
+        }.toSet()
+
+    /** 按实际人设查找活动会话，包含绑定 FOLLOW_DEFAULT 时解析得到的身份。 */
+    suspend fun activeForPersona(personaId: Long): List<ConversationRef> =
+        mDao.activeRuns().filter { it.personaId == personaId }.map { run ->
+            val id = run.conversationKey.substringAfter('/').toLong()
+            if (run.conversationKey.startsWith("single/")) ConversationRef.Single(id) else ConversationRef.Group(
+                id
+            )
+        }
+
+    /** 获取运行摘要，恢复和任务卡不依赖调试日志。 */
+    suspend fun get(runId: String): AgentRun? = mDao.run(runId)
+
+    /** 查询当前会话占有者，包括持久化等待状态。 */
+    suspend fun active(conversation: ConversationRef): AgentRun? = mDao.activeRun(conversation.key)
+
+    /** 获取当前运行的步骤摘要。 */
+    suspend fun steps(runId: String): List<AgentStep> = mDao.steps(runId)
+
+    /** 获取用于恢复的有序调用索引，不返回原始参数。 */
+    suspend fun invocations(runId: String): List<ToolInvocation> = mDao.invocations(runId)
+
+    /** 复核资格后更新低频阶段。 */
+    suspend fun transition(token: AgentExecutionToken, state: AgentRunState) =
+        mDatabase.withTransaction {
+            val run = checkAuthorized(token).first
+            require(!state.isTerminal && state != AgentRunState.WaitingForUser) { "Invalid execution transition" }
+            mDao.updateRun(
+                run.copy(
+                    state = state,
+                    updatedAt = System.currentTimeMillis(),
+                    expiresAt = null
+                )
+            )
+        }
+
+    /** 原子保存运行恢复引用，载荷及指纹必须已在事务外发布。 */
+    suspend fun checkpoint(token: AgentExecutionToken, key: String, digest: String) =
+        mDatabase.withTransaction {
+            val run = checkAuthorized(token).first
+            mDao.updateRun(
+                run.copy(
+                    checkpointKey = key,
+                    checkpointDigest = digest,
+                    updatedAt = System.currentTimeMillis()
+                )
+            )
+        }
+
+    /** 预占唯一请求及估算额度，失败或取消不退还已可能消耗的成本。 */
+    suspend fun reserveRequest(
+        token: AgentExecutionToken,
+        requestId: String,
+        estimate: Long,
+        compaction: Boolean
+    ): Long = mDatabase.withTransaction {
+        val (run, policy) = checkAuthorized(token)
+        check(run.modelRequests < policy.maxModelRequests && run.totalTokens + estimate <= policy.maxTotalTokens && run.activeMillis < policy.maxActiveMillis) { "Agent cost limit reached" }
+        if (token.conversation is ConversationRef.Group && run.batchId != null) {
+            val batch = mDao.batchRuns(run.batchId, token.conversation.key)
+            check(batch.sumOf { it.modelRequests } < policy.maxGroupModelRequests && batch.sumOf { it.totalTokens } + estimate <= policy.maxGroupTotalTokens && batch.sumOf { it.activeMillis } < policy.maxGroupActiveMillis) { "Agent group cost limit reached" }
+        }
+        val step = appendStep(token, if (compaction) "Compaction" else "Model", requestId)
+        mDao.updateStep(requireNotNull(mDao.step(step)).copy(estimatedTokens = estimate))
+        mDao.updateRun(
+            run.copy(
+                modelRequests = run.modelRequests + 1,
+                totalTokens = run.totalTokens + estimate
+            )
+        )
+        step
+    }
+
+    /** 成功请求按实际或同源估算核销一次，重复完成不能重复记账。 */
+    suspend fun completeRequest(
+        token: AgentExecutionToken,
+        stepId: Long,
+        tokens: Long,
+        activeMillis: Long,
+        outcomeCode: String = "completed",
+    ) = mDatabase.withTransaction {
+        require(tokens >= 0 && activeMillis >= 0) { "Invalid request accounting" }
+        val run = checkAuthorized(token).first
+        val step = requireNotNull(mDao.step(stepId))
+        require(step.runId == token.runId) { "Invalid request step owner" }
+        if (step.completedAt != null) return@withTransaction
+        mDao.updateStep(
+            step.copy(
+                completedAt = System.currentTimeMillis(),
+                actualTokens = tokens,
+                outcomeCode = outcomeCode
+            )
+        )
+        mDao.updateRun(
+            run.copy(
+                totalTokens = (run.totalTokens - step.estimatedTokens + tokens).coerceAtLeast(
+                    0
+                ), activeMillis = run.activeMillis + activeMillis
+            )
+        )
+    }
+
+    /** 群聊成员共用同一批次账本，收尾请求也需为其他成员已耗额度留出空间。 */
+    suspend fun batchUsage(token: AgentExecutionToken): Triple<Int, Long, Long> {
+        val run = requireNotNull(mDao.run(token.runId))
+        val batch = run.batchId?.let { mDao.batchRuns(it, token.conversation.key) }.orEmpty()
+        return Triple(
+            batch.sumOf { it.modelRequests },
+            batch.sumOf { it.totalTokens },
+            batch.sumOf { it.activeMillis })
+    }
+
+    /** 工具轮次也计入根运行限额，不因用户等待和恢复而重置。 */
+    suspend fun beginTools(token: AgentExecutionToken): Long = mDatabase.withTransaction {
+        val (run, policy) = checkAuthorized(token)
+        check(run.toolRounds < policy.maxToolRounds && run.toolCalls < policy.maxToolCalls) { "Agent tool limit reached" }
+        mDao.updateRun(
+            run.copy(
+                state = AgentRunState.ExecutingTools,
+                toolRounds = run.toolRounds + 1
+            )
+        )
+        appendStep(token, "Tools")
+    }
+
+    /** 整批工具均返回结果后完成步骤，用户等待与恢复不会重复创建或提前结束步骤。 */
+    suspend fun completeTools(token: AgentExecutionToken, stepId: Long) =
+        mDatabase.withTransaction {
+            checkAuthorized(token)
+            val step = requireNotNull(mDao.step(stepId))
+            require(step.runId == token.runId && step.kind == "Tools") { "Invalid tool step owner" }
+            if (step.completedAt == null) mDao.updateStep(
+                step.copy(
+                    completedAt = System.currentTimeMillis(),
+                    outcomeCode = "completed"
+                )
+            )
+        }
+
+    /** 保存可展示的稳定终止原因，避免把协议载荷或异常原文写入任务卡。 */
+    suspend fun noteOutcome(token: AgentExecutionToken, code: String) = mDatabase.withTransaction {
+        val run = checkAuthorized(token).first
+        mDao.updateRun(run.copy(outcomeCode = code))
+    }
+
+    /** 工具耗时计入主动执行时间，等待用户不计入该账本。 */
+    suspend fun addActiveTime(token: AgentExecutionToken, elapsed: Long) =
+        mDatabase.withTransaction {
+            val run = checkAuthorized(token).first
+            mDao.updateRun(run.copy(activeMillis = run.activeMillis + elapsed.coerceAtLeast(0)))
+        }
+
+    /** 最终正文提交事务内关联气泡，失败诊断只保存稳定错误码。 */
+    suspend fun attachMessage(token: AgentExecutionToken, messageId: Long) {
+        val run = requireNotNull(mDao.run(token.runId))
+        mDao.updateRun(run.copy(messageId = messageId))
+    }
+
+    /** 本机等待恢复重建令牌后仍须通过完整授权校验。 */
+    suspend fun resumeToken(conversation: ConversationRef): AgentExecutionToken =
+        mDatabase.withTransaction {
+            val run = mDao.activeRun(conversation.key) ?: throw AgentAuthorizationException()
+            val token = AgentExecutionToken(
+                conversation,
+                run.id,
+                run.settingsVersion,
+                run.historyVersion,
+                run.executionEpoch
+            )
+            checkAuthorized(token)
+            token
+        }
+
+    /** 用户输入完成后更新调用结果引用，提问答案不能授予写入确认。 */
+    suspend fun answerInput(
+        token: AgentExecutionToken,
+        invocationId: String,
+        key: String,
+        digest: String
+    ) = mDatabase.withTransaction {
+        val run = checkAuthorized(token).first
+        val invocation = requireNotNull(mDao.invocation(invocationId))
+        check(invocation.runId == token.runId && invocation.state == ToolInvocationState.AwaitingUser && invocation.awaitingKind == ToolUserRequestKind.Input.name) { "Invocation is not awaiting input" }
+        mDao.updateInvocation(
+            invocation.copy(
+                state = ToolInvocationState.Completed,
+                checkpointKey = key,
+                resultDigest = digest,
+                completedAt = System.currentTimeMillis()
+            )
+        )
+        mDao.updateRun(run.copy(state = AgentRunState.ExecutingTools, expiresAt = null))
+    }
 
     /** 读取并验证工具 ID 白名单，不接受逗号串或隐式类型转换。 */
     fun enabledTools(policy: ConversationToolPolicy): Set<String> =

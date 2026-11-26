@@ -11,6 +11,8 @@ enum class PromptSourceKind {
 
     Memory,
 
+    SceneState,
+
     WorldInfo,
 
     UserPersona,
