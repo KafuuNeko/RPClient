@@ -25,6 +25,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.agent.model.AgentQuestionItem
+import me.kafuuneko.rpclient.feature.agent.model.AgentQuestionKind
 import me.kafuuneko.rpclient.feature.agent.model.AgentTaskItem
 import me.kafuuneko.rpclient.feature.agent.model.AgentUiAction
 import me.kafuuneko.rpclient.feature.agent.model.AgentUiState
@@ -124,6 +125,42 @@ class AgentTaskCardTest {
         rule.runOnIdle { dark.value = true }
         rule.onNodeWithText(mContext.getString(R.string.confirm)).assertIsDisplayed()
         screenshot("agent-dark-large-font.png")
+    }
+
+    @Test
+    fun externalWriteConfirmationShowsExternalCopyHostAndParameters() {
+        val state = AgentUiState(
+            enabled = true,
+            tasks = listOf(task()),
+            question = AgentQuestionItem(
+                runId = "run",
+                question = "",
+                options = emptyList(),
+                confirmation = true,
+                details = "issue_tracker -> api.fixture.example",
+                kind = AgentQuestionKind.ExternalWriteConfirmation,
+                toolName = "issue_tracker",
+                destinationHost = "api.fixture.example",
+                parameterLines = listOf("title" to "Update notes"),
+            )
+        )
+        var confirmed = false
+        rule.setContent {
+            AppTheme {
+                AgentTaskCard(state.tasks.single(), state) { action ->
+                    if (action is AgentUiAction.SubmitAnswer) confirmed = action.confirmed
+                }
+            }
+        }
+        // 外发请求确认必须展示外发标题、目标主机与明文参数，不能误报为本地记忆变更。
+        rule.onNodeWithText(mContext.getString(R.string.agent_confirm_external_write))
+            .assertIsDisplayed()
+        rule.onNodeWithText(
+            mContext.getString(R.string.agent_confirm_host_label, "api.fixture.example")
+        ).assertIsDisplayed()
+        rule.onNodeWithText("title: Update notes").assertIsDisplayed()
+        rule.onNodeWithText(mContext.getString(R.string.confirm)).performClick()
+        assertTrue(confirmed)
     }
 
     private fun screenshot(name: String) {

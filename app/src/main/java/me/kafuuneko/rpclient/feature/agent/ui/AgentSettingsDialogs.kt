@@ -213,10 +213,11 @@ private fun AgentToolPickerRow(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
+                val dimmed = blockedByReadOnly || tool.globallyDisabled
                 Text(
-                    text = stringResource(tool.labelRes),
+                    text = tool.label ?: stringResource(tool.labelRes),
                     style = MaterialTheme.typography.titleSmall,
-                    color = if (blockedByReadOnly) {
+                    color = if (dimmed) {
                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
                     } else {
                         MaterialTheme.colorScheme.onSurface
@@ -229,6 +230,19 @@ private fun AgentToolPickerRow(
                         text = stringResource(R.string.agent_tool_read_only_blocked),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
+                if (tool.globallyDisabled) {
+                    Text(
+                        text = stringResource(R.string.agent_tool_globally_disabled),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else if (tool.needsConfiguration) {
+                    Text(
+                        text = stringResource(R.string.tool_settings_needs_configuration),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
                     )
                 }
             }
@@ -484,4 +498,5 @@ private fun AgentToolGroup.titleRes(): Int = when (this) {
     AgentToolGroup.Scene -> R.string.agent_tool_group_scene
     AgentToolGroup.Utility -> R.string.agent_tool_group_utility
     AgentToolGroup.Interaction -> R.string.agent_tool_group_interaction
+    AgentToolGroup.Network -> R.string.tool_settings_tools
 }

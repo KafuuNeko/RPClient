@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.libs.agent.model
 
 import androidx.sqlite.db.SupportSQLiteDatabase
+import me.kafuuneko.rpclient.libs.agent.connection.ToolConfigRestoreValidator
 
 /**
  * 整库恢复前验证 Agent 元数据及剧情快照。
@@ -29,6 +30,7 @@ object AgentRestoreValidator {
         }
         validateRuns(db)
         validateScenes(db)
+        ToolConfigRestoreValidator.validate(db)
     }
 
     /** 校验成功后撤销不可恢复的运行引用，整库备份不会携带本机检查点。 */
@@ -67,6 +69,7 @@ object AgentRestoreValidator {
                 AND (activeConversationKey IS NULL OR activeConversationKey != conversationKey))
             OR settingsVersion < 0 OR historyVersion < 0 OR executionEpoch < 0 OR activeMillis < 0
             OR toolRounds < 0 OR toolCalls < 0 OR modelRequests < 0 OR totalTokens < 0
+            OR untrustedExternalOutput NOT IN (0, 1)
         """.trimIndent()
         )
         rejectRows(

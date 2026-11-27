@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Book
+import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DataObject
@@ -230,6 +231,7 @@ internal fun MainSettingsPage(
             )
         }
         item { MemoryCenterEntryCard(onClick = { MainUiIntent.OpenMemoryCenter.emit() }) }
+        item { ToolSettingsEntryCard(onClick = { MainUiIntent.OpenToolSettings.emit() }) }
         item { PromptBehaviorPanel(state.promptBehaviorState, emit) }
         item { MainUserWritingSettings(state.impersonationOutput, emit) }
         item { WorldInfoBudgetPanel(state.worldInfoBudgetState, emit) }
@@ -1030,6 +1032,28 @@ private fun MemoryCenterEntryCard(onClick: () -> Unit) {
             iconColor = AccentEmeraldColor,
             iconContainerColor = AccentEmeraldColor.copy(alpha = 0.14f),
             title = stringResource(R.string.memory_center),
+            onClick = onClick,
+            trailing = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+                    modifier = Modifier.size(18.dp),
+                )
+            },
+        )
+    }
+}
+
+@Composable
+private fun ToolSettingsEntryCard(onClick: () -> Unit) {
+    RpSettingsGroup {
+        RpSettingsTile(
+            icon = Icons.Rounded.Build,
+            iconColor = AccentAmberColor,
+            iconContainerColor = AccentAmberColor.copy(alpha = 0.14f),
+            title = stringResource(R.string.tool_settings_title),
+            subtitle = stringResource(R.string.tool_settings_subtitle),
             onClick = onClick,
             trailing = {
                 Icon(

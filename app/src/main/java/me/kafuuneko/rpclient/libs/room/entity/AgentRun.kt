@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.libs.room.entity
 
 import androidx.room.Entity
+import androidx.room.ColumnInfo
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -58,6 +59,7 @@ data class AgentRun(
     val messageId: Long? = null,
     val outcomeCode: String? = null,
     val expiresAt: Long? = null,
+    @ColumnInfo(defaultValue = "0") val untrustedExternalOutput: Boolean = false,
 )
 
 /** 一个模型或工具步骤的低频摘要，不接收流式正文及未经脱敏的异常文本。 */

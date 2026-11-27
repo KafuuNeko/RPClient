@@ -275,6 +275,10 @@ class AgentRunRepository(private val mDatabase: AppDatabase) {
                 completedAt = System.currentTimeMillis()
             )
         )
+        if (definition.external && state == ToolInvocationState.Completed) {
+            val run = requireNotNull(mDao.run(token.runId))
+            mDao.updateRun(run.copy(untrustedExternalOutput = true))
+        }
         if (state == ToolInvocationState.AwaitingUser) {
             val run = requireNotNull(mDao.run(token.runId))
             val now = System.currentTimeMillis()

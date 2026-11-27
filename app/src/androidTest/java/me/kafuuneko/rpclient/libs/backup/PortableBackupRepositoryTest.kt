@@ -3,6 +3,24 @@ package me.kafuuneko.rpclient.libs.backup
 import me.kafuuneko.rpclient.libs.room.repository.SceneStateRepository
 import me.kafuuneko.rpclient.libs.room.repository.AgentRunRepository
 import android.content.Context
+import com.google.gson.JsonObject
+import com.google.gson.JsonPrimitive
+import kotlinx.coroutines.cancel
+import me.kafuuneko.rpclient.createAppModules
+import me.kafuuneko.rpclient.libs.agent.connection.HttpToolConfigCodec
+import me.kafuuneko.rpclient.libs.agent.connection.HttpToolConnection
+import me.kafuuneko.rpclient.libs.agent.connection.ToolCredentialRepository
+import me.kafuuneko.rpclient.libs.agent.model.ConversationRef
+import me.kafuuneko.rpclient.libs.agent.model.AgentRunState
+import me.kafuuneko.rpclient.libs.agent.model.SceneStateChange
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentApplicationScope
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentCheckpointStore
+import me.kafuuneko.rpclient.libs.agent.runtime.AgentRunManager
+import me.kafuuneko.rpclient.libs.room.entity.ToolConnection
+import me.kafuuneko.rpclient.libs.room.repository.ToolConfigRepository
+import org.koin.dsl.koinApplication
+import org.koin.dsl.module
+import org.koin.android.ext.koin.androidContext
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
@@ -77,6 +95,7 @@ class PortableBackupRepositoryTest {
             override fun getDataDir(): File = root
             override fun getFilesDir(): File = File(root, "files").apply { mkdirs() }
             override fun getCacheDir(): File = File(root, "cache").apply { mkdirs() }
+            override fun getNoBackupFilesDir(): File = File(root, "no_backup").apply { mkdirs() }
             override fun getDir(name: String, mode: Int): File =
                 File(root, "app_$name").apply { mkdirs() }
 
@@ -344,6 +363,119 @@ class PortableBackupRepositoryTest {
             native.copy(id = nativeId),
             primary.getLLMProviderDao().getProviderById(nativeId)
         )
+    }
+
+    /** 完整恢复撤销活动运行并清空旧检查点，保留配置、策略和剧情但不恢复凭据。 */
+    @Test
+    fun httpConfigurationRestoreStopsRunsAndExcludesLocalCredentials() = runBlocking {
+        val application = koinApplication {
+            androidContext(context)
+            modules(createAppModules(), module {
+                single<AppDatabase> { primary }
+                single<RequestLogDatabase> { logs }
+            })
+        }
+        try {
+            val koin = application.koin
+            val manager = koin.get<AgentRunManager>()
+            manager.stopAll()
+            val credentials = koin.get<ToolCredentialRepository>()
+            val reference = credentials.save("private-http-fixture-key")
+            val configurations = koin.get<ToolConfigRepository>()
+            val connection = ToolConnection(
+                UUID.randomUUID().toString(),
+                "Backup HTTP",
+                HttpToolConfigCodec.encode(
+                    HttpToolConnection(
+                        "https://example.com",
+                        authMode = "Bearer",
+                        credentialRef = reference
+                    )
+                )
+            )
+            configurations.save(connection)
+            val tool = configurations.template(false).copy(connectionId = connection.id)
+            configurations.save(tool)
+            val character = primary.getCharacterDao().insertOrReplace(
+                Character(
+                    name = "Agent backup",
+                    avatar = "",
+                    characterTags = "[]",
+                    description = "",
+                    personality = "",
+                    scenario = "",
+                    firstMessages = "[]",
+                    examplesOfDialogue = "",
+                    postHistoryInstructions = ""
+                )
+            )
+            val chat = primary.getChatSessionDao().insertOrReplace(
+                ChatSession(
+                    characterId = character,
+                    createTime = 1,
+                    latestTime = 1,
+                    lorebookEntrySet = "[]",
+                    title = "Backup",
+                    userNote = "",
+                    userPersonaId = 1
+                )
+            )
+            val conversation = ConversationRef.Single(chat)
+            val runs = koin.get<AgentRunRepository>()
+            runs.saveSettings(
+                conversation,
+                true,
+                null,
+                runs.policy(conversation).copy(enabledToolIdsJson = "[\"http.${tool.id}\"]")
+            )
+            koin.get<SceneStateRepository>().update(
+                conversation,
+                0,
+                listOf(SceneStateChange(listOf("location"), JsonPrimitive("rain"))),
+                0
+            )
+            val token = runs.start(conversation, character, 1)
+            val store = koin.get<AgentCheckpointStore>()
+            val key = "run/${token.runId}"
+            val digest = store.write(
+                key,
+                JsonObject().apply { addProperty("fixture", "private-checkpoint-fixture") })
+            runs.checkpoint(token, key, digest)
+            // 可移植包不包含 noBackupFilesDir，即使其中存在有效密文和活动检查点。
+            val archive = File(root, "http-agent.zip")
+            val backup = koin.get<PortableBackupRepository>()
+            backup.exportArchive(Uri.fromFile(archive))
+            ZipFile(archive).use { zip ->
+                zip.entries().asSequence().filterNot { it.isDirectory }.forEach { entry ->
+                    assertFalse(entry.name.contains("tool_credentials") || entry.name.contains("agent_checkpoints"))
+                    val text = zip.getInputStream(entry).bufferedReader().use { it.readText() }
+                    assertFalse(text.contains("private-http-fixture-key") || text.contains("private-checkpoint-fixture"))
+                }
+            }
+            credentials.delete(reference)
+            backup.restoreArchive(Uri.fromFile(archive))
+            assertNull(store.read(key, digest))
+            openDatabases()
+            assertEquals(connection, primary.getToolConfigDao().connection(connection.id))
+            assertEquals(tool.id, primary.getToolConfigDao().tools().single().id)
+            assertNull(credentials.read(reference))
+            val restored = requireNotNull(primary.getAgentRunDao().run(token.runId))
+            assertEquals(AgentRunState.Interrupted, restored.state)
+            assertNull(restored.activeConversationKey)
+            assertNull(restored.checkpointKey)
+            assertEquals(
+                "[\"http.${tool.id}\"]",
+                primary.getAgentRunDao().policy(conversation.key)?.enabledToolIdsJson
+            )
+            assertTrue(
+                requireNotNull(
+                    primary.getSceneStateDao().get(conversation.key)
+                ).stateJson.contains("rain")
+            )
+        } finally {
+            application.koin.get<AgentApplicationScope>().scope.cancel()
+            application.close()
+        }
     }
 
     /** 全量恢复同时保留三类归属、开关和修订，损坏的记忆行会在替换主库前被拒绝。 */

@@ -60,15 +60,20 @@ enum class AgentToolGroup {
     Utility,
 
     Interaction,
+
+    Network,
 }
 
-/** 单个可选本地工具的展示元数据。 */
+/** 单个可选工具的展示元数据。 */
 data class AgentToolItem(
     val id: String,
     @param:StringRes val labelRes: Int,
     val group: AgentToolGroup,
     val enabled: Boolean,
     val writesMemory: Boolean = false,
+    val label: String? = null,
+    val needsConfiguration: Boolean = false,
+    val globallyDisabled: Boolean = false,
 )
 
 /** 可供会话绑定的 Agent 提示词预设项；[id] 为空表示跟随全局活动预设。 */
@@ -139,6 +144,7 @@ data class AgentToolCallItem(
     @param:StringRes val labelRes: Int,
     val status: AgentToolCallStatus,
     val writeDisposition: AgentWriteDisposition? = null,
+    val label: String? = null,
 )
 
 /** 工具调用的可视化执行状态。 */
@@ -161,13 +167,32 @@ enum class AgentWriteDisposition {
     Proposed,
 }
 
-/** 等待用户输入或写入确认时的交互数据。 */
+/** 等待用户处理的具体场景类型，避免把外部联网确认误显为记忆范围变更。 */
+enum class AgentQuestionKind {
+    Input,
+
+    LocalWriteConfirmation,
+
+    ExternalWriteConfirmation,
+
+    ExternalReadConfirmation,
+}
+
+/** 等待用户输入或写入/外发确认时的交互数据。 */
 data class AgentQuestionItem(
     val runId: String,
     val question: String,
     val options: List<String>,
     val confirmation: Boolean,
     val details: String,
+    val kind: AgentQuestionKind = if (confirmation) {
+        AgentQuestionKind.LocalWriteConfirmation
+    } else {
+        AgentQuestionKind.Input
+    },
+    val toolName: String? = null,
+    val destinationHost: String? = null,
+    val parameterLines: List<Pair<String, String>> = emptyList(),
 )
 
 /** Agent 控件只发送用户行为，持久化和权限收紧由协调器完成。 */

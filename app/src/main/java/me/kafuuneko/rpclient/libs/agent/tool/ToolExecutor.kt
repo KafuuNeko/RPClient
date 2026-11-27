@@ -65,7 +65,16 @@ class ToolExecutor(
 
     /** 执行或回放一个调用，任何取消都向结构化协程上抛。 */
     suspend fun execute(token: AgentExecutionToken, call: ToolCallRequest): ToolResult {
-        val tool = mRegistry.find(call.toolId) ?: return ToolResult.RecoverableError("unknown_tool")
+        mRegistry.refresh()
+        val tool = mRegistry.find(call.toolId, call.definitionDigest)
+        if (tool == null) {
+            return if (mRegistry.find(call.toolId) == null) {
+                ToolResult.RecoverableError("unknown_tool")
+            } else {
+                ToolResult.FatalError("tool_contract_changed")
+            }
+        }
+        if (!tool.handler.isEnabled()) return ToolResult.FatalError("tool_authorization_revoked")
         if (tool.definition.contractVersion != call.contractVersion || tool.digest != call.definitionDigest) return ToolResult.FatalError(
             "tool_contract_changed"
         )
@@ -140,14 +149,23 @@ class ToolExecutor(
             )
         }
         validateAction(tool.definition, action)
-        // 外部写入先展示固定目标与受控参数摘要，普通提问不能授予外发权限。
-        if (action is ToolAction.ExternalWrite && !invocation.confirmationGranted) {
+        // 外部写入及不可信内容后的二次读取先展示固定目标与受控参数摘要，普通提问不能授予外发权限。
+        val externalConfirmation = when (action) {
+            is ToolAction.ExternalWrite -> Triple(action.destinationHost, action.parameterSummary, "write")
+            is ToolAction.ExternalRead -> Triple(action.destinationHost, action.parameterSummary, "read")
+                .takeIf { mRuns.get(token.runId)?.untrustedExternalOutput == true }
+
+            else -> null
+        }
+        if (externalConfirmation != null && !invocation.confirmationGranted) {
             val request = ToolResult.AwaitingUser(
                 question = "",
                 kind = ToolUserRequestKind.ExternalWriteConfirmation,
                 details = JsonObject().apply {
-                    addProperty("destinationHost", action.destinationHost)
-                    add("parameters", action.parameterSummary.deepCopy())
+                    addProperty("toolName", tool.definition.name)
+                    addProperty("externalEffect", externalConfirmation.third)
+                    addProperty("destinationHost", externalConfirmation.first)
+                    add("parameters", confirmationSummary(externalConfirmation.second))
                 },
             )
             return saveResult(token, tool, invocation, arguments, request)
@@ -166,9 +184,15 @@ class ToolExecutor(
         onDispatched()
         val result = when (action) {
             is ToolAction.Read -> action.execute()
+            is ToolAction.ExternalRead -> action.execute()
             is ToolAction.ExternalWrite -> action.execute()
             is ToolAction.LocalWrite -> action.result
             is ToolAction.AwaitingUser -> error("Unexpected waiting action")
+        }
+        if (action is ToolAction.ExternalWrite && result !is ToolResult.Success) {
+            // 请求已发出后的失败无法证明远端没有提交，终止并保留 UnknownOutcome，禁止自动重发。
+            mRuns.markUnknown(invocation.id)
+            return ToolResult.FatalError("tool_outcome_unknown")
         }
         val commit = (action as? ToolAction.LocalWrite)?.commit ?: {}
         return saveResult(token, tool, invocation, arguments, result, commit)
@@ -239,11 +263,25 @@ class ToolExecutor(
                 ToolEffect.NonDeterministicRead
             )
 
+            is ToolAction.ExternalRead -> definition.effect == ToolEffect.ReadOnly && definition.external
+
             is ToolAction.LocalWrite -> definition.effect == ToolEffect.LocalWrite && action.result.writeDisposition != null
             is ToolAction.ExternalWrite -> definition.effect == ToolEffect.ExternalWrite
             is ToolAction.AwaitingUser -> true
         }
         check(valid) { "Tool action does not match declared effect" }
+    }
+
+    /** 确认卡只显示有界摘要，字符串参数保持原文避免二次引号转义，完整参数仍仅存放本机检查点。 */
+    private fun confirmationSummary(arguments: JsonObject): JsonObject = JsonObject().apply {
+        arguments.entrySet().take(20).forEach { (name, value) ->
+            val preview = if (value.isJsonPrimitive && value.asJsonPrimitive.isString) {
+                value.asString
+            } else {
+                value.toString()
+            }
+            addProperty(name.take(100), preview.take(250))
+        }
     }
 
     private fun canParallel(call: ToolCallRequest): Boolean = call.independent &&

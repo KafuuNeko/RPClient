@@ -29,6 +29,11 @@ import me.kafuuneko.rpclient.libs.agent.tool.AgentTool
 import me.kafuuneko.rpclient.libs.agent.tool.ToolExecutor
 import me.kafuuneko.rpclient.libs.agent.tool.ToolRegistry
 import me.kafuuneko.rpclient.libs.agent.tool.builtin.BuiltinAgentTools
+import me.kafuuneko.rpclient.libs.agent.connection.HttpAgentTools
+import me.kafuuneko.rpclient.libs.agent.connection.ToolCredentialRepository
+import me.kafuuneko.rpclient.libs.agent.connection.ToolHttpEngine
+import me.kafuuneko.rpclient.libs.agent.connection.ToolConfigTransferRepository
+import me.kafuuneko.rpclient.libs.room.repository.ToolConfigRepository
 import me.kafuuneko.rpclient.libs.appearance.BackgroundImageRuntime
 import me.kafuuneko.rpclient.libs.appearance.DialogAppearanceManager
 import me.kafuuneko.rpclient.libs.appearance.PageBackgroundProvider
@@ -192,7 +197,16 @@ internal fun createAppModules() = module {
     singleOf(::SceneStateRepository)
     singleOf(::AgentLocalDataRepository)
     singleOf(::BuiltinAgentTools)
-    single { ToolRegistry(get<BuiltinAgentTools>().create() + getAll<AgentTool>()) }
+    singleOf(::ToolConfigRepository)
+    singleOf(::ToolCredentialRepository)
+    singleOf(::ToolConfigTransferRepository)
+    single { ToolHttpEngine() }
+    singleOf(::HttpAgentTools)
+    single {
+        ToolRegistry(
+            get<BuiltinAgentTools>().create() + getAll<AgentTool>(),
+            { get<HttpAgentTools>().create() })
+    }
     singleOf(::ToolCallingCapabilityResolver)
     singleOf(::AgentApplicationScope)
     singleOf(::AgentCheckpointCodec)
@@ -211,7 +225,9 @@ internal fun createAppModules() = module {
             get(),
             get(),
             get(),
-            get()
+            get(),
+            get(),
+            get(),
         )
     }
     singleOf(::ChatAgentRuntime)

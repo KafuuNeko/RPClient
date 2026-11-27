@@ -72,6 +72,7 @@ import me.kafuuneko.rpclient.feature.main.presentation.withRecentState
 import me.kafuuneko.rpclient.feature.memorycenter.MemoryCenterActivity
 import me.kafuuneko.rpclient.feature.prompttemplatelist.PromptTemplateListActivity
 import me.kafuuneko.rpclient.feature.regexscript.RegexScriptActivity
+import me.kafuuneko.rpclient.feature.toolsettings.ToolSettingsActivity
 import me.kafuuneko.rpclient.feature.requestlog.RequestLogActivity
 import me.kafuuneko.rpclient.feature.storycreate.StoryCreateActivity
 import me.kafuuneko.rpclient.feature.storyeditor.StoryEditorActivity
@@ -1151,6 +1152,13 @@ class MainViewModel : CoreViewModelWithEvent<MainUiIntent, MainUiState>(
     private fun onOpenPromptPreset() {
         if (!isStateOf<MainUiState.Normal>()) return
         AppViewEvent.StartActivity(PromptTemplateListActivity::class.java).tryEmit()
+    }
+
+    /** 打开工具、连接及凭据管理页。 */
+    @UiIntentObserver(MainUiIntent.OpenToolSettings::class)
+    private fun onOpenToolSettings() {
+        getOrNull<MainUiState.Normal>() ?: return
+        AppViewEvent.StartActivity(ToolSettingsActivity::class.java).tryEmit()
     }
 
     /** 打开正则脚本管理器页面。 */

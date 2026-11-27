@@ -83,7 +83,7 @@ class BuiltinAgentTools(
         tool(
             "search_lore",
             "Search enabled lore entries for this conversation. Returns IDs and short excerpts; use the cursor for the next page.",
-            searchSchema()
+            requireNotNull(PARAMETER_SCHEMAS["search_lore"]),
         ) { context, args ->
             read {
                 val query = args["query"].asString
@@ -105,7 +105,7 @@ class BuiltinAgentTools(
         tool(
             "read_lore_entry",
             "Read an enabled lore entry by ID. Text pages preserve the original content; cursor is a character offset.",
-            objectSchema("id" to integer(1), "cursor" to integer(0), required = setOf("id"))
+            requireNotNull(PARAMETER_SCHEMAS["read_lore_entry"]),
         ) { context, args ->
             read {
                 val entry = mData.lore(context).firstOrNull { it.id == args["id"].asLong }
@@ -119,11 +119,7 @@ class BuiltinAgentTools(
         tool(
             "search_chat",
             "Search only committed text in the current conversation. Returned cursors must be passed unchanged.",
-            objectSchema(
-                "query" to string(1, 200),
-                "cursor" to string(1, 2000),
-                required = setOf("query")
-            )
+            requireNotNull(PARAMETER_SCHEMAS["search_chat"]),
         ) { context, args ->
             read {
                 mData.searchChat(
@@ -135,12 +131,7 @@ class BuiltinAgentTools(
         tool(
             "read_messages",
             "Read a current-conversation message and an optional bounded neighbouring window. Text is paged; IDs from another conversation are rejected.",
-            objectSchema(
-                "message_id" to integer(1),
-                "context" to integer(0, 5),
-                "cursor" to integer(0),
-                required = setOf("message_id")
-            )
+            requireNotNull(PARAMETER_SCHEMAS["read_messages"]),
         ) { context, args ->
             read {
                 val messages = mData.messageWindow(
@@ -161,7 +152,7 @@ class BuiltinAgentTools(
             tool(
                 "search_memory",
                 "Search visible character, conversation and speaker-private memories. Proposed writes are marked and have no permanent ID yet.",
-                searchSchema()
+                requireNotNull(PARAMETER_SCHEMAS["search_memory"]),
             ) { context, args ->
                 read {
                     val query = args["query"].asString
@@ -180,12 +171,7 @@ class BuiltinAgentTools(
             tool(
                 "read_memory",
                 "Read a visible memory by its table and ID; inherited memories cannot be edited directly.",
-                objectSchema(
-                    "memoryId" to integer(1),
-                    "table" to tableSchema(),
-                    "proposalId" to string(1, 128),
-                    "cursor" to integer(0)
-                )
+                requireNotNull(PARAMETER_SCHEMAS["read_memory"]),
             ) { context, args ->
                 read {
                     val entry = mData.memoryView(context).firstOrNull {
@@ -215,62 +201,10 @@ class BuiltinAgentTools(
             "promote_memory_scope" to "Promote a visible conversation memory to this speaker's character memory. Requires explicit user confirmation unless policy permits non-event, non-relationship promotion.",
         )
         val writes = descriptions.map { (name, description) ->
-            val isUpsert = name == "upsert_memory"
-            val properties = linkedMapOf(
-                "memoryId" to integer(1).copy(
-                    description = if (isUpsert) {
-                        "Existing memory ID to update. Omit when creating a new memory."
-                    } else {
-                        "Target conversation memory ID returned by search_memory or read_memory."
-                    },
-                ),
-                "table" to tableSchema().copy(
-                    description = if (isUpsert) {
-                        "Existing memory table (Chat or Group; Character is read-only). Omit when creating a new memory."
-                    } else {
-                        "Target memory table (Chat or Group; Character is read-only)."
-                    },
-                ),
-                "expectedRevision" to integer(0).copy(
-                    description = if (isUpsert) {
-                        "Current revision of the existing memory being updated. Omit when creating a new memory."
-                    } else {
-                        "Current revision of the target memory returned by search_memory or read_memory."
-                    },
-                ),
-                "sourceMessageId" to integer(0).copy(
-                    description = "Optional committed user message ID. Omit to automatically match a recent user message containing evidence, or pass 0 for a proposed fact verified against your upcoming final reply.",
-                ),
-                "evidence" to string(1, 1000).copy(
-                    description = "Exact verbatim substring quoted from a committed user message in this conversation, or from the final reply you are about to write.",
-                ),
-            )
-            if (name in setOf("upsert_memory", "correct_memory")) {
-                properties["body"] = string(1, 4000).copy(
-                    description = "Concise, durable memory content to store.",
-                )
-                properties["kind"] = string(
-                    1,
-                    20
-                ).copy(
-                    description = "Memory category.",
-                    enumValues = MemoryKind.entries.map { JsonPrimitive(it.name) },
-                )
-            }
-            // sourceMessageId 允许省略，由本地数据层优先按原文匹配当前会话已提交用户消息。
-            val required =
-                setOf("evidence") + if (isUpsert) setOf(
-                    "body",
-                    "kind"
-                ) else setOf(
-                    "memoryId",
-                    "table",
-                    "expectedRevision"
-                ) + if (name == "correct_memory") setOf("body", "kind") else emptySet()
             tool(
                 name,
                 description,
-                ToolSchema(ToolSchema.Type.Object, properties = properties, required = required),
+                requireNotNull(PARAMETER_SCHEMAS[name]),
                 ToolEffect.LocalWrite,
                 memory = true
             ) { context, args ->
@@ -284,7 +218,7 @@ class BuiltinAgentTools(
         tool(
             "roll_dice",
             "Roll NdM dice with optional kh/kl and a signed modifier, e.g. 4d6kh3+2. At most 100 dice and 10000 sides. The saved result is replayed on retry.",
-            objectSchema("notation" to string(1, 80), required = setOf("notation")),
+            requireNotNull(PARAMETER_SCHEMAS["roll_dice"]),
             ToolEffect.NonDeterministicRead
         ) { _, args ->
             read {
@@ -302,7 +236,7 @@ class BuiltinAgentTools(
         tool(
             "calculate",
             "Evaluate bounded arithmetic: + - * / % ^, parentheses, pi, e, sqrt, abs, sin, cos, tan, ln, log10, floor, ceil, round. No code or variable access.",
-            objectSchema("expression" to string(1, 1024), required = setOf("expression"))
+            requireNotNull(PARAMETER_SCHEMAS["calculate"]),
         ) { _, args ->
             read {
                 ToolResult.Success(jsonObject("value" to RestrictedCalculator.calculate(args["expression"].asString)))
@@ -314,36 +248,12 @@ class BuiltinAgentTools(
         tool(
             "get_scene_state",
             "Read current scene state plus this run's proposed changes, with an optimistic revision number.",
-            objectSchema()
+            requireNotNull(PARAMETER_SCHEMAS["get_scene_state"]),
         ) { context, _ -> read { ToolResult.Success(mData.scene(context)) } },
         tool(
             "update_scene_state",
             "Apply bounded path changes to location, time, attributes, inventory, goals or custom groups. value_json is a JSON literal; omit it to delete. expectedRevision prevents lost updates. Quote committed user evidence (omit sourceMessageId to auto-match a recent user message) or propose against this final reply with sourceMessageId=0.",
-            objectSchema(
-                "expectedRevision" to integer(0).copy(
-                    description = "Current scene revision returned by get_scene_state.",
-                ),
-                "sourceMessageId" to integer(0).copy(
-                    description = "Optional committed user message ID. Omit to auto-match a recent user message containing evidence, or pass 0 for a proposed change verified against your final reply.",
-                ),
-                "evidence" to string(1, 1000).copy(
-                    description = "Exact verbatim substring from a committed user message or your upcoming final reply.",
-                ),
-                "changes" to ToolSchema(
-                    ToolSchema.Type.Array,
-                    minItems = 1,
-                    maxItems = 30,
-                    items = objectSchema(
-                        "path" to ToolSchema(
-                            ToolSchema.Type.Array,
-                            minItems = 1,
-                            maxItems = 5,
-                            items = string(1, 100)
-                        ), "value_json" to string(1, 4000), required = setOf("path")
-                    )
-                ),
-                required = setOf("expectedRevision", "evidence", "changes")
-            ),
+            requireNotNull(PARAMETER_SCHEMAS["update_scene_state"]),
             ToolEffect.LocalWrite
         ) { context, args ->
             val proposal = args.deepCopy().apply { addProperty("operation", "update_scene_state") }
@@ -355,18 +265,9 @@ class BuiltinAgentTools(
         tool(
             "ask_user",
             "Ask the user a question and suspend this run for up to 24 hours. An answer is input only and never grants write confirmation.",
-            objectSchema(
-                "question" to string(1, 2000),
-                "options" to ToolSchema(
-                    ToolSchema.Type.Array,
-                    items = string(1, 200),
-                    maxItems = 8
-                ),
-                required = setOf("question")
-            ),
+            requireNotNull(PARAMETER_SCHEMAS["ask_user"]),
             effect = ToolEffect.NonDeterministicRead,
-
-            ) { _, args ->
+        ) { _, args ->
             ToolAction.AwaitingUser(
                 ToolResult.AwaitingUser(
                     args["question"].asString,
@@ -574,28 +475,157 @@ class BuiltinAgentTools(
         )
     }
 
-    private fun searchSchema() = objectSchema(
-        "query" to string(0, 200),
-        "offset" to integer(0),
-        "limit" to integer(1, 20),
-        required = setOf("query")
-    )
+    companion object {
+        /** 所有内置工具的权威参数 Schema，供运行期、保存校验与整库恢复校验共享。 */
+        val PARAMETER_SCHEMAS: Map<String, ToolSchema> = linkedMapOf(
+            "search_lore" to searchSchema(),
+            "read_lore_entry" to objectSchema(
+                "id" to integer(1),
+                "cursor" to integer(0),
+                required = setOf("id"),
+            ),
+            "search_chat" to objectSchema(
+                "query" to string(1, 200),
+                "cursor" to string(1, 2000),
+                required = setOf("query"),
+            ),
+            "read_messages" to objectSchema(
+                "message_id" to integer(1),
+                "context" to integer(0, 5),
+                "cursor" to integer(0),
+                required = setOf("message_id"),
+            ),
+            "search_memory" to searchSchema(),
+            "read_memory" to objectSchema(
+                "memoryId" to integer(1),
+                "table" to tableSchema(),
+                "proposalId" to string(1, 128),
+                "cursor" to integer(0),
+            ),
+            "upsert_memory" to memoryWriteSchema("upsert_memory"),
+            "correct_memory" to memoryWriteSchema("correct_memory"),
+            "invalidate_memory" to memoryWriteSchema("invalidate_memory"),
+            "promote_memory_scope" to memoryWriteSchema("promote_memory_scope"),
+            "roll_dice" to objectSchema(
+                "notation" to string(1, 80),
+                required = setOf("notation"),
+            ),
+            "calculate" to objectSchema(
+                "expression" to string(1, 1024),
+                required = setOf("expression"),
+            ),
+            "get_scene_state" to objectSchema(),
+            "update_scene_state" to objectSchema(
+                "expectedRevision" to integer(0).copy(
+                    description = "Current scene revision returned by get_scene_state.",
+                ),
+                "sourceMessageId" to integer(0).copy(
+                    description = "Optional committed user message ID. Omit to auto-match a recent user message containing evidence, or pass 0 for a proposed change verified against your final reply.",
+                ),
+                "evidence" to string(1, 1000).copy(
+                    description = "Exact verbatim substring from a committed user message or your upcoming final reply.",
+                ),
+                "changes" to ToolSchema(
+                    ToolSchema.Type.Array,
+                    minItems = 1,
+                    maxItems = 30,
+                    items = objectSchema(
+                        "path" to ToolSchema(
+                            ToolSchema.Type.Array,
+                            minItems = 1,
+                            maxItems = 5,
+                            items = string(1, 100),
+                        ),
+                        "value_json" to string(1, 4000),
+                        required = setOf("path"),
+                    ),
+                ),
+                required = setOf("expectedRevision", "evidence", "changes"),
+            ),
+            "ask_user" to objectSchema(
+                "question" to string(1, 2000),
+                "options" to ToolSchema(
+                    ToolSchema.Type.Array,
+                    items = string(1, 200),
+                    maxItems = 8,
+                ),
+                required = setOf("question"),
+            ),
+        )
 
-    private fun tableSchema() = string(1, 20).copy(
-        enumValues = listOf(
-            "Character",
-            "Chat",
-            "Group"
-        ).map { JsonPrimitive(it) })
+        private fun memoryWriteSchema(name: String): ToolSchema {
+            val isUpsert = name == "upsert_memory"
+            val properties = linkedMapOf(
+                "memoryId" to integer(1).copy(
+                    description = if (isUpsert) {
+                        "Existing memory ID to update. Omit when creating a new memory."
+                    } else {
+                        "Target conversation memory ID returned by search_memory or read_memory."
+                    },
+                ),
+                "table" to tableSchema().copy(
+                    description = if (isUpsert) {
+                        "Existing memory table (Chat or Group; Character is read-only). Omit when creating a new memory."
+                    } else {
+                        "Target memory table (Chat or Group; Character is read-only)."
+                    },
+                ),
+                "expectedRevision" to integer(0).copy(
+                    description = if (isUpsert) {
+                        "Current revision of the existing memory being updated. Omit when creating a new memory."
+                    } else {
+                        "Current revision of the target memory returned by search_memory or read_memory."
+                    },
+                ),
+                "sourceMessageId" to integer(0).copy(
+                    description = "Optional committed user message ID. Omit to automatically match a recent user message containing evidence, or pass 0 for a proposed fact verified against your upcoming final reply.",
+                ),
+                "evidence" to string(1, 1000).copy(
+                    description = "Exact verbatim substring quoted from a committed user message in this conversation, or from the final reply you are about to write.",
+                ),
+            )
+            if (name in setOf("upsert_memory", "correct_memory")) {
+                properties["body"] = string(1, 4000).copy(
+                    description = "Concise, durable memory content to store.",
+                )
+                properties["kind"] = string(1, 20).copy(
+                    description = "Memory category.",
+                    enumValues = MemoryKind.entries.map { JsonPrimitive(it.name) },
+                )
+            }
+            val required = setOf("evidence") + if (isUpsert) {
+                setOf("body", "kind")
+            } else {
+                setOf("memoryId", "table", "expectedRevision") +
+                    if (name == "correct_memory") setOf("body", "kind") else emptySet()
+            }
+            return ToolSchema(ToolSchema.Type.Object, properties = properties, required = required)
+        }
 
-    private fun string(min: Int, max: Int) =
-        ToolSchema(ToolSchema.Type.String, minLength = min, maxLength = max)
+        private fun searchSchema() = objectSchema(
+            "query" to string(0, 200),
+            "offset" to integer(0),
+            "limit" to integer(1, 20),
+            required = setOf("query"),
+        )
 
-    private fun integer(min: Int, max: Int? = null) =
-        ToolSchema(ToolSchema.Type.Integer, minimum = min.toDouble(), maximum = max?.toDouble())
+        private fun tableSchema() = string(1, 20).copy(
+            enumValues = listOf("Character", "Chat", "Group").map { JsonPrimitive(it) },
+        )
 
-    private fun objectSchema(
-        vararg fields: Pair<String, ToolSchema>,
-        required: Set<String> = emptySet()
-    ) = ToolSchema(ToolSchema.Type.Object, properties = linkedMapOf(*fields), required = required)
+        private fun string(min: Int, max: Int) =
+            ToolSchema(ToolSchema.Type.String, minLength = min, maxLength = max)
+
+        private fun integer(min: Int, max: Int? = null) =
+            ToolSchema(ToolSchema.Type.Integer, minimum = min.toDouble(), maximum = max?.toDouble())
+
+        private fun objectSchema(
+            vararg fields: Pair<String, ToolSchema>,
+            required: Set<String> = emptySet(),
+        ) = ToolSchema(
+            ToolSchema.Type.Object,
+            properties = linkedMapOf(*fields),
+            required = required,
+        )
+    }
 }

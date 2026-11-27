@@ -8,6 +8,7 @@ import me.kafuuneko.rpclient.feature.agent.model.AgentLimitDraft
 import me.kafuuneko.rpclient.feature.agent.model.AgentLimitField
 import me.kafuuneko.rpclient.feature.agent.model.AgentPresetItem
 import me.kafuuneko.rpclient.feature.agent.model.AgentQuestionItem
+import me.kafuuneko.rpclient.feature.agent.model.AgentQuestionKind
 import me.kafuuneko.rpclient.feature.agent.model.AgentSceneRevisionItem
 import me.kafuuneko.rpclient.feature.agent.model.AgentSettingsDialog
 import me.kafuuneko.rpclient.feature.agent.model.AgentStepItem
@@ -27,6 +28,7 @@ import me.kafuuneko.rpclient.libs.agent.model.SceneStateChange
 import me.kafuuneko.rpclient.libs.agent.model.ToolInvocationState
 import me.kafuuneko.rpclient.libs.agent.runtime.AgentProgressStore
 import me.kafuuneko.rpclient.libs.agent.runtime.AgentRunManager
+import me.kafuuneko.rpclient.libs.agent.tool.ToolResult
 import me.kafuuneko.rpclient.libs.agent.tool.ToolUserRequestKind
 import me.kafuuneko.rpclient.libs.agent.tool.ToolWriteDisposition
 import me.kafuuneko.rpclient.libs.room.entity.ToolInvocation
@@ -35,6 +37,10 @@ import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
 import me.kafuuneko.rpclient.libs.room.repository.SceneStateRepository
+import me.kafuuneko.rpclient.libs.agent.connection.HttpToolConfigCodec
+import me.kafuuneko.rpclient.libs.agent.connection.ToolConfigCodec
+import me.kafuuneko.rpclient.libs.agent.connection.ToolCredentialRepository
+import me.kafuuneko.rpclient.libs.room.repository.ToolConfigRepository
 
 /**
  * 两种聊天页面共用的 Agent 状态映射及设置操作，不持有页面或 Compose 状态。
@@ -50,6 +56,8 @@ class AgentUiCoordinator(
     private val mPresets: PromptPresetRepository,
     private val mScenes: SceneStateRepository,
     private val mProgress: AgentProgressStore,
+    private val mToolConfigurations: ToolConfigRepository? = null,
+    private val mCredentials: ToolCredentialRepository? = null,
 ) {
     private val mPrettyGson = GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create()
 
@@ -104,6 +112,17 @@ class AgentUiCoordinator(
                 preset = session.agentPromptPresetId
             }
         }
+        // 读取内置覆写显示名与已配置 HTTP 工具名，供任务卡与设置页共用。
+        val overrideDisplayNames = mToolConfigurations?.overrides().orEmpty().mapNotNull { entry ->
+            val label = runCatching {
+                ToolConfigCodec.parse(entry.configJson)["displayName"]?.asString
+            }.getOrNull()?.takeIf(String::isNotBlank)
+            label?.let { entry.toolId to it }
+        }.toMap()
+        val configuredTools = mToolConfigurations?.tools().orEmpty()
+        val customToolLabels = overrideDisplayNames + configuredTools.associate { tool ->
+            "http.${tool.id}" to tool.name
+        }
         // 读取运行摘要，并将每个步骤关联到具体工具调用状态。
         val runs = mRuns.observe(conversation).first()
         val tasks = runs.map { run ->
@@ -119,7 +138,9 @@ class AgentUiCoordinator(
                     AgentStepKind.Compaction -> R.string.agent_step_compaction
                     AgentStepKind.Model -> R.string.agent_step_model
                 }
-                val stepTools = invocationsByStep[step.id].orEmpty().map(::toToolCallItem)
+                val stepTools = invocationsByStep[step.id].orEmpty().map { invocation ->
+                    toToolCallItem(invocation, customToolLabels)
+                }
                 AgentStepItem(
                     kindRes = kindRes,
                     completed = step.completedAt != null,
@@ -147,7 +168,7 @@ class AgentUiCoordinator(
                 runState = run.state,
             )
         }
-        // 仅当存在等待态运行时读取本机挂起问题或确认摘要。
+        // 仅当存在等待态运行时读取本机挂起问题或确认摘要，并区分记忆提升与外部联网确认。
         val waiting = if (runs.any { it.state == AgentRunState.WaitingForUser }) {
             mManager().waiting(conversation)
         } else {
@@ -155,18 +176,7 @@ class AgentUiCoordinator(
         }
         val activeRunId = runs.firstOrNull { !it.state.isTerminal }?.id
         val question = waiting?.takeIf { activeRunId != null }?.let { result ->
-            AgentQuestionItem(
-                runId = requireNotNull(activeRunId),
-                question = result.question,
-                options = result.options,
-                confirmation = result.kind != ToolUserRequestKind.Input,
-                details = result.details.entrySet()
-                    .filter { it.key != "operation" }
-                    .joinToString("\n") { entry ->
-                        val value = entry.value
-                        if (value.isJsonPrimitive) value.asString else value.toString()
-                    },
-            )
+            toQuestionItem(requireNotNull(activeRunId), result)
         }
         val base = previous.copy(
             enabled = enabled,
@@ -192,6 +202,35 @@ class AgentUiCoordinator(
             mPresets.observePresets().first()
                 .filter { it.preset.id > 0 }
                 .map { AgentPresetItem(id = it.preset.id, name = it.preset.name) }
+        // 检查每个 HTTP 工具所绑连接的可用性与本机凭据，避免未配置工具在会话设置中毫无提示。
+        val connectionsById = mToolConfigurations?.connections().orEmpty().associateBy { it.id }
+        val connectionNeedsConfig = connectionsById.mapValues { (_, connection) ->
+            val config = runCatching { HttpToolConfigCodec.connection(connection.configJson) }.getOrNull()
+            if (config == null || config.url.isBlank()) {
+                true
+            } else if (config.authMode != "None") {
+                val ref = config.credentialRef
+                ref == null || (mCredentials != null && mCredentials.read(ref) == null)
+            } else {
+                false
+            }
+        }
+        val external = configuredTools.filter { tool ->
+            tool.enabled || "http.${tool.id}" in selected
+        }.map { tool ->
+            val bound = tool.connectionId?.let(connectionsById::get)
+            val missing = tool.kind != "ReadUrl" &&
+                (bound == null || !bound.enabled || connectionNeedsConfig[bound.id] == true)
+            AgentToolItem(
+                id = "http.${tool.id}",
+                labelRes = R.string.tool_settings_title,
+                group = AgentToolGroup.Network,
+                enabled = "http.${tool.id}" in selected,
+                label = tool.name,
+                needsConfiguration = missing,
+                globallyDisabled = !tool.enabled,
+            )
+        }
         return base.copy(
             settingsLoaded = true,
             tools = TOOL_SPECS.map { spec ->
@@ -201,8 +240,9 @@ class AgentUiCoordinator(
                     group = spec.group,
                     enabled = spec.id in selected,
                     writesMemory = spec.writesMemory,
+                    label = overrideDisplayNames[spec.id],
                 )
-            },
+            } + external,
             presets = presets,
             memoryReadOnly = policy.memoryReadOnly,
             autoPromoteMemory = policy.autoPromoteMemory,
@@ -371,7 +411,7 @@ class AgentUiCoordinator(
             AgentUiAction.SaveTools -> {
                 val dialog = state.settingsDialog as? AgentSettingsDialog.Tools ?: return state
                 val orderedValidIds =
-                    TOOL_SPECS.map { it.id }.filter { it in dialog.selectedToolIds }
+                    state.tools.map { it.id }.filter { it in dialog.selectedToolIds }
                 policy = policy.copy(
                     enabledToolIdsJson = JsonArray().apply { orderedValidIds.forEach(::add) }
                         .toString(),
@@ -434,9 +474,60 @@ class AgentUiCoordinator(
         if (mRuns.active(conversation) != null) mManager().leave(conversation)
     }
 
-    /** 将持久化工具调用映射为脱敏展示模型。 */
-    private fun toToolCallItem(invocation: ToolInvocation): AgentToolCallItem {
+    /** 将挂起的用户提问或确认载荷转换为结构化卡片模型。 */
+    private fun toQuestionItem(
+        runId: String,
+        result: ToolResult.AwaitingUser,
+    ): AgentQuestionItem {
+        val kind = when (result.kind) {
+            ToolUserRequestKind.Input -> AgentQuestionKind.Input
+            ToolUserRequestKind.LocalWriteConfirmation -> AgentQuestionKind.LocalWriteConfirmation
+            ToolUserRequestKind.ExternalWriteConfirmation -> {
+                if (result.details["externalEffect"]?.asString == "read") {
+                    AgentQuestionKind.ExternalReadConfirmation
+                } else {
+                    AgentQuestionKind.ExternalWriteConfirmation
+                }
+            }
+        }
+        // 外部联网确认提取工具名、目标主机和脱敏参数键值，本地确认保留原摘录文本。
+        val toolName = result.details["toolName"]?.takeIf { it.isJsonPrimitive }?.asString
+            ?.takeIf(String::isNotBlank)
+        val host = result.details["destinationHost"]?.takeIf { it.isJsonPrimitive }?.asString
+            ?.takeIf(String::isNotBlank)
+        val parameters = result.details["parameters"]?.takeIf { it.isJsonObject }?.asJsonObject
+            ?.entrySet()
+            ?.map { (key, value) ->
+                val text = if (value.isJsonPrimitive) value.asString else value.toString()
+                key to text
+            }
+            .orEmpty()
+        val details = result.details.entrySet()
+            .filter { it.key !in setOf("operation", "toolName", "externalEffect", "destinationHost", "parameters") }
+            .joinToString("\n") { entry ->
+                val value = entry.value
+                if (value.isJsonPrimitive) value.asString else value.toString()
+            }
+        return AgentQuestionItem(
+            runId = runId,
+            question = result.question,
+            options = result.options,
+            confirmation = kind != AgentQuestionKind.Input,
+            details = details,
+            kind = kind,
+            toolName = toolName,
+            destinationHost = host,
+            parameterLines = parameters,
+        )
+    }
+
+    /** 将持久化工具调用映射为脱敏展示模型，优先呈现自定义名称与 HTTP 工具函数名。 */
+    private fun toToolCallItem(
+        invocation: ToolInvocation,
+        customLabels: Map<String, String>,
+    ): AgentToolCallItem {
         val labelRes = TOOL_LABELS[invocation.toolId] ?: R.string.agent_step_tools
+        val label = customLabels[invocation.toolId]
         val status = when (invocation.state) {
             ToolInvocationState.Prepared, ToolInvocationState.Dispatching -> AgentToolCallStatus.Running
             ToolInvocationState.Completed -> AgentToolCallStatus.Completed
@@ -455,6 +546,7 @@ class AgentUiCoordinator(
             labelRes = labelRes,
             status = status,
             writeDisposition = disposition,
+            label = label,
         )
     }
 

@@ -14,8 +14,15 @@ import kotlinx.coroutines.withTimeout
 import me.kafuuneko.rpclient.createAppModules
 import me.kafuuneko.rpclient.libs.AppModel
 import me.kafuuneko.rpclient.libs.agent.model.AgentJson
+import me.kafuuneko.rpclient.libs.agent.connection.HttpToolConfigCodec
+import me.kafuuneko.rpclient.libs.agent.connection.HttpToolConnection
+import me.kafuuneko.rpclient.libs.agent.connection.ToolCredentialRepository
+import me.kafuuneko.rpclient.libs.agent.connection.ToolHttpEngine
+import me.kafuuneko.rpclient.libs.agent.connection.ToolConfigCodec
+import me.kafuuneko.rpclient.libs.agent.connection.HttpAgentTools
 import me.kafuuneko.rpclient.libs.agent.model.AgentRunState
 import me.kafuuneko.rpclient.libs.agent.model.ConversationRef
+import me.kafuuneko.rpclient.libs.agent.model.ToolInvocationState
 import me.kafuuneko.rpclient.libs.agent.runtime.AgentApplicationScope
 import me.kafuuneko.rpclient.libs.agent.runtime.AgentCheckpointCodec
 import me.kafuuneko.rpclient.libs.agent.runtime.AgentCheckpointStore
@@ -61,6 +68,9 @@ import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.MemoryRepository
 import me.kafuuneko.rpclient.libs.room.repository.SceneStateRepository
+import me.kafuuneko.rpclient.libs.room.repository.ToolConfigRepository
+import me.kafuuneko.rpclient.libs.room.entity.ToolConnection
+import java.util.UUID
 import me.kafuuneko.rpclient.libs.room.withTestPersonas
 import me.kafuuneko.rpclient.utils.jsonArray
 import me.kafuuneko.rpclient.utils.jsonObject
@@ -113,6 +123,7 @@ class AgentRuntimeIntegrationTest {
                 single<AppDatabase> { mDatabase }
                 single<RequestLogDatabase> { mLogs }
                 single<AgentCheckpointStore> { FileAgentCheckpointStore(mDirectory) }
+                single<ToolHttpEngine> { fixtureToolHttpEngine() }
             })
         }
         mRuns = get()
@@ -794,11 +805,276 @@ class AgentRuntimeIntegrationTest {
             }
         }
 
-    private suspend fun provider(server: AgentHttpServer): LLMProvider {
+    /** 三类 HTTP 工具经五协议真实客户端和运行器完成读取、映射、分页与正文提交。 */
+    @Test
+    fun configuredHttpAndWebTemplatesCompleteAllFiveProtocols(): Unit = runBlocking {
+        ToolFixtureServer { request ->
+            if (request.target.contains("/page")) ToolFixtureServer.Reply(
+                "<html><head><style>hidden-style</style></head><body><script>hidden-script</script><p>visible-fixture</p>" + "x".repeat(
+                    9000
+                ) + "</body></html>", "text/html"
+            )
+            else ToolFixtureServer.Reply(jsonObject("results" to jsonArray((0..24).map { index ->
+                jsonObject(
+                    "title" to "visible-fixture-$index",
+                    "url" to "https://example.com/$index",
+                    "snippet" to "reference"
+                )
+            })).toString())
+        }.use { external ->
+            val configurations = get<ToolConfigRepository>()
+            val credentials = get<ToolCredentialRepository>()
+            val reference = credentials.save("credential-fixture-private")
+            try {
+                val connection = ToolConnection(
+                    UUID.randomUUID().toString(),
+                    "Search",
+                    HttpToolConfigCodec.encode(
+                        HttpToolConnection(
+                            external.url,
+                            authMode = "Bearer",
+                            credentialRef = reference
+                        )
+                    )
+                )
+                configurations.save(connection)
+                val search = configurations.template(false).copy(connectionId = connection.id)
+                val reader = configurations.template(true)
+                val custom = search.copy(id = UUID.randomUUID().toString(), name = "custom_http")
+                listOf(search, reader, custom).forEach { configurations.save(it) }
+                val ids = listOf(search, reader, custom).map { "http.${it.id}" }
+                mRuns.saveSettings(
+                    mConversation,
+                    true,
+                    null,
+                    mRuns.policy(mConversation)
+                        .copy(enabledToolIdsJson = JsonArray().apply { ids.forEach(::add) }
+                            .toString())
+                )
+                // 每个根运行只请求一个工具，确保后续成员不会继承其他运行的原始外部资料。
+                LLMProviderProtocol.entries.forEach { protocol ->
+                    listOf(search, reader, custom).forEach { tool ->
+                        val args =
+                            if (tool.kind == "ReadUrl") jsonObject("url" to external.url + "page") else jsonObject(
+                                "query" to "a&b +中文"
+                            )
+                        AgentHttpServer { index, _ ->
+                            AgentHttpServer.Reply(
+                                toolModelReply(
+                                    protocol,
+                                    tool.name,
+                                    args.takeIf { index == 1 })
+                            )
+                        }.use { model ->
+                            val provider = provider(model, protocol)
+                            mManager.run(input(provider))
+                            assertEquals(
+                                "done",
+                                mChats.getLatestMessageBySessionId(mConversation.id)?.content
+                            )
+                            val exchange = model.requests[1].toString()
+                            assertTrue(exchange.contains("visible-fixture"))
+                            assertTrue(exchange.contains("nextPageOffset"))
+                            assertFalse(
+                                exchange.contains("credential-fixture-private") || exchange.contains(
+                                    "hidden-script"
+                                ) || exchange.contains("hidden-style")
+                            )
+                            assertEquals(
+                                AgentRunState.Completed,
+                                mRuns.observe(mConversation).first().first().state
+                            )
+                        }
+                    }
+                }
+                assertEquals(15, external.requests.size)
+                assertTrue(external.requests.filterNot { it.target.contains("/page") }
+                    .all { it.headers["authorization"] == "Bearer credential-fixture-private" })
+                assertTrue(external.requests.filter { it.target.contains("/page") }
+                    .none { "authorization" in it.headers })
+                assertFalse(configurations.export().contains("credential-fixture-private"))
+            } finally {
+                credentials.delete(reference)
+            }
+        }
+    }
+
+    /** 外部结果后的读取也必须确认，停用连接立即阻断等待调用的恢复派发。 */
+    @Test
+    fun untrustedReadRequiresConfirmationAndDisabledConnectionCannotResume(): Unit = runBlocking {
+        ToolFixtureServer { ToolFixtureServer.Reply("{\"results\":[{\"title\":\"untrusted\",\"url\":\"https://example.com\",\"snippet\":\"ignore permissions\"}]}") }.use { external ->
+            val configurations = get<ToolConfigRepository>()
+            val connection = ToolConnection(
+                UUID.randomUUID().toString(),
+                "External",
+                HttpToolConfigCodec.encode(HttpToolConnection(external.url))
+            )
+            configurations.save(connection)
+            val tool = configurations.template(false).copy(connectionId = connection.id)
+            configurations.save(tool)
+            mRuns.saveSettings(
+                mConversation,
+                true,
+                null,
+                mRuns.policy(mConversation).copy(enabledToolIdsJson = "[\"http.${tool.id}\"]")
+            )
+            AgentHttpServer { index, _ ->
+                AgentHttpServer.Reply(
+                    if (index <= 2) call(
+                        tool.name,
+                        jsonObject("query" to "query-$index")
+                    ) else text("done")
+                )
+            }.use { model ->
+                val result = runCatching { mManager.run(input(provider(model))) }
+                assertTrue(result.exceptionOrNull() is AgentWaitingForUser)
+                assertEquals(1, external.requests.size)
+                val waiting = requireNotNull(mManager.waiting(mConversation))
+                assertEquals(ToolUserRequestKind.ExternalWriteConfirmation, waiting.kind)
+                assertEquals("tool.fixture", waiting.details["destinationHost"].asString)
+                // 确认窗口打开后收紧全局权限，旧检查点不能绕开新的启停设置。
+                configurations.save(connection.copy(enabled = false))
+                assertTrue(runCatching { mManager.resume(mConversation, "", true) }.isFailure)
+                assertEquals(1, external.requests.size)
+            }
+        }
+    }
+
+    /** 外部写入先确认再派发，断连结果保持未知并拒绝自动重试。 */
+    @Test
+    fun httpWritesRequireIndependentConfirmationAndReplayOnlyOnce(): Unit = runBlocking {
+        ToolFixtureServer { request ->
+            assertEquals("{\"payload\":{\"text\":\"{{user}}\"}}", request.body)
+            ToolFixtureServer.Reply("{\"accepted\":true}")
+        }.use { external ->
+            val configurations = get<ToolConfigRepository>()
+            val connection = ToolConnection(
+                UUID.randomUUID().toString(),
+                "Writer",
+                HttpToolConfigCodec.encode(HttpToolConnection(external.url, method = "POST"))
+            )
+            configurations.save(connection)
+            val tool = configurations.template(false).copy(
+                name = "http_write", connectionId = connection.id,
+                mappingJson = """{"bindings":[{"argument":"/query","target":"body","path":"/payload/text"}]}"""
+            )
+            configurations.save(tool)
+            mRuns.saveSettings(
+                mConversation,
+                true,
+                null,
+                mRuns.policy(mConversation).copy(enabledToolIdsJson = "[\"http.${tool.id}\"]")
+            )
+            AgentHttpServer { index, _ ->
+                AgentHttpServer.Reply(
+                    if (index == 1) call(
+                        tool.name,
+                        jsonObject("query" to "{{user}}")
+                    ) else text("done")
+                )
+            }.use { model ->
+                assertTrue(runCatching { mManager.run(input(provider(model))) }.exceptionOrNull() is AgentWaitingForUser)
+                assertTrue(external.requests.isEmpty())
+                // ask_user 未授权也不会撤销应用级外部写入确认，确认结果不作为普通回答。
+                assertEquals(
+                    ToolUserRequestKind.ExternalWriteConfirmation,
+                    mManager.waiting(mConversation)?.kind
+                )
+                mManager.resume(mConversation, "", true)
+                assertEquals(1, external.requests.size)
+                assertEquals("done", mChats.getLatestMessageBySessionId(mConversation.id)?.content)
+            }
+        }
+    }
+
+    /** 写请求已派发后无法确认提交结果时，保留未知标记且不再请求模型重试。 */
+    @Test
+    fun failedHttpWritePersistsUnknownOutcomeWithoutAutomaticResend(): Unit = runBlocking {
+        ToolFixtureServer {
+            ToolFixtureServer.Reply(
+                "{\"error\":\"private detail\"}",
+                status = 500
+            )
+        }.use { external ->
+            val configurations = get<ToolConfigRepository>()
+            val connection = ToolConnection(
+                UUID.randomUUID().toString(),
+                "Writer",
+                HttpToolConfigCodec.encode(HttpToolConnection(external.url, method = "POST"))
+            )
+            configurations.save(connection)
+            val tool = configurations.template(false)
+                .copy(name = "http_write", connectionId = connection.id, mappingJson = "{}")
+            configurations.save(tool)
+            mRuns.saveSettings(
+                mConversation,
+                true,
+                null,
+                mRuns.policy(mConversation).copy(enabledToolIdsJson = "[\"http.${tool.id}\"]")
+            )
+            // 用户确认之后才发生一次真实网络派发，失败不能转成可恢复的模型重试。
+            AgentHttpServer { _, _ ->
+                AgentHttpServer.Reply(
+                    call(
+                        tool.name,
+                        jsonObject("query" to "payload")
+                    )
+                )
+            }.use { model ->
+                assertTrue(runCatching { mManager.run(input(provider(model))) }.exceptionOrNull() is AgentWaitingForUser)
+                assertTrue(runCatching { mManager.resume(mConversation, "", true) }.isFailure)
+                val run = mRuns.observe(mConversation).first().first()
+                assertEquals(AgentRunState.Failed, run.state)
+                assertEquals(
+                    ToolInvocationState.UnknownOutcome,
+                    mRuns.invocations(run.id).single().state
+                )
+                assertEquals(1, external.requests.size)
+                assertEquals(1, model.requests.size)
+            }
+        }
+    }
+
+    /** 凭据引用参与导入但正文不进入包，任何坏工具都回滚同包的连接写入。 */
+    @Test
+    fun configImportRemapsIdentityAndRejectsPartialPackages(): Unit = runBlocking {
+        val configurations = get<ToolConfigRepository>()
+        val connection = ToolConnection(
+            UUID.randomUUID().toString(),
+            "Connection",
+            HttpToolConfigCodec.encode(HttpToolConnection("https://example.com"))
+        )
+        configurations.save(connection)
+        configurations.save(configurations.template(false).copy(connectionId = connection.id))
+        val exported = configurations.export()
+        configurations.import(exported, get<HttpAgentTools>()::validateOverride)
+        assertEquals(2, configurations.connections().size)
+        assertEquals(2, configurations.tools().size)
+        assertEquals(2, configurations.tools().map { it.connectionId }.distinct().size)
+        // 非法 Schema 出现在连接之后，仍须回滚整个导入事务。
+        val bad = AgentJson.parse(exported, ToolConfigCodec.MAX_PACKAGE_BYTES, 48).asJsonObject
+        bad.getAsJsonArray("tools")[0].asJsonObject.add(
+            "parameters",
+            jsonObject("type" to "object", "oneOf" to JsonArray())
+        )
+        assertTrue(runCatching {
+            configurations.import(
+                bad.toString(),
+                get<HttpAgentTools>()::validateOverride
+            )
+        }.isFailure)
+        assertEquals(2, configurations.connections().size)
+        assertEquals(2, configurations.tools().size)
+    }
+
+    private suspend fun provider(
+        server: AgentHttpServer,
+        protocol: LLMProviderProtocol = LLMProviderProtocol.OpenAICompatible
+    ): LLMProvider {
         val provider = LLMProvider(
             name = "Fixture",
             providerType = LLMProviderType.Custom,
-            protocol = LLMProviderProtocol.OpenAICompatible,
+            protocol = protocol,
             baseUrl = server.baseUrl,
             model = "fixture",
             maxTokens = 256,

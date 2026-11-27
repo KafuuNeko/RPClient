@@ -212,7 +212,12 @@ class AgentRuntime(
         val definitions = mComposer.request(checkpoint.plan).tools.associateBy { it.name }
         val calls = pending.calls.mapIndexed { index, call ->
             val definition = definitions[call.name]
-            val registered = definition?.let { mRegistry.find(it.toolId) }
+            val registered = definition?.let {
+                mRegistry.find(
+                    it.toolId,
+                    checkpoint.plan.toolDigests[it.toolId]
+                )
+            }
             ToolCallRequest(
                 checkpoint.pendingStepId,
                 index,

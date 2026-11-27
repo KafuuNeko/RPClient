@@ -67,6 +67,7 @@ import java.util.Locale
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.agent.model.AgentPresetItem
 import me.kafuuneko.rpclient.feature.agent.model.AgentQuestionItem
+import me.kafuuneko.rpclient.feature.agent.model.AgentQuestionKind
 import me.kafuuneko.rpclient.feature.agent.model.AgentStepItem
 import me.kafuuneko.rpclient.feature.agent.model.AgentStepKind
 import me.kafuuneko.rpclient.feature.agent.model.AgentTaskItem
@@ -404,7 +405,7 @@ private fun agentTaskHeaderSummary(task: AgentTaskItem): String {
         if (runningTool != null) {
             return stringResource(
                 R.string.agent_task_running_tool,
-                stringResource(runningTool.labelRes)
+                runningTool.label ?: stringResource(runningTool.labelRes),
             )
         }
         if (task.steps.lastOrNull()
@@ -578,7 +579,7 @@ private fun AgentToolCallRow(call: AgentToolCallItem) {
             )
         }
         Text(
-            text = stringResource(call.labelRes),
+            text = call.label ?: stringResource(call.labelRes),
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface,
@@ -619,25 +620,74 @@ private fun AgentQuestionSection(
             thickness = 0.5.dp,
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
         )
-        if (question.confirmation) {
+        if (question.kind != AgentQuestionKind.Input) {
+            // 按确认类型展示准确标题与说明，区分记忆范围提升、外部写入与不可信内容后的二次外发。
+            val titleRes = when (question.kind) {
+                AgentQuestionKind.ExternalWriteConfirmation -> R.string.agent_confirm_external_write
+                AgentQuestionKind.ExternalReadConfirmation -> R.string.agent_confirm_external_read
+                else -> R.string.agent_confirm_write
+            }
+            val descRes = when (question.kind) {
+                AgentQuestionKind.ExternalWriteConfirmation -> R.string.agent_confirm_external_write_desc
+                AgentQuestionKind.ExternalReadConfirmation -> R.string.agent_confirm_external_read_desc
+                else -> null
+            }
             Text(
-                text = stringResource(R.string.agent_confirm_write),
+                text = stringResource(titleRes),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            if (question.details.isNotBlank()) {
+            descRes?.let { resId ->
+                Text(
+                    text = stringResource(resId),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            val hasExternalMeta = question.toolName != null ||
+                question.destinationHost != null ||
+                question.parameterLines.isNotEmpty()
+            if (hasExternalMeta || question.details.isNotBlank()) {
                 AppSurface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f * bubbleOpacity),
                 ) {
-                    Text(
-                        text = question.details,
+                    Column(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        question.toolName?.let { name ->
+                            Text(
+                                text = stringResource(R.string.agent_confirm_tool_label, name),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                        question.destinationHost?.let { host ->
+                            Text(
+                                text = stringResource(R.string.agent_confirm_host_label, host),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                        question.parameterLines.forEach { (key, value) ->
+                            Text(
+                                text = "$key: $value",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        if (question.details.isNotBlank()) {
+                            Text(
+                                text = question.details,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
             }
             Row(

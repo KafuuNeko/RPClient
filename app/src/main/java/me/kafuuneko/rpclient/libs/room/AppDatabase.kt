@@ -5,6 +5,10 @@ import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import me.kafuuneko.rpclient.libs.room.dao.ToolConfigDao
+import me.kafuuneko.rpclient.libs.room.entity.ToolConnection
+import me.kafuuneko.rpclient.libs.room.entity.ToolDefinition
+import me.kafuuneko.rpclient.libs.room.entity.BuiltinToolOverride
 import me.kafuuneko.rpclient.libs.room.dao.AgentRunDao
 import me.kafuuneko.rpclient.libs.room.dao.SceneStateDao
 import me.kafuuneko.rpclient.libs.room.entity.AgentRun
@@ -87,6 +91,9 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration3To4Spe
 /** RPClient 的 Room 数据库入口，集中声明实体、类型转换器和 DAO。 */
 @Database(
     entities = [
+        ToolConnection::class,
+        ToolDefinition::class,
+        BuiltinToolOverride::class,
         AgentRun::class,
         AgentStep::class,
         ToolInvocation::class,
@@ -145,6 +152,9 @@ import me.kafuuneko.rpclient.libs.room.migration.AppDatabaseAutoMigration3To4Spe
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
+    /** HTTP 工具、连接与内置工具覆盖的配置入口。 */
+    abstract fun getToolConfigDao(): ToolConfigDao
+
     /** Agent 配置、运行、步骤与调用元数据。 */
     abstract fun getAgentRunDao(): AgentRunDao
 

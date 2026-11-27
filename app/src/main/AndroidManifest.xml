@@ -72,6 +72,11 @@
             android:theme="@style/Theme.RPClient"
             android:windowSoftInputMode="adjustResize" />
         <activity
+            android:name=".feature.toolsettings.ToolSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RPClient"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
             android:name=".feature.characteredit.CharacterEditActivity"
             android:exported="false"
             android:theme="@style/Theme.RPClient"

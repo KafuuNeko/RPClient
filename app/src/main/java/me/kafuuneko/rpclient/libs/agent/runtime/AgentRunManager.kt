@@ -174,6 +174,7 @@ class AgentRunManager(
         mStore.clear()
         mRuntime.clear()
         mComposer.clearInspections()
+        mComposer.clearTools()
     }
 
     /** 读取等待问题的可展示投影，不把原始参数与协议续接放入 UI。 */
@@ -204,6 +205,7 @@ class AgentRunManager(
                 "provider_missing"
             )
         val checkpoint = mCodec.decode(payload, provider)
+        mComposer.refreshTools()
         if (checkpoint.plan.input.conversation != conversation) throw AgentRuntimeException("checkpoint_owner_mismatch")
         return checkpoint
     }

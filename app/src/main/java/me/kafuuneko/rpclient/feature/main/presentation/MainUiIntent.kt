@@ -186,6 +186,7 @@ sealed class MainUiIntent {
     data object OpenMemoryCenter : MainUiIntent()
 
     data object OpenPromptPreset : MainUiIntent()
+    data object OpenToolSettings : MainUiIntent()
 
     data object OpenRegexScripts : MainUiIntent()
 

@@ -54,6 +54,12 @@ class AgentPromptComposer(
         mInspections.clear()
     }
 
+    /** 等待恢复及新运行开始前重新读取配置，用冻结指纹定位对应版本。 */
+    suspend fun refreshTools() = mRegistry.refresh()
+
+    /** 整库替换后丢弃旧工具处理器及检查器引用。 */
+    suspend fun clearTools() = mRegistry.clear()
+
     /** 返回最近的 Agent 发送投影，原始交换链不进入页面状态。 */
     fun inspection(conversation: ConversationRef): PromptInspection? =
         mInspections[conversation.key]
@@ -80,7 +86,12 @@ class AgentPromptComposer(
             )
         }.toMutableList()
         val definitions =
-            request.tools.joinToString("\n") { mRegistry.find(it.toolId)?.snapshotJson.orEmpty() }
+            request.tools.joinToString("\n") {
+                mRegistry.find(
+                    it.toolId,
+                    plan.toolDigests[it.toolId]
+                )?.snapshotJson.orEmpty()
+            }
         if (definitions.isNotEmpty()) items.add(
             PromptInspectionItem(
                 items.size,
@@ -111,6 +122,7 @@ class AgentPromptComposer(
         presetId: Long?,
         token: AgentExecutionToken
     ): AgentTurnPlan {
+        mRegistry.refresh()
         val snapshot = AgentPromptSnapshot.resolve(
             input.templates,
             mPresets.getAgentSnapshot(presetId).templates
@@ -184,7 +196,7 @@ class AgentPromptComposer(
     /** 工具集冻结后恢复必须逐项复核版本，不能套用新处理器执行旧写入。 */
     fun request(plan: AgentTurnPlan): LLMToolGenerationRequest {
         val tools = plan.toolDigests.map { (id, digest) ->
-            mRegistry.find(id)?.takeIf { it.digest == digest }?.definition
+            mRegistry.find(id, digest)?.definition
                 ?: throw AgentRuntimeException("tool_contract_changed")
         }
         return LLMToolGenerationRequest(plan.input.request, tools, systemPromptApplied = true)

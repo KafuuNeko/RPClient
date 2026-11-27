@@ -16,6 +16,8 @@ data class AgentToolDefinition(
     val effect: ToolEffect,
     val parallelSafe: Boolean = false,
     val writesMemory: Boolean = false,
+    val external: Boolean = false,
+    val configurationDigest: String = "",
 )
 
 /** 由客户端注入身份，不允许模型参数覆盖会话、人设及角色归属。 */
@@ -63,6 +65,12 @@ sealed interface ToolResult {
  */
 sealed interface ToolAction {
     class Read(val execute: suspend () -> ToolResult) : ToolAction
+    class ExternalRead(
+        val destinationHost: String,
+        val parameterSummary: JsonObject,
+        val execute: suspend () -> ToolResult,
+    ) : ToolAction
+
     class LocalWrite(
         val result: ToolResult.Success,
         val confirmation: ToolResult.AwaitingUser? = null,
@@ -89,6 +97,9 @@ class ToolPreparationException(val code: String) :
  */
 interface AgentTool {
     val definition: AgentToolDefinition
+
+    /** 全局配置撤权在回放之前同样生效，本地固定工具默认仍由会话策略授权。 */
+    suspend fun isEnabled(): Boolean = true
 
     /** 根据已校验参数准备动作；写入动作在执行器再次授权后执行。 */
     suspend fun prepare(context: ToolExecutionContext, arguments: JsonObject): ToolAction
