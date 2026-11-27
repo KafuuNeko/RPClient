@@ -12,6 +12,7 @@ import me.kafuuneko.rpclient.libs.agent.model.AgentExecutionToken
 import me.kafuuneko.rpclient.libs.agent.model.AgentJson
 import me.kafuuneko.rpclient.libs.agent.model.ToolInvocationState
 import me.kafuuneko.rpclient.libs.agent.runtime.AgentCheckpointStore
+import me.kafuuneko.rpclient.libs.agent.tool.base.ToolAuthorizationRevokedException
 import me.kafuuneko.rpclient.libs.room.entity.ToolInvocation
 import me.kafuuneko.rpclient.libs.room.repository.AgentAuthorizationException
 import me.kafuuneko.rpclient.libs.room.repository.AgentRunRepository
@@ -69,21 +70,21 @@ class ToolExecutor(
         val tool = mRegistry.find(call.toolId, call.definitionDigest)
         if (tool == null) {
             return if (mRegistry.find(call.toolId) == null) {
-                ToolResult.RecoverableError("unknown_tool")
+                ToolResult.RecoverableError(ToolErrorCode.UNKNOWN_TOOL)
             } else {
-                ToolResult.FatalError("tool_contract_changed")
+                ToolResult.FatalError(ToolErrorCode.TOOL_CONTRACT_CHANGED)
             }
         }
-        if (!tool.handler.isEnabled()) return ToolResult.FatalError("tool_authorization_revoked")
+        if (!tool.handler.isEnabled()) return ToolResult.FatalError(ToolErrorCode.TOOL_AUTHORIZATION_REVOKED)
         if (tool.definition.contractVersion != call.contractVersion || tool.digest != call.definitionDigest) return ToolResult.FatalError(
-            "tool_contract_changed"
+            ToolErrorCode.TOOL_CONTRACT_CHANGED
         )
-        if (call.ordinal < 0) return ToolResult.FatalError("invalid_invocation_ordinal")
-        val arguments = runCatching { AgentJson.parse(call.argumentsJson).asJsonObject }.getOrNull()
-            ?: return ToolResult.RecoverableError("invalid_tool_arguments")
-        if (ToolSchemaValidator.validate(tool.definition.parameters, arguments)
-                .isNotEmpty()
-        ) return ToolResult.RecoverableError("invalid_tool_arguments")
+        if (call.ordinal < 0) return ToolResult.FatalError(ToolErrorCode.INVALID_INVOCATION_ORDINAL)
+        val arguments = try {
+            ToolInputParser.parse(call.argumentsJson, tool.definition.parameters)
+        } catch (error: ToolPreparationException) {
+            return ToolResult.RecoverableError(error.code)
+        }
         val invocationId = AgentJson.digest("${token.runId}/${call.stepId}/${call.ordinal}")
         var dispatched = false
         try {
@@ -111,17 +112,20 @@ class ToolExecutor(
                 }
             }
             if (result == null && dispatched) mRuns.markUnknown(invocationId)
-            return result ?: ToolResult.FatalError("tool_timeout")
+            return result ?: ToolResult.FatalError(ToolErrorCode.TOOL_TIMEOUT)
         } catch (error: CancellationException) {
             // 取消之后仍完成少量本地状态收尾，不吞掉上层取消信号。
             if (dispatched) withContext(NonCancellable) { mRuns.markUnknown(invocationId) }
             throw error
+        } catch (_: ToolAuthorizationRevokedException) {
+            if (dispatched) mRuns.markUnknown(invocationId)
+            return ToolResult.FatalError(ToolErrorCode.TOOL_AUTHORIZATION_REVOKED)
         } catch (_: AgentAuthorizationException) {
             if (dispatched) mRuns.markUnknown(invocationId)
-            return ToolResult.FatalError("tool_authorization_revoked")
+            return ToolResult.FatalError(ToolErrorCode.TOOL_AUTHORIZATION_REVOKED)
         } catch (_: Exception) {
             if (dispatched) mRuns.markUnknown(invocationId)
-            return ToolResult.FatalError("tool_execution_failed")
+            return ToolResult.FatalError(ToolErrorCode.TOOL_EXECUTION_FAILED)
         }
     }
 
@@ -151,8 +155,17 @@ class ToolExecutor(
         validateAction(tool.definition, action)
         // 外部写入及不可信内容后的二次读取先展示固定目标与受控参数摘要，普通提问不能授予外发权限。
         val externalConfirmation = when (action) {
-            is ToolAction.ExternalWrite -> Triple(action.destinationHost, action.parameterSummary, "write")
-            is ToolAction.ExternalRead -> Triple(action.destinationHost, action.parameterSummary, "read")
+            is ToolAction.ExternalWrite -> Triple(
+                action.destinationHost,
+                action.parameterSummary,
+                ToolUserRequestKind.ExternalWriteConfirmation
+            )
+
+            is ToolAction.ExternalRead -> Triple(
+                action.destinationHost,
+                action.parameterSummary,
+                ToolUserRequestKind.ExternalReadConfirmation
+            )
                 .takeIf { mRuns.get(token.runId)?.untrustedExternalOutput == true }
 
             else -> null
@@ -160,10 +173,9 @@ class ToolExecutor(
         if (externalConfirmation != null && !invocation.confirmationGranted) {
             val request = ToolResult.AwaitingUser(
                 question = "",
-                kind = ToolUserRequestKind.ExternalWriteConfirmation,
+                kind = externalConfirmation.third,
                 details = JsonObject().apply {
                     addProperty("toolName", tool.definition.name)
-                    addProperty("externalEffect", externalConfirmation.third)
                     addProperty("destinationHost", externalConfirmation.first)
                     add("parameters", confirmationSummary(externalConfirmation.second))
                 },
@@ -192,27 +204,31 @@ class ToolExecutor(
         if (action is ToolAction.ExternalWrite && result !is ToolResult.Success) {
             // 请求已发出后的失败无法证明远端没有提交，终止并保留 UnknownOutcome，禁止自动重发。
             mRuns.markUnknown(invocation.id)
-            return ToolResult.FatalError("tool_outcome_unknown")
+            return ToolResult.FatalError(ToolErrorCode.TOOL_OUTCOME_UNKNOWN)
         }
         val commit = (action as? ToolAction.LocalWrite)?.commit ?: {}
         return saveResult(token, tool, invocation, arguments, result, commit)
     }
 
     private suspend fun replay(invocation: ToolInvocation): ToolResult {
+        // 未决派发或结果未知调用禁止重算，直接终止以防止重复副作用。
         if (invocation.state in setOf(
                 ToolInvocationState.Dispatching,
                 ToolInvocationState.UnknownOutcome
             )
-        ) return ToolResult.FatalError("tool_outcome_unknown")
+        ) return ToolResult.FatalError(ToolErrorCode.TOOL_OUTCOME_UNKNOWN)
+        // 读取并校验检查点载荷与指纹，解码已固定的工具结果。
         val key =
-            invocation.checkpointKey ?: return ToolResult.FatalError("tool_checkpoint_missing")
+            invocation.checkpointKey
+                ?: return ToolResult.FatalError(ToolErrorCode.TOOL_CHECKPOINT_MISSING)
         val digest =
-            invocation.resultDigest ?: return ToolResult.FatalError("tool_checkpoint_missing")
+            invocation.resultDigest
+                ?: return ToolResult.FatalError(ToolErrorCode.TOOL_CHECKPOINT_MISSING)
         val payload = mCheckpoints.read(key, digest)
-            ?: return ToolResult.FatalError("tool_checkpoint_missing")
+            ?: return ToolResult.FatalError(ToolErrorCode.TOOL_CHECKPOINT_MISSING)
         return runCatching { ToolResultCodec.decode(payload.getAsJsonObject("result")) }.getOrElse {
             ToolResult.FatalError(
-                "tool_checkpoint_invalid"
+                ToolErrorCode.TOOL_CHECKPOINT_INVALID
             )
         }
     }
@@ -229,7 +245,7 @@ class ToolExecutor(
         val encoded = runCatching { ToolResultCodec.encode(result) }.getOrNull()
         require(encoded != null || tool.definition.effect != ToolEffect.LocalWrite) { "Local write result is too large" }
         val accepted =
-            if (encoded == null) ToolResult.RecoverableError("tool_result_too_large") else result
+            if (encoded == null) ToolResult.RecoverableError(ToolErrorCode.TOOL_RESULT_TOO_LARGE) else result
         val payload = JsonObject().apply {
             add("definition", AgentJson.parse(tool.snapshotJson, maxDepth = 32))
             add("arguments", arguments.deepCopy())
@@ -285,5 +301,8 @@ class ToolExecutor(
     }
 
     private fun canParallel(call: ToolCallRequest): Boolean = call.independent &&
-        mRegistry.find(call.toolId)?.definition?.let { it.effect == ToolEffect.ReadOnly && it.parallelSafe } == true
+        mRegistry.find(
+            call.toolId,
+            call.definitionDigest
+        )?.definition?.let { it.effect == ToolEffect.ReadOnly && it.parallelSafe } == true
 }

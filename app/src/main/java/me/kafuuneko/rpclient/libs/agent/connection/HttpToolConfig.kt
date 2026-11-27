@@ -1,8 +1,9 @@
 package me.kafuuneko.rpclient.libs.agent.connection
 
-import com.google.gson.JsonObject
 import com.google.gson.JsonArray
+import com.google.gson.JsonObject
 import me.kafuuneko.rpclient.libs.agent.model.AgentJson
+import me.kafuuneko.rpclient.libs.agent.tool.ToolErrorCode
 import okhttp3.Headers
 
 /**
@@ -10,10 +11,10 @@ import okhttp3.Headers
  */
 data class HttpToolConnection(
     val url: String,
-    val method: String = "GET",
+    val method: String = ToolHttpMethod.Get,
     val query: Map<String, String> = emptyMap(),
     val headers: Map<String, String> = emptyMap(),
-    val authMode: String = "None",
+    val authMode: String = ToolAuthMode.None,
     val authHeader: String = "Authorization",
     val credentialRef: String? = null,
     val timeoutMillis: Long = 30_000,
@@ -64,7 +65,7 @@ object HttpToolConfigCodec {
      * @param raw 待严格解析的 JSON 或地址文本。
      * @return 通过安全和体积校验的连接。
      */
-    fun connection(raw: String): HttpToolConnection {
+    fun connection(raw: String): HttpToolConnection = validateConfig(ToolErrorCode.INVALID_JSON) {
         // 解析连接 JSON 并拦截未知配置字段。
         val value = objectValue(raw)
         known(
@@ -83,12 +84,19 @@ object HttpToolConfigCodec {
             )
         )
         // 读取强类型字段，拒绝将字符串隐式转换成布尔或整数。
+        ToolConfigValues.validate(
+            value,
+            strings = setOf("url", "method", "authMode", "authHeader"),
+            nullableStrings = setOf("credentialRef"),
+            integers = setOf("timeoutMillis", "maxResponseBytes"),
+            objects = setOf("query", "headers"), booleans = setOf("allowPrivateAddresses")
+        )
         val result = HttpToolConnection(
             url = value["url"]?.asString.orEmpty(),
-            method = value["method"]?.asString ?: "GET",
+            method = value["method"]?.asString ?: ToolHttpMethod.Get,
             query = strings(value, "query"),
             headers = strings(value, "headers"),
-            authMode = value["authMode"]?.asString ?: "None",
+            authMode = value["authMode"]?.asString ?: ToolAuthMode.None,
             authHeader = value["authHeader"]?.asString ?: "Authorization",
             credentialRef = value["credentialRef"]?.takeUnless { it.isJsonNull }?.asString,
             timeoutMillis = value["timeoutMillis"]?.asBigDecimal?.longValueExact() ?: 30_000,
@@ -97,44 +105,63 @@ object HttpToolConfigCodec {
             allowPrivateAddresses = value["allowPrivateAddresses"]?.let {
                 requireConfig(
                     it.isJsonPrimitive && it.asJsonPrimitive.isBoolean,
-                    "invalid_limits",
+                    ToolErrorCode.INVALID_LIMITS,
                     "Invalid private address setting",
                 )
                 it.asBoolean
             } ?: false,
         )
+        validateConnection(result)
+        result
+    }
+
+    /** 在强类型字段解码后验证方法、限额、认证与目标 URL 的安全约束。 */
+    private fun validateConnection(result: HttpToolConnection) {
         // 校验方法、认证模式与限额，凭据必须走加密仓库且不能明文写入静态配置。
         requireConfig(
-            result.method in setOf("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"),
-            "invalid_method",
+            result.method in setOf(
+                ToolHttpMethod.Get,
+                ToolHttpMethod.Head,
+                ToolHttpMethod.Post,
+                ToolHttpMethod.Put,
+                ToolHttpMethod.Patch,
+                ToolHttpMethod.Delete
+            ),
+            ToolErrorCode.INVALID_METHOD,
             "Invalid HTTP method",
         )
         requireConfig(
-            result.authMode in setOf("None", "Bearer", "ApiKey", "Header", "Query"),
-            "invalid_auth",
+            result.authMode in setOf(
+                ToolAuthMode.None,
+                ToolAuthMode.Bearer,
+                ToolAuthMode.ApiKey,
+                ToolAuthMode.Header,
+                ToolAuthMode.Query
+            ),
+            ToolErrorCode.INVALID_AUTH,
             "Invalid HTTP authentication",
         )
         requireConfig(
             result.timeoutMillis in 1000..120_000 &&
                 result.maxResponseBytes in 1..HttpToolConnection.MAX_RESPONSE_BYTES,
-            "invalid_limits",
+            ToolErrorCode.INVALID_LIMITS,
             "Invalid HTTP limits",
         )
         requireConfig(
             result.credentialRef == null || result.credentialRef.matches(Regex("[0-9a-f-]{36}")),
-            "invalid_auth",
+            ToolErrorCode.INVALID_AUTH,
             "Invalid credential reference",
         )
         requireConfig(
             result.headers.keys.none(::reservedHeader) &&
                 result.query.keys.none(::sensitiveQueryName),
-            "credential_in_plain_config",
+            ToolErrorCode.CREDENTIAL_IN_PLAIN_CONFIG,
             "Credentials require encrypted storage",
         )
         requireConfig(
             result.authHeader.matches(Regex("[A-Za-z0-9_-]{1,100}")) &&
-                (result.authMode == "Query" || result.authHeader.lowercase() !in TRANSPORT_HEADERS),
-            "invalid_auth",
+                (result.authMode == ToolAuthMode.Query || result.authHeader.lowercase() !in TRANSPORT_HEADERS),
+            ToolErrorCode.INVALID_AUTH,
             "Invalid authentication header",
         )
         // 验证静态请求头格式并校验非空 URL 的协议与敏感参数约束。
@@ -142,26 +169,31 @@ object HttpToolConfigCodec {
             Headers.Builder().apply { result.headers.forEach { (name, text) -> add(name, text) } }
                 .build()
         } catch (error: IllegalArgumentException) {
-            throw ToolConfigValidationException("invalid_headers", error.message ?: "Invalid HTTP headers")
+            throw ToolConfigValidationException(
+                ToolErrorCode.INVALID_HEADERS,
+                error.message ?: "Invalid HTTP headers"
+            )
         }
         if (result.url.isNotBlank()) {
             val url = try {
                 ToolNetworkPolicy.url(result.url)
             } catch (error: ToolHttpException) {
-                throw ToolConfigValidationException("invalid_url", error.message ?: "Invalid HTTP URL")
+                throw ToolConfigValidationException(
+                    ToolErrorCode.INVALID_URL,
+                    error.message ?: "Invalid HTTP URL"
+                )
             }
             requireConfig(
                 url.queryParameterNames.none(::sensitiveQueryName),
-                "credential_in_plain_config",
+                ToolErrorCode.CREDENTIAL_IN_PLAIN_CONFIG,
                 "Credentials require encrypted storage",
             )
             requireConfig(
                 url.fragment == null,
-                "invalid_url",
+                ToolErrorCode.INVALID_URL,
                 "URL fragment is not supported",
             )
         }
-        return result
     }
 
     /**
@@ -190,24 +222,41 @@ object HttpToolConfigCodec {
      * @param raw 待严格解析的 JSON 或地址文本。
      * @return 通过路径和目标限制校验的映射。
      */
-    fun mapping(raw: String): HttpToolMapping {
+    fun mapping(raw: String): HttpToolMapping = validateConfig(ToolErrorCode.INVALID_MAPPING) {
         // 解析映射对象并验证允许的顶层配置键。
         val value = objectValue(raw)
         known(
             value,
             setOf("body", "bindings", "responsePath", "errorPath", "nextCursorPath", "fields")
         )
+        ToolConfigValues.validate(
+            value,
+            strings = setOf("responsePath"),
+            nullableStrings = setOf("errorPath", "nextCursorPath"),
+            objects = setOf("body", "fields"),
+            arrays = setOf("bindings")
+        )
         // 读取参数绑定列表并校验每个绑定项的必填字段。
         val bindings = value.getAsJsonArray("bindings")?.map { item ->
             val binding = item.asJsonObject
             known(binding, setOf("argument", "target", "path"))
+            ToolConfigValues.validate(binding, strings = setOf("argument", "target", "path"))
             HttpToolBinding(
                 argument = binding["argument"]?.asString
-                    ?: throw ToolConfigValidationException("invalid_mapping", "Missing binding argument"),
+                    ?: throw ToolConfigValidationException(
+                        ToolErrorCode.INVALID_MAPPING,
+                        "Missing binding argument"
+                    ),
                 target = binding["target"]?.asString
-                    ?: throw ToolConfigValidationException("invalid_mapping", "Missing binding target"),
+                    ?: throw ToolConfigValidationException(
+                        ToolErrorCode.INVALID_MAPPING,
+                        "Missing binding target"
+                    ),
                 path = binding["path"]?.asString
-                    ?: throw ToolConfigValidationException("invalid_mapping", "Missing binding path"),
+                    ?: throw ToolConfigValidationException(
+                        ToolErrorCode.INVALID_MAPPING,
+                        "Missing binding path"
+                    ),
             )
         }.orEmpty()
         val result = HttpToolMapping(
@@ -218,41 +267,49 @@ object HttpToolConfigCodec {
             nextCursorPath = value["nextCursorPath"]?.takeUnless { it.isJsonNull }?.asString,
             fields = strings(value, "fields"),
         )
+        validateMappingRules(result)
+        result
+    }
+
+    /** 预编译并校验所有绑定路径、目标约束与响应投影指针。 */
+    private fun validateMappingRules(result: HttpToolMapping) {
+        val bindings = result.bindings
         // 路径预先编译校验，配置错误不留到实际外部派发之后才发现。
         requireConfig(
             bindings.size <= 100 && result.fields.size <= 32,
-            "invalid_mapping",
+            ToolErrorCode.INVALID_MAPPING,
             "Too many HTTP mappings",
         )
         bindings.forEach { binding ->
             requireConfig(
-                binding.target in setOf("query", "body"),
-                "invalid_mapping",
+                binding.target in setOf(ToolBindingTarget.Query, ToolBindingTarget.Body),
+                ToolErrorCode.INVALID_MAPPING,
                 "Invalid HTTP binding target",
             )
             validatePointer(binding.argument)
-            if (binding.target == "body") {
+            if (binding.target == ToolBindingTarget.Body) {
                 requireConfig(
                     validatePointer(binding.path).isNotEmpty(),
-                    "invalid_mapping",
+                    ToolErrorCode.INVALID_MAPPING,
                     "Cannot replace request root",
                 )
             } else {
                 requireConfig(
                     binding.path.isNotBlank(),
-                    "invalid_mapping",
+                    ToolErrorCode.INVALID_MAPPING,
                     "Query binding path cannot be empty",
                 )
                 requireConfig(
                     !sensitiveQueryName(binding.path),
-                    "credential_in_plain_config",
+                    ToolErrorCode.CREDENTIAL_IN_PLAIN_CONFIG,
                     "Cannot bind authentication query",
                 )
             }
         }
+        // 禁止同一目标路径重复绑定，并验证响应与游标 JSON Pointer 语法合法。
         requireConfig(
             bindings.map { it.target to it.path }.distinct().size == bindings.size,
-            "invalid_mapping",
+            ToolErrorCode.INVALID_MAPPING,
             "Duplicate HTTP binding",
         )
         (listOfNotNull(
@@ -260,7 +317,6 @@ object HttpToolConfigCodec {
             result.errorPath,
             result.nextCursorPath
         ) + result.fields.values).forEach(::validatePointer)
-        return result
     }
 
     /**
@@ -289,25 +345,31 @@ object HttpToolConfigCodec {
 
     private fun objectValue(raw: String): JsonObject = try {
         val parsed = AgentJson.parse(raw, maxDepth = 24)
-        requireConfig(parsed.isJsonObject, "invalid_json", "Expected JSON object")
+        requireConfig(parsed.isJsonObject, ToolErrorCode.INVALID_JSON, "Expected JSON object")
         parsed.asJsonObject
     } catch (error: ToolConfigValidationException) {
         throw error
     } catch (error: Exception) {
-        throw ToolConfigValidationException("invalid_json", error.message ?: "Invalid JSON")
+        throw ToolConfigValidationException(
+            ToolErrorCode.INVALID_JSON,
+            error.message ?: "Invalid JSON"
+        )
     }
 
     private fun validatePointer(pointer: String): List<String> = try {
         ToolJsonPointer.segments(pointer)
     } catch (error: IllegalArgumentException) {
-        throw ToolConfigValidationException("invalid_mapping", error.message ?: "Invalid JSON pointer")
+        throw ToolConfigValidationException(
+            ToolErrorCode.INVALID_MAPPING,
+            error.message ?: "Invalid JSON pointer"
+        )
     }
 
     private fun strings(value: JsonObject, key: String): Map<String, String> =
         value.getAsJsonObject(key)?.entrySet()?.associate { (name, text) ->
             requireConfig(
                 text.isJsonPrimitive && text.asJsonPrimitive.isString,
-                "invalid_json",
+                ToolErrorCode.INVALID_JSON,
                 "Expected string mapping",
             )
             name to text.asString
@@ -320,7 +382,7 @@ object HttpToolConfigCodec {
     private fun known(value: JsonObject, names: Set<String>) {
         requireConfig(
             value.keySet().all { it in names },
-            "invalid_json",
+            ToolErrorCode.INVALID_JSON,
             "Unknown HTTP configuration field",
         )
     }

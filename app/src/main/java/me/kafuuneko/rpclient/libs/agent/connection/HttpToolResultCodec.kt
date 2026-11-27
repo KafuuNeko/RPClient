@@ -4,6 +4,7 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import me.kafuuneko.rpclient.libs.agent.model.AgentJson
+import me.kafuuneko.rpclient.libs.agent.tool.ToolErrorCode
 import me.kafuuneko.rpclient.libs.agent.tool.ToolResult
 
 /**
@@ -22,12 +23,12 @@ object HttpToolResultCodec {
      */
     fun map(payload: ToolHttpPayload, mapping: HttpToolMapping, offset: Int): ToolResult {
         if (payload.contentType != "application/json" && !payload.contentType.endsWith("+json")) return ToolResult.RecoverableError(
-            "http_unsupported_content"
+            ToolErrorCode.HTTP_UNSUPPORTED_CONTENT
         )
         val root = try {
             AgentJson.parse(payload.text, HttpToolConnection.MAX_RESPONSE_BYTES, 32)
         } catch (_: Exception) {
-            return ToolResult.RecoverableError("http_invalid_json")
+            return ToolResult.RecoverableError(ToolErrorCode.HTTP_INVALID_JSON)
         }
         mapping.errorPath?.let { pointer ->
             val error = ToolJsonPointer.read(root, pointer)
@@ -38,29 +39,29 @@ object HttpToolResultCodec {
                     "{}",
                     "0"
                 )
-            ) return ToolResult.RecoverableError("http_remote_error")
+            ) return ToolResult.RecoverableError(ToolErrorCode.HTTP_REMOTE_ERROR)
         }
         val selected = ToolJsonPointer.read(root, mapping.responsePath)
-            ?: return ToolResult.RecoverableError("http_mapping_missing")
+            ?: return ToolResult.RecoverableError(ToolErrorCode.HTTP_MAPPING_MISSING)
         val remoteCursor = mapping.nextCursorPath?.let { ToolJsonPointer.read(root, it) }
         if (remoteCursor != null && remoteCursor.toString().length > 2000) return ToolResult.RecoverableError(
-            "http_cursor_too_large"
+            ToolErrorCode.HTTP_CURSOR_TOO_LARGE
         )
         val pageCharacters = 7600 - (remoteCursor?.toString()?.length ?: 0)
         // 响应只按配置白名单投影，不允许原始资料反过来改变 Schema 或权限。
         val values = if (selected.isJsonArray) selected.asJsonArray.toList() else listOf(selected)
-        if (offset < 0 || offset > values.size) return ToolResult.RecoverableError("http_invalid_cursor")
+        if (offset < 0 || offset > values.size) return ToolResult.RecoverableError(ToolErrorCode.HTTP_INVALID_CURSOR)
         val items = JsonArray()
         var next = offset
         while (next < values.size && next - offset < 20) {
             val value = project(values[next], mapping.fields)
-                ?: return ToolResult.RecoverableError("http_mapping_missing")
+                ?: return ToolResult.RecoverableError(ToolErrorCode.HTTP_MAPPING_MISSING)
             items.add(value)
             if (items.toString().length > pageCharacters || items.toString()
                     .toByteArray(Charsets.UTF_8).size > 60 * 1024
             ) {
                 items.remove(items.size() - 1)
-                if (items.isEmpty) return ToolResult.RecoverableError("http_item_too_large")
+                if (items.isEmpty) return ToolResult.RecoverableError(ToolErrorCode.HTTP_ITEM_TOO_LARGE)
                 break
             }
             next++
@@ -85,7 +86,7 @@ object HttpToolResultCodec {
      * @return 有界正文页及下一页游标。
      */
     fun text(text: String, offset: Int): ToolResult {
-        if (offset < 0 || offset > text.length) return ToolResult.RecoverableError("http_invalid_cursor")
+        if (offset < 0 || offset > text.length) return ToolResult.RecoverableError(ToolErrorCode.HTTP_INVALID_CURSOR)
         var end = minOf(text.length, offset + 7600)
         if (end < text.length && end > offset && text[end - 1].isHighSurrogate()) end--
         val data = untrusted().apply {

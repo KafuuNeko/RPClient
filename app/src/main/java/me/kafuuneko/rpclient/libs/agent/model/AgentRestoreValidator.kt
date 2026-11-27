@@ -106,6 +106,7 @@ object AgentRestoreValidator {
     }
 
     private fun validateScenes(db: SupportSQLiteDatabase) {
+        // 核验修订记录关联的生效消息仍属于同一会话，防止跨会话脏引用。
         rejectRows(
             db, """
             SELECT 1 FROM scene_state_revisions r JOIN conversation_tool_policies p USING (conversationKey)
@@ -114,6 +115,7 @@ object AgentRestoreValidator {
             OR (p.groupId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM group_chat_messages m WHERE m.id = r.effectiveAfterMessageId AND m.sessionId = p.groupId))))
         """.trimIndent()
         )
+        // 核验当前剧情快照与最新修订号一致，并校验全部快照 JSON 结构合法。
         rejectRows(
             db, """
             SELECT 1 FROM scene_states s WHERE s.revision < 0 OR (s.revision = 0 AND s.stateJson != '{}')

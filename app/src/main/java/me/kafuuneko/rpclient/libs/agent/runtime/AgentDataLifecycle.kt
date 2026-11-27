@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.libs.agent.runtime
 
 import me.kafuuneko.rpclient.libs.room.repository.AgentRunRepository
 import me.kafuuneko.rpclient.libs.room.repository.ContentSearchRepository
+import me.kafuuneko.rpclient.libs.room.repository.ToolConfigRepository
 
 /**
  * 数据替换与身份删除的运行生命周期桥接，延迟取得管理器以避免仓库循环依赖。
@@ -12,6 +13,7 @@ class AgentDataLifecycle(
     private val mManager: () -> AgentRunManager,
     private val mRuns: AgentRunRepository,
     private val mSearch: ContentSearchRepository,
+    private val mConfigurations: ToolConfigRepository,
 ) {
     /** 暂存备份验证成功后调用，不能在 Room 事务或文件变更锁内等待运行退出。 */
     suspend fun beforeRestore() {
@@ -21,6 +23,7 @@ class AgentDataLifecycle(
 
     /** 数据库替换成功后清理旧库 ID 对应的本机检查点。 */
     suspend fun afterRestore() {
+        mConfigurations.invalidate()
         mManager().clearCheckpoints()
     }
 

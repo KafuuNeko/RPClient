@@ -63,12 +63,14 @@ class AgentRunManager(
 
     /** 创建新运行，准备阶段固定身份、预设和模型配置。 */
     suspend fun run(input: AgentTurnInput): AgentTurnPlan = withContext(Dispatchers.IO) {
+        // 先等待冷启动异常回收完成，再校验供应商启用与工具调用能力。
         mInitialization.await()
         if (!input.provider.isEnabled) throw AgentRuntimeException("provider_disabled")
         mCapabilities.requireSupported(input.provider.toConfig())
         val lease = mActivities.acquire(input.conversation)
         var token: AgentExecutionToken? = null
         try {
+            // 占用会话独占运行并冻结本轮预设、工具快照与初始检查点。
             mJobs[input.conversation.key] = currentCoroutineContext().job
             val started =
                 mRuns.start(input.conversation, input.characterId, input.personaId, input.batchId)
@@ -84,6 +86,7 @@ class AgentRunManager(
             token?.let { finishOnFailure(it, error) }
             throw error
         } finally {
+            // 退出时释放协程登记、临时预览与会话活动租约。
             mJobs.remove(input.conversation.key, currentCoroutineContext().job)
             mRuntime.release(input.conversation)
             mActivities.release(input.conversation, lease)
@@ -100,6 +103,7 @@ class AgentRunManager(
         val lease = mActivities.acquire(conversation)
         var token: AgentExecutionToken? = null
         try {
+            // 重建运行令牌并加载本机检查点，复核供应商能力与配置指纹未漂移。
             mJobs[conversation.key] = currentCoroutineContext().job
             val current = mRuns.resumeToken(conversation)
             token = current
@@ -109,6 +113,7 @@ class AgentRunManager(
             if (AgentPromptComposer.providerDigest(checkpoint.plan.input.provider) != checkpoint.plan.providerDigest) throw AgentRuntimeException(
                 "provider_changed"
             )
+            // 区分普通提问回答与显式确认，回答仅写结果而确认重新打开待派发状态。
             val invocation = mRuns.invocations(current.runId)
                 .firstOrNull { it.state == ToolInvocationState.AwaitingUser }
                 ?: throw AgentRuntimeException("waiting_call_missing")
@@ -205,6 +210,7 @@ class AgentRunManager(
                 "provider_missing"
             )
         val checkpoint = mCodec.decode(payload, provider)
+        mComposer.retainTools(run.id, checkpoint.plan.toolDigests.values)
         mComposer.refreshTools()
         if (checkpoint.plan.input.conversation != conversation) throw AgentRuntimeException("checkpoint_owner_mismatch")
         return checkpoint
@@ -218,5 +224,6 @@ class AgentRunManager(
                 token,
                 if (error is CancellationException) AgentRunState.Cancelled else AgentRunState.Failed
             )
+            mComposer.releaseTools(token.runId)
         }
 }

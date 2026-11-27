@@ -1,7 +1,12 @@
 package me.kafuuneko.rpclient.feature.toolsettings.presentation
 
 import androidx.annotation.StringRes
-import me.kafuuneko.rpclient.feature.agent.model.AgentToolGroup
+import me.kafuuneko.rpclient.libs.agent.connection.HttpToolConnection
+import me.kafuuneko.rpclient.libs.agent.connection.HttpToolKind
+import me.kafuuneko.rpclient.libs.agent.connection.ToolAuthMode
+import me.kafuuneko.rpclient.libs.agent.connection.ToolBindingTarget
+import me.kafuuneko.rpclient.libs.agent.connection.ToolHttpMethod
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.ToolGroup
 
 /** 工具管理页状态树，凭据正文与底层响应头不进入页面状态。 */
 sealed interface ToolSettingsUiState {
@@ -36,7 +41,7 @@ data class HttpToolListItem(
     val id: String,
     val name: String,
     val description: String = "",
-    val kind: String = "Http",
+    val kind: String = HttpToolKind.Http,
     val enabled: Boolean = true,
     val connectionName: String? = null,
     val connectionMethod: String? = null,
@@ -48,8 +53,8 @@ data class ToolConnectionListItem(
     val id: String,
     val name: String,
     val url: String = "",
-    val method: String = "GET",
-    val authMode: String = "None",
+    val method: String = ToolHttpMethod.Get,
+    val authMode: String = ToolAuthMode.None,
     val authHeader: String = "Authorization",
     val hasCredential: Boolean = false,
     val allowPrivateAddresses: Boolean = false,
@@ -63,7 +68,7 @@ data class BuiltinToolListItem(
     val id: String,
     @param:StringRes val defaultLabelRes: Int,
     val customDisplayName: String? = null,
-    val group: AgentToolGroup = AgentToolGroup.Utility,
+    val group: ToolGroup = ToolGroup.Utility,
     val descriptionPreview: String = "",
     val customized: Boolean = false,
 )
@@ -77,7 +82,7 @@ data class KeyValueDraft(
 /** 请求参数绑定表单项。 */
 data class HttpBindingDraft(
     val argument: String = "",
-    val target: String = "query",
+    val target: String = ToolBindingTarget.Query,
     val path: String = "",
 )
 
@@ -103,13 +108,13 @@ sealed interface ToolSettingsDialogState {
         val mode: ToolSettingsEditorMode,
         val name: String = "",
         val url: String = "",
-        val method: String = "GET",
-        val authMode: String = "None",
+        val method: String = ToolHttpMethod.Get,
+        val authMode: String = ToolAuthMode.None,
         val authHeader: String = "Authorization",
         val credentialRef: String? = null,
         val hasCredential: Boolean = false,
         val timeoutSeconds: String = "30",
-        val maxResponseKiB: String = "2048",
+        val maxResponseBytes: Int = HttpToolConnection.MAX_RESPONSE_BYTES,
         val allowPrivateAddresses: Boolean = false,
         val queryParams: List<KeyValueDraft> = emptyList(),
         val headers: List<KeyValueDraft> = emptyList(),
@@ -121,7 +126,7 @@ sealed interface ToolSettingsDialogState {
     data class ToolEditor(
         val id: String,
         val mode: ToolSettingsEditorMode,
-        val kind: String = "Http",
+        val kind: String = HttpToolKind.Http,
         val name: String = "",
         val description: String = "",
         val connectionId: String? = null,
@@ -147,9 +152,8 @@ sealed interface ToolSettingsDialogState {
         val description: String = "",
         val usageHint: String = "",
         val parameters: List<BuiltinParamDraft> = emptyList(),
-        val editableDefaults: List<String> = emptyList(),
-        val defaultLimit: String = "",
-        val defaultOffset: String = "",
+        val editableDefaults: List<BuiltinDefaultDraft> = emptyList(),
+        val effectiveDescription: String = "",
         val customized: Boolean = false,
         @param:StringRes val errorRes: Int? = null,
     ) : ToolSettingsDialogState
@@ -168,7 +172,7 @@ sealed interface ToolSettingsDialogState {
     data class Test(
         val toolId: String,
         val toolName: String,
-        val kind: String = "Http",
+        val kind: String = HttpToolKind.Http,
         val destination: String = "",
         val parameterHints: List<String> = emptyList(),
         val arguments: String = "{}",
@@ -187,3 +191,12 @@ sealed interface ToolSettingsDialogState {
         val affectedToolCount: Int = 0,
     ) : ToolSettingsDialogState
 }
+
+/** 规格驱动的可编辑默认参数草稿；默认值与覆盖值分别展示。 */
+data class BuiltinDefaultDraft(
+    val key: String,
+    @param:StringRes val labelRes: Int,
+    val value: String = "",
+    val originalValue: String,
+    val numeric: Boolean,
+)

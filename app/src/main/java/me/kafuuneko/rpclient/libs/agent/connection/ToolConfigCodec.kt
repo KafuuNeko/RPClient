@@ -7,9 +7,11 @@ import java.util.UUID
 import me.kafuuneko.rpclient.libs.agent.model.AgentJson
 import me.kafuuneko.rpclient.libs.agent.tool.AgentToolDefinition
 import me.kafuuneko.rpclient.libs.agent.tool.ToolEffect
+import me.kafuuneko.rpclient.libs.agent.tool.ToolErrorCode
 import me.kafuuneko.rpclient.libs.agent.tool.ToolRegistry
-import me.kafuuneko.rpclient.libs.agent.tool.ToolSchemaCodec
 import me.kafuuneko.rpclient.libs.agent.tool.ToolSchema
+import me.kafuuneko.rpclient.libs.agent.tool.ToolSchemaCodec
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.BuiltinToolRegistrations
 import me.kafuuneko.rpclient.libs.room.entity.ToolConnection
 import me.kafuuneko.rpclient.libs.room.entity.ToolDefinition
 
@@ -20,23 +22,6 @@ import me.kafuuneko.rpclient.libs.room.entity.ToolDefinition
  */
 object ToolConfigCodec {
     const val MAX_PACKAGE_BYTES = 2 * 1024 * 1024
-    val LOCAL_NAMES = setOf(
-        "search_lore",
-        "read_lore_entry",
-        "search_chat",
-        "read_messages",
-        "search_memory",
-        "read_memory",
-        "upsert_memory",
-        "correct_memory",
-        "invalidate_memory",
-        "promote_memory_scope",
-        "roll_dice",
-        "calculate",
-        "get_scene_state",
-        "update_scene_state",
-        "ask_user"
-    )
     private val mPretty = GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create()
 
     /**
@@ -59,6 +44,7 @@ object ToolConfigCodec {
      * @return 保留契约与映射的 JSON 对象。
      */
     fun tool(value: ToolDefinition): JsonObject = JsonObject().apply {
+        // 按稳定字段名输出非敏感定义，供导出与运行指纹计算共用。
         addProperty("id", value.id)
         addProperty("name", value.name)
         addProperty("description", value.description)
@@ -76,21 +62,41 @@ object ToolConfigCodec {
      * @param id 客户端持有的稳定身份。
      * @return 通过校验的连接配置。
      */
-    fun readConnection(value: JsonObject, id: String): ToolConnection {
-        requireConfig(UUID.fromString(id).toString() == id, "invalid_json", "Invalid connection identity")
-        requireConfig(
-            value.keySet().all { it in setOf("id", "name", "enabled", "config") },
-            "invalid_json",
-            "Unknown connection field",
-        )
-        val configObject = value["config"]?.takeIf { it.isJsonObject }?.asJsonObject
-            ?: throw ToolConfigValidationException("invalid_json", "Missing connection config")
-        val config = HttpToolConfigCodec.connection(configObject.toString())
-        val name = value["name"]?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }
-            ?.asString?.trim().orEmpty()
-        requireConfig(name.isNotEmpty() && name.length <= 120, "invalid_name", "Invalid connection name")
-        return ToolConnection(id, name, HttpToolConfigCodec.encode(config), enabled(value))
-    }
+    fun readConnection(value: JsonObject, id: String): ToolConnection =
+        validateConfig(ToolErrorCode.INVALID_JSON) {
+            // 先校验字段类型、UUID 身份与白名单键，避免未知字段透传落库。
+            ToolConfigValues.validate(
+                value,
+                strings = setOf("id", "name"),
+                booleans = setOf("enabled"),
+                objects = setOf("config")
+            )
+            requireConfig(
+                UUID.fromString(id).toString() == id,
+                ToolErrorCode.INVALID_JSON,
+                "Invalid connection identity"
+            )
+            requireConfig(
+                value.keySet().all { it in setOf("id", "name", "enabled", "config") },
+                ToolErrorCode.INVALID_JSON,
+                "Unknown connection field",
+            )
+            // 委托连接编解码器验证 URL、认证边界与限额，再校验连接展示名。
+            val configObject = value["config"]?.takeIf { it.isJsonObject }?.asJsonObject
+                ?: throw ToolConfigValidationException(
+                    ToolErrorCode.INVALID_JSON,
+                    "Missing connection config"
+                )
+            val config = HttpToolConfigCodec.connection(configObject.toString())
+            val name = value["name"]?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }
+                ?.asString?.trim().orEmpty()
+            requireConfig(
+                name.isNotEmpty() && name.length <= 120,
+                ToolErrorCode.INVALID_NAME,
+                "Invalid connection name"
+            )
+            ToolConnection(id, name, HttpToolConfigCodec.encode(config), enabled(value))
+        }
 
     /**
      * 严格校验跨协议名字及 Schema；分页参数由运行时补充，禁止配置抢占。
@@ -99,63 +105,65 @@ object ToolConfigCodec {
      * @param id 客户端持有的稳定身份。
      * @return 通过校验的工具定义。
      */
-    fun readTool(value: JsonObject, id: String): ToolDefinition {
-        // 校验工具顶层字段与跨五协议函数名，禁止占用内置工具名称。
-        requireConfig(UUID.fromString(id).toString() == id, "invalid_json", "Invalid tool identity")
+    fun readTool(
+        value: JsonObject,
+        id: String,
+        reservedNames: Set<String> = BuiltinToolRegistrations.catalog.reservedNames
+    ): ToolDefinition = validateConfig(ToolErrorCode.INVALID_JSON) {
+        // 先校验顶层字段类型、身份 UUID、白名单键及保留函数名。
+        ToolConfigValues.validate(
+            value,
+            strings = setOf("id", "name", "kind", "description"),
+            nullableStrings = setOf("connectionId"),
+            booleans = setOf("enabled"),
+            objects = setOf("parameters", "mapping")
+        )
         requireConfig(
-            value.keySet().all {
-                it in setOf(
-                    "id",
-                    "name",
-                    "description",
-                    "enabled",
-                    "kind",
-                    "connectionId",
-                    "parameters",
-                    "mapping"
-                )
-            },
-            "invalid_json",
+            UUID.fromString(id).toString() == id,
+            ToolErrorCode.INVALID_JSON,
+            "Invalid tool identity"
+        )
+        requireConfig(
+            value.keySet().all { it in TOOL_FIELDS },
+            ToolErrorCode.INVALID_JSON,
             "Unknown tool field",
         )
         val name = value["name"]?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }
             ?.asString.orEmpty()
         requireConfig(
-            name.matches(Regex("^[a-zA-Z_][a-zA-Z0-9_-]{0,63}$")) && name !in LOCAL_NAMES,
-            "invalid_name",
+            name.matches(Regex("^[a-zA-Z_][a-zA-Z0-9_-]{0,63}$")) && name !in reservedNames,
+            ToolErrorCode.INVALID_NAME,
             "Invalid tool name",
         )
-        // 解码并校验参数 Schema，保留 page_offset 给客户端分页机制。
-        val parametersObject = value["parameters"]?.takeIf { it.isJsonObject }?.asJsonObject
-            ?: throw ToolConfigValidationException("invalid_schema", "Missing parameter schema")
-        val schema = try {
-            ToolSchemaCodec.decode(parametersObject.toString())
-        } catch (error: Exception) {
-            throw ToolConfigValidationException("invalid_schema", error.message ?: "Invalid parameter schema")
-        }
+        // 解码并校验参数 Schema、类型专属约束及结构化映射。
+        val schema = parseToolSchema(value)
+        val kind = value["kind"]?.asString ?: HttpToolKind.Http
         requireConfig(
-            schema.type == ToolSchema.Type.Object && "page_offset" !in schema.properties,
-            "invalid_schema",
-            "Invalid HTTP parameter schema",
+            kind in setOf(HttpToolKind.Http, HttpToolKind.ReadUrl),
+            ToolErrorCode.INVALID_JSON,
+            "Invalid HTTP tool kind"
         )
-        val kind = value["kind"]?.asString ?: "Http"
-        requireConfig(kind in setOf("Http", "ReadUrl"), "invalid_json", "Invalid HTTP tool kind")
         val description = value["description"]?.asString.orEmpty()
-        requireConfig(description.length <= 8000, "invalid_description", "Tool description is too long")
-        // 映射先于写库解析，未知脚本字段或主机绑定均不能落库。
-        val mappingRaw = value["mapping"]?.takeIf { it.isJsonObject }?.asJsonObject?.toString() ?: "{}"
+        requireConfig(
+            description.length <= 8000,
+            ToolErrorCode.INVALID_DESCRIPTION,
+            "Tool description is too long"
+        )
+        val mappingRaw =
+            value["mapping"]?.takeIf { it.isJsonObject }?.asJsonObject?.toString() ?: "{}"
         val mapping = HttpToolConfigCodec.mapping(mappingRaw)
         val connection = value["connectionId"]?.takeUnless { it.isJsonNull }?.asString
-        if (kind == "ReadUrl") {
+        if (kind == HttpToolKind.ReadUrl) {
             requireConfig(
                 connection == null &&
                     schema.properties["url"]?.type == ToolSchema.Type.String &&
                     "url" in schema.required,
-                "invalid_schema",
+                ToolErrorCode.INVALID_SCHEMA,
                 "Invalid read URL template",
             )
         }
-        return ToolDefinition(
+        // 生成规范实体后按最大运行快照计量，防止补入分页字段后超预算。
+        ToolDefinition(
             id = id,
             name = name,
             description = description,
@@ -164,13 +172,43 @@ object ToolConfigCodec {
             connectionId = connection,
             kind = kind,
             enabled = enabled(value),
-        ).also { tool ->
-            // 保存时按最长执行性质计量完整运行快照，后续连接改为写方法也不能撑破上限。
-            try {
-                ToolRegistry.snapshot(definition(tool, null).copy(effect = ToolEffect.ExternalWrite))
-            } catch (error: Exception) {
-                throw ToolConfigValidationException("invalid_schema", error.message ?: "Tool definition is too large")
-            }
+        ).also(::validateToolSnapshot)
+    }
+
+    /** 解析并校验工具参数 Schema，保留 page_offset 给客户端分页机制。 */
+    private fun parseToolSchema(value: JsonObject): ToolSchema {
+        // 先确保参数节点为 JSON 对象，再委托 Schema 编解码器做完整结构验证。
+        val parametersObject = value["parameters"]?.takeIf { it.isJsonObject }?.asJsonObject
+            ?: throw ToolConfigValidationException(
+                ToolErrorCode.INVALID_SCHEMA,
+                "Missing parameter schema"
+            )
+        val schema = try {
+            ToolSchemaCodec.decode(parametersObject.toString())
+        } catch (error: Exception) {
+            throw ToolConfigValidationException(
+                ToolErrorCode.INVALID_SCHEMA,
+                error.message ?: "Invalid parameter schema"
+            )
+        }
+        // 顶层必须为对象且禁止配置占用客户端保留的分页参数键。
+        requireConfig(
+            schema.type == ToolSchema.Type.Object && "page_offset" !in schema.properties,
+            ToolErrorCode.INVALID_SCHEMA,
+            "Invalid HTTP parameter schema",
+        )
+        return schema
+    }
+
+    /** 按最保守运行快照计量完整契约体积，避免后续切换写方法导致注册失败。 */
+    private fun validateToolSnapshot(tool: ToolDefinition) {
+        try {
+            ToolRegistry.snapshot(definition(tool, null).copy(effect = ToolEffect.ExternalWrite))
+        } catch (error: Exception) {
+            throw ToolConfigValidationException(
+                ToolErrorCode.INVALID_SCHEMA,
+                error.message ?: "Tool definition is too large"
+            )
         }
     }
 
@@ -186,7 +224,10 @@ object ToolConfigCodec {
         val schema = try {
             ToolSchemaCodec.decode(tool.parametersJson)
         } catch (error: Exception) {
-            throw ToolConfigValidationException("invalid_schema", error.message ?: "Invalid parameter schema")
+            throw ToolConfigValidationException(
+                ToolErrorCode.INVALID_SCHEMA,
+                error.message ?: "Invalid parameter schema"
+            )
         }
         // 确保每个绑定引用的根参数均存在于 Schema properties 中。
         requireConfig(
@@ -194,15 +235,15 @@ object ToolConfigCodec {
                 val first = ToolJsonPointer.segments(binding.argument).firstOrNull()
                 first != null && first in schema.properties
             },
-            "invalid_mapping",
+            ToolErrorCode.INVALID_MAPPING,
             "HTTP binding references unknown argument",
         )
         // GET/HEAD 请求不允许携带 body 绑定，避免运行期必然失败。
         if (connectionMethod != null) {
             requireConfig(
-                connectionMethod !in setOf("GET", "HEAD") ||
-                    mapping.bindings.none { it.target == "body" },
-                "invalid_mapping",
+                connectionMethod !in ToolHttpMethod.reads ||
+                    mapping.bindings.none { it.target == ToolBindingTarget.Body },
+                ToolErrorCode.INVALID_MAPPING,
                 "Read requests cannot bind a body",
             )
         }
@@ -229,10 +270,10 @@ object ToolConfigCodec {
             toolId = "http.${tool.id}", name = tool.name, contractVersion = 1,
             description = tool.description, parameters = pagedSchema,
             effect = if (config?.method in setOf(
-                    "POST",
-                    "PUT",
-                    "PATCH",
-                    "DELETE"
+                    ToolHttpMethod.Post,
+                    ToolHttpMethod.Put,
+                    ToolHttpMethod.Patch,
+                    ToolHttpMethod.Delete
                 )
             ) ToolEffect.ExternalWrite else ToolEffect.ReadOnly,
             external = true,
@@ -256,14 +297,20 @@ object ToolConfigCodec {
      * @param raw 待严格解析的 JSON 或地址文本。
      * @return 通过大小、深度和重复键检查的对象。
      */
-    fun parse(raw: String): JsonObject = try {
-        val parsed = AgentJson.parse(raw, maxBytes = 256 * 1024, maxDepth = 40)
-        requireConfig(parsed.isJsonObject, "invalid_json", "Expected JSON object")
-        parsed.asJsonObject
-    } catch (error: ToolConfigValidationException) {
-        throw error
-    } catch (error: Exception) {
-        throw ToolConfigValidationException("invalid_json", error.message ?: "Invalid JSON")
+    fun parse(raw: String): JsonObject {
+        // 限制大小与嵌套深度，并将原生解析错误归一化为结构化配置校验异常。
+        return try {
+            val parsed = AgentJson.parse(raw, maxBytes = 256 * 1024, maxDepth = 40)
+            requireConfig(parsed.isJsonObject, ToolErrorCode.INVALID_JSON, "Expected JSON object")
+            parsed.asJsonObject
+        } catch (error: ToolConfigValidationException) {
+            throw error
+        } catch (error: Exception) {
+            throw ToolConfigValidationException(
+                ToolErrorCode.INVALID_JSON,
+                error.message ?: "Invalid JSON"
+            )
+        }
     }
 
     /**
@@ -279,6 +326,7 @@ object ToolConfigCodec {
         tools: List<ToolDefinition>,
         overrides: Map<String, String>
     ): String {
+        // 组装固定版本头与非敏感配置列表，并对导出总字节数执行上限校验。
         val value = JsonObject().apply {
             addProperty("format", "rpclient.http-tools")
             addProperty("version", 1)
@@ -295,7 +343,22 @@ object ToolConfigCodec {
 
     private fun enabled(value: JsonObject): Boolean {
         val field = value["enabled"] ?: return true
-        require(field.asJsonPrimitive.isBoolean) { "Invalid tool enabled setting" }
+        requireConfig(
+            field.isJsonPrimitive && field.asJsonPrimitive.isBoolean,
+            ToolErrorCode.INVALID_JSON,
+            "Invalid tool enabled setting"
+        )
         return field.asBoolean
     }
+
+    private val TOOL_FIELDS = setOf(
+        "id",
+        "name",
+        "description",
+        "enabled",
+        "kind",
+        "connectionId",
+        "parameters",
+        "mapping",
+    )
 }

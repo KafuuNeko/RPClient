@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import me.kafuuneko.rpclient.libs.agent.tool.ToolErrorCode
 
 /**
  * HTTP 工具凭据的本机存储边界。
@@ -34,7 +35,7 @@ class ToolCredentialRepository(context: Context) {
     suspend fun save(secret: String): String = withContext(Dispatchers.IO) {
         requireConfig(
             secret.isNotBlank() && secret.toByteArray().size <= 8192 && '\r' !in secret && '\n' !in secret,
-            "invalid_credential",
+            ToolErrorCode.INVALID_CREDENTIAL,
             "Invalid tool credential",
         )
         mMutex.withLock {

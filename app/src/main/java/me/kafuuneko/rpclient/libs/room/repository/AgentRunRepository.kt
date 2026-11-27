@@ -6,11 +6,14 @@ import me.kafuuneko.rpclient.libs.agent.model.AgentExecutionToken
 import me.kafuuneko.rpclient.libs.agent.model.AgentJson
 import me.kafuuneko.rpclient.libs.agent.model.AgentPolicyValidator
 import me.kafuuneko.rpclient.libs.agent.model.AgentRunState
+import me.kafuuneko.rpclient.libs.agent.model.AgentStepType
 import me.kafuuneko.rpclient.libs.agent.model.ConversationRef
 import me.kafuuneko.rpclient.libs.agent.model.ToolInvocationState
 import me.kafuuneko.rpclient.libs.agent.tool.AgentToolDefinition
 import me.kafuuneko.rpclient.libs.agent.tool.ToolExecutionContext
 import me.kafuuneko.rpclient.libs.agent.tool.ToolUserRequestKind
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.BuiltinToolRegistrations
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.ToolCatalog
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.AgentRun
 import me.kafuuneko.rpclient.libs.room.entity.AgentStep
@@ -30,8 +33,14 @@ data class ToolInvocationClaim(val invocation: ToolInvocation, val isNew: Boolea
  * - 先持久化派发标记再执行，恢复时不自动重发未决副作用。
  * - 不在事务内发网络请求、等待用户或读写检查点文件。
  */
-class AgentRunRepository(private val mDatabase: AppDatabase) {
+class AgentRunRepository(
+    private val mDatabase: AppDatabase,
+    private val mCatalog: ToolCatalog = BuiltinToolRegistrations.catalog
+) {
     private val mDao = mDatabase.getAgentRunDao()
+
+    /** @return 当前活动和等待运行的身份，用于安全回收旧工具版本。 */
+    suspend fun activeRunIds(): Set<String> = mDao.activeRuns().mapTo(hashSetOf()) { it.id }
 
     /** 观察指定身份域的运行摘要。 */
     fun observe(conversation: ConversationRef) = mDao.observeRuns(conversation.key)
@@ -42,6 +51,7 @@ class AgentRunRepository(private val mDatabase: AppDatabase) {
             settings(conversation)
             mDao.policy(conversation.key) ?: ConversationToolPolicy(
                 conversationKey = conversation.key,
+                enabledToolIdsJson = mCatalog.defaultToolIdsJson,
                 chatId = (conversation as? ConversationRef.Single)?.id,
                 groupId = (conversation as? ConversationRef.Group)?.id,
             ).also { mDao.insertPolicy(it) }
@@ -117,7 +127,13 @@ class AgentRunRepository(private val mDatabase: AppDatabase) {
     ): Long = mDatabase.withTransaction {
         // 序号与步骤写入共享事务，防止并发请求得到相同位置。
         checkAuthorized(token)
-        require(kind in setOf("Model", "Tools", "Compaction")) { "Invalid agent step kind" }
+        require(
+            kind in setOf(
+                AgentStepType.Model,
+                AgentStepType.Tools,
+                AgentStepType.Compaction
+            )
+        ) { "Invalid agent step kind" }
         mDao.insertStep(
             AgentStep(
                 runId = token.runId,
@@ -167,18 +183,21 @@ class AgentRunRepository(private val mDatabase: AppDatabase) {
         mDao.updateInvocation(invocation.copy(state = ToolInvocationState.Dispatching))
     }
 
-    /** 用户明确确认后重新准备外部写入；此入口只能由用户操作调用。 */
+    /** 用户明确确认后重新准备外部写入或外发读取；此入口只能由用户操作调用。 */
     suspend fun confirmInvocation(token: AgentExecutionToken, invocationId: String) =
         mDatabase.withTransaction {
+            // 复核运行授权并限定仅确认类等待状态可转为已授权待派发。
             val run = checkAuthorized(token).first
             val invocation = requireNotNull(mDao.invocation(invocationId))
             check(
                 invocation.runId == run.id && invocation.state == ToolInvocationState.AwaitingUser &&
                     invocation.awaitingKind in setOf(
+                    ToolUserRequestKind.ExternalReadConfirmation.name,
                     ToolUserRequestKind.ExternalWriteConfirmation.name,
                     ToolUserRequestKind.LocalWriteConfirmation.name
                 )
             ) { "Tool invocation is not awaiting confirmation" }
+            // 清空等待检查点引用并恢复工具执行阶段，使执行器放行单次真实派发。
             mDao.updateInvocation(
                 invocation.copy(
                     state = ToolInvocationState.Prepared,
@@ -480,13 +499,19 @@ class AgentRunRepository(private val mDatabase: AppDatabase) {
         estimate: Long,
         compaction: Boolean
     ): Long = mDatabase.withTransaction {
+        // 先校验单次运行与群聊批次的剩余请求、Token 及主动耗时限额。
         val (run, policy) = checkAuthorized(token)
         check(run.modelRequests < policy.maxModelRequests && run.totalTokens + estimate <= policy.maxTotalTokens && run.activeMillis < policy.maxActiveMillis) { "Agent cost limit reached" }
         if (token.conversation is ConversationRef.Group && run.batchId != null) {
             val batch = mDao.batchRuns(run.batchId, token.conversation.key)
             check(batch.sumOf { it.modelRequests } < policy.maxGroupModelRequests && batch.sumOf { it.totalTokens } + estimate <= policy.maxGroupTotalTokens && batch.sumOf { it.activeMillis } < policy.maxGroupActiveMillis) { "Agent group cost limit reached" }
         }
-        val step = appendStep(token, if (compaction) "Compaction" else "Model", requestId)
+        // 写入步骤并预先累加估算成本，防止失败重试绕过限额。
+        val step = appendStep(
+            token,
+            if (compaction) AgentStepType.Compaction else AgentStepType.Model,
+            requestId
+        )
         mDao.updateStep(requireNotNull(mDao.step(step)).copy(estimatedTokens = estimate))
         mDao.updateRun(
             run.copy(
@@ -505,11 +530,13 @@ class AgentRunRepository(private val mDatabase: AppDatabase) {
         activeMillis: Long,
         outcomeCode: String = "completed",
     ) = mDatabase.withTransaction {
+        // 校验账本数值及步骤归属，已完成步骤直接幂等返回。
         require(tokens >= 0 && activeMillis >= 0) { "Invalid request accounting" }
         val run = checkAuthorized(token).first
         val step = requireNotNull(mDao.step(stepId))
         require(step.runId == token.runId) { "Invalid request step owner" }
         if (step.completedAt != null) return@withTransaction
+        // 用实际用量替换预占估算值并累计主动耗时。
         mDao.updateStep(
             step.copy(
                 completedAt = System.currentTimeMillis(),
@@ -546,7 +573,7 @@ class AgentRunRepository(private val mDatabase: AppDatabase) {
                 toolRounds = run.toolRounds + 1
             )
         )
-        appendStep(token, "Tools")
+        appendStep(token, AgentStepType.Tools)
     }
 
     /** 整批工具均返回结果后完成步骤，用户等待与恢复不会重复创建或提前结束步骤。 */
@@ -554,7 +581,7 @@ class AgentRunRepository(private val mDatabase: AppDatabase) {
         mDatabase.withTransaction {
             checkAuthorized(token)
             val step = requireNotNull(mDao.step(stepId))
-            require(step.runId == token.runId && step.kind == "Tools") { "Invalid tool step owner" }
+            require(step.runId == token.runId && step.kind == AgentStepType.Tools) { "Invalid tool step owner" }
             if (step.completedAt == null) mDao.updateStep(
                 step.copy(
                     completedAt = System.currentTimeMillis(),
@@ -604,9 +631,11 @@ class AgentRunRepository(private val mDatabase: AppDatabase) {
         key: String,
         digest: String
     ) = mDatabase.withTransaction {
+        // 仅允许普通输入类型的等待调用写回用户回答，防止绕过确认机制。
         val run = checkAuthorized(token).first
         val invocation = requireNotNull(mDao.invocation(invocationId))
         check(invocation.runId == token.runId && invocation.state == ToolInvocationState.AwaitingUser && invocation.awaitingKind == ToolUserRequestKind.Input.name) { "Invocation is not awaiting input" }
+        // 标记该调用已完成并切回工具执行阶段，清除等待过期时间。
         mDao.updateInvocation(
             invocation.copy(
                 state = ToolInvocationState.Completed,

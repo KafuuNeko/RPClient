@@ -38,11 +38,13 @@ import androidx.compose.ui.window.DialogProperties
 import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.agent.model.AgentLimitDraft
 import me.kafuuneko.rpclient.feature.agent.model.AgentLimitField
+import me.kafuuneko.rpclient.feature.agent.model.AgentSceneRevisionItem
 import me.kafuuneko.rpclient.feature.agent.model.AgentSettingsDialog
-import me.kafuuneko.rpclient.feature.agent.model.AgentToolGroup
 import me.kafuuneko.rpclient.feature.agent.model.AgentToolItem
 import me.kafuuneko.rpclient.feature.agent.model.AgentUiAction
 import me.kafuuneko.rpclient.feature.agent.model.AgentUiState
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.ToolGroup
+import me.kafuuneko.rpclient.ui.agent.titleRes
 import me.kafuuneko.rpclient.ui.dialog.AppDialogScaffold
 import me.kafuuneko.rpclient.ui.widgets.AppSurface
 import me.kafuuneko.rpclient.ui.widgets.RpCheckBadge
@@ -62,6 +64,7 @@ fun AgentSettingsDialogHost(
     state: AgentUiState,
     emit: (AgentUiAction) -> Unit,
 ) {
+    // 按互斥弹窗状态分发，确认与取消统一经 emit 回传给协调器。
     when (val dialog = state.settingsDialog) {
         AgentSettingsDialog.None -> Unit
 
@@ -93,13 +96,13 @@ private fun AgentToolsDialog(
     memoryReadOnly: Boolean,
     emit: (AgentUiAction) -> Unit,
 ) {
+    // 按统一领域分组整理候选工具，并计算全选切换状态。
     val groupedTools = remember(tools) {
-        AgentToolGroup.entries.mapNotNull { group ->
+        ToolGroup.entries.mapNotNull { group ->
             val items = tools.filter { it.group == group }
             if (items.isEmpty()) null else group to items
         }
     }
-    val listState = rememberLazyListState()
     val allSelected = tools.isNotEmpty() && selectedToolIds.size == tools.size
 
     AppDialogScaffold(
@@ -143,34 +146,52 @@ private fun AgentToolsDialog(
                     )
                 }
             }
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 380.dp)
-                    .draggableLazyListScrollIndicator(listState),
-                contentPadding = PaddingValues(end = 6.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                groupedTools.forEach { (group, groupTools) ->
-                    item(key = "group-${group.name}") {
-                        Text(
-                            text = stringResource(group.titleRes()),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(top = 4.dp, start = 2.dp),
-                        )
-                    }
-                    items(items = groupTools, key = { it.id }) { tool ->
-                        AgentToolPickerRow(
-                            tool = tool,
-                            selected = tool.id in selectedToolIds,
-                            blockedByReadOnly = memoryReadOnly && tool.writesMemory,
-                            onToggle = { emit(AgentUiAction.ToggleDraftTool(tool.id)) },
-                        )
-                    }
-                }
+            AgentToolsList(
+                groupedTools = groupedTools,
+                selectedToolIds = selectedToolIds,
+                memoryReadOnly = memoryReadOnly,
+                emit = emit,
+            )
+        }
+    }
+}
+
+/** 惰性渲染按领域分组的工具多选列表。 */
+@Composable
+private fun AgentToolsList(
+    groupedTools: List<Pair<ToolGroup, List<AgentToolItem>>>,
+    selectedToolIds: Set<String>,
+    memoryReadOnly: Boolean,
+    emit: (AgentUiAction) -> Unit,
+) {
+    // 限制弹窗内列表高度并附带滚动条，避免工具项增多后挤占底部按钮。
+    val listState = rememberLazyListState()
+    LazyColumn(
+        state = listState,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 380.dp)
+            .draggableLazyListScrollIndicator(listState),
+        contentPadding = PaddingValues(end = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        groupedTools.forEach { (group, groupTools) ->
+            item(key = "group-${group.name}") {
+                Text(
+                    text = stringResource(group.titleRes()),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 4.dp, start = 2.dp),
+                )
+            }
+            items(items = groupTools, key = { it.id }) { tool ->
+                AgentToolPickerRow(
+                    tool = tool,
+                    selected = tool.id in selectedToolIds,
+                    blockedByReadOnly = memoryReadOnly && tool.writesMemory,
+                    onToggle = { emit(AgentUiAction.ToggleDraftTool(tool.id)) },
+                )
             }
         }
     }
@@ -184,6 +205,7 @@ private fun AgentToolPickerRow(
     blockedByReadOnly: Boolean,
     onToggle: () -> Unit,
 ) {
+    // 按选中态切换高亮边框，对只读拦截、全局停用及缺配置给出明确辅助提示。
     AppSurface(
         modifier = Modifier
             .fillMaxWidth()
@@ -259,6 +281,7 @@ private fun AgentLimitsDialog(
     errorRes: Int?,
     emit: (AgentUiAction) -> Unit,
 ) {
+    // 弹窗仅渲染草稿并回传字段变更，具体边界校验在保存时由协调器统一执行。
     AppDialogScaffold(
         onDismissRequest = { emit(AgentUiAction.DismissSettingsDialog) },
         title = stringResource(R.string.agent_limits_title),
@@ -279,81 +302,7 @@ private fun AgentLimitsDialog(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            RpNumberStepper(
-                title = stringResource(R.string.agent_limit_rounds),
-                value = draft.rounds,
-                min = 1,
-                max = 50,
-                step = 1,
-                onValueChange = { value ->
-                    emit(
-                        AgentUiAction.ChangeLimit(
-                            AgentLimitField.Rounds,
-                            value
-                        )
-                    )
-                },
-            )
-            RpNumberStepper(
-                title = stringResource(R.string.agent_limit_calls),
-                value = draft.calls,
-                min = 1,
-                max = 200,
-                step = 1,
-                onValueChange = { value ->
-                    emit(
-                        AgentUiAction.ChangeLimit(
-                            AgentLimitField.Calls,
-                            value
-                        )
-                    )
-                },
-            )
-            RpNumberStepper(
-                title = stringResource(R.string.agent_limit_requests),
-                value = draft.requests,
-                min = 1,
-                max = 50,
-                step = 1,
-                onValueChange = { value ->
-                    emit(
-                        AgentUiAction.ChangeLimit(
-                            AgentLimitField.Requests,
-                            value
-                        )
-                    )
-                },
-            )
-            RpNumberStepper(
-                title = stringResource(R.string.agent_limit_tokens),
-                value = draft.tokens,
-                min = 1_000,
-                max = 2_000_000,
-                step = 4_000,
-                onValueChange = { value ->
-                    emit(
-                        AgentUiAction.ChangeLimit(
-                            AgentLimitField.Tokens,
-                            value
-                        )
-                    )
-                },
-            )
-            RpNumberStepper(
-                title = stringResource(R.string.agent_limit_seconds),
-                value = draft.seconds,
-                min = 10,
-                max = 3_600,
-                step = 30,
-                onValueChange = { value ->
-                    emit(
-                        AgentUiAction.ChangeLimit(
-                            AgentLimitField.Seconds,
-                            value
-                        )
-                    )
-                },
-            )
+            AgentLimitStepperFields(draft = draft, emit = emit)
             RpPercentageSlider(
                 title = stringResource(R.string.agent_limit_watermark),
                 value = draft.watermark.toIntOrNull() ?: AgentLimitDraft.DEFAULT_WATERMARK,
@@ -382,12 +331,67 @@ private fun AgentLimitsDialog(
     }
 }
 
+/** 渲染轮次、调用次数、模型请求、Token 与主动耗时五项限额步进器。 */
+@Composable
+private fun AgentLimitStepperFields(
+    draft: AgentLimitDraft,
+    emit: (AgentUiAction) -> Unit,
+) {
+    // 轮次、工具调用与请求次数步进项。
+    RpNumberStepper(
+        title = stringResource(R.string.agent_limit_rounds),
+        value = draft.rounds,
+        min = 1,
+        max = 50,
+        step = 1,
+        onValueChange = { value -> emit(AgentUiAction.ChangeLimit(AgentLimitField.Rounds, value)) },
+    )
+    RpNumberStepper(
+        title = stringResource(R.string.agent_limit_calls),
+        value = draft.calls,
+        min = 1,
+        max = 200,
+        step = 1,
+        onValueChange = { value -> emit(AgentUiAction.ChangeLimit(AgentLimitField.Calls, value)) },
+    )
+    RpNumberStepper(
+        title = stringResource(R.string.agent_limit_requests),
+        value = draft.requests,
+        min = 1,
+        max = 50,
+        step = 1,
+        onValueChange = { value ->
+            emit(AgentUiAction.ChangeLimit(AgentLimitField.Requests, value))
+        },
+    )
+    // Token 预算与主动耗时步进项。
+    RpNumberStepper(
+        title = stringResource(R.string.agent_limit_tokens),
+        value = draft.tokens,
+        min = 1_000,
+        max = 2_000_000,
+        step = 4_000,
+        onValueChange = { value -> emit(AgentUiAction.ChangeLimit(AgentLimitField.Tokens, value)) },
+    )
+    RpNumberStepper(
+        title = stringResource(R.string.agent_limit_seconds),
+        value = draft.seconds,
+        min = 10,
+        max = 3_600,
+        step = 30,
+        onValueChange = { value ->
+            emit(AgentUiAction.ChangeLimit(AgentLimitField.Seconds, value))
+        },
+    )
+}
+
 /** 展示格式化后的当前剧情状态、近期修订差异与撤销入口。 */
 @Composable
 private fun AgentSceneStateDialog(
     state: AgentUiState,
     emit: (AgentUiAction) -> Unit,
 ) {
+    // 仅存在可回退修订时提供撤销主按钮，否则将主操作收拢为关闭。
     AppDialogScaffold(
         onDismissRequest = { emit(AgentUiAction.DismissSettingsDialog) },
         title = stringResource(R.string.agent_scene_title),
@@ -421,82 +425,88 @@ private fun AgentSceneStateDialog(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = stringResource(R.string.agent_scene_current),
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            if (state.sceneFormatted.isBlank()) {
-                Text(
-                    text = stringResource(R.string.agent_scene_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else {
-                AppSurface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                ) {
-                    SelectionContainer {
-                        Text(
-                            text = state.sceneFormatted,
-                            modifier = Modifier.padding(12.dp),
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                lineHeight = 18.sp,
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                }
-            }
+            AgentSceneSnapshotSection(sceneFormatted = state.sceneFormatted)
             if (state.sceneHistory.isNotEmpty()) {
-                Text(
-                    text = stringResource(R.string.agent_scene_history),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                state.sceneHistory.forEach { revision ->
-                    AppSurface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.26f),
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Text(
-                                text = stringResource(
-                                    R.string.agent_scene_revision,
-                                    revision.revision
-                                ),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            Text(
-                                text = revision.difference.ifBlank { "—" },
-                                style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
+                AgentSceneHistorySection(sceneHistory = state.sceneHistory)
             }
         }
     }
 }
 
-private fun AgentToolGroup.titleRes(): Int = when (this) {
-    AgentToolGroup.Lore -> R.string.agent_tool_group_lore
-    AgentToolGroup.Chat -> R.string.agent_tool_group_chat
-    AgentToolGroup.Memory -> R.string.agent_tool_group_memory
-    AgentToolGroup.Scene -> R.string.agent_tool_group_scene
-    AgentToolGroup.Utility -> R.string.agent_tool_group_utility
-    AgentToolGroup.Interaction -> R.string.agent_tool_group_interaction
-    AgentToolGroup.Network -> R.string.tool_settings_tools
+/** 展示当前已格式化的剧情 JSON 快照或空状态提示。 */
+@Composable
+private fun AgentSceneSnapshotSection(sceneFormatted: String) {
+    // 空快照显示引导文案，有内容时允许用户选中复制。
+    Text(
+        text = stringResource(R.string.agent_scene_current),
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary,
+    )
+    if (sceneFormatted.isBlank()) {
+        Text(
+            text = stringResource(R.string.agent_scene_empty),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    } else {
+        AppSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        ) {
+            SelectionContainer {
+                Text(
+                    text = sceneFormatted,
+                    modifier = Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = FontFamily.Monospace,
+                        lineHeight = 18.sp,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
+    }
+}
+
+/** 展示近期剧情状态修订记录及对应键级差异。 */
+@Composable
+private fun AgentSceneHistorySection(
+    sceneHistory: List<AgentSceneRevisionItem>,
+) {
+    // 倒序展示最近修订条目，无键变化时使用短横线占位。
+    Text(
+        text = stringResource(R.string.agent_scene_history),
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary,
+    )
+    sceneHistory.forEach { revision ->
+        AppSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.26f),
+        ) {
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = stringResource(
+                        R.string.agent_scene_revision,
+                        revision.revision
+                    ),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = revision.difference.ifBlank { "—" },
+                    style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
 }

@@ -1,13 +1,15 @@
 package me.kafuuneko.rpclient.libs.agent.connection
 
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import me.kafuuneko.rpclient.libs.agent.model.AgentJson
-import me.kafuuneko.rpclient.libs.agent.tool.AgentTool
-import me.kafuuneko.rpclient.libs.agent.tool.AgentToolDefinition
-import me.kafuuneko.rpclient.libs.agent.tool.ToolAction
-import me.kafuuneko.rpclient.libs.agent.tool.ToolExecutionContext
+import me.kafuuneko.rpclient.libs.agent.tool.ToolErrorCode
 import me.kafuuneko.rpclient.libs.agent.tool.ToolSchema
 import me.kafuuneko.rpclient.libs.agent.tool.ToolSchemaValidator
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.BuiltinToolRegistrations
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.EditableDefaultSpec
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.EffectiveToolConfig
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.ToolSpecification
 
 /** 内置工具稀疏覆写的结构化读写模型，供表单编辑器与序列化逻辑复用。 */
 data class BuiltinToolOverrideData(
@@ -15,14 +17,14 @@ data class BuiltinToolOverrideData(
     val description: String = "",
     val usageHint: String = "",
     val parameterDescriptions: Map<String, String> = emptyMap(),
-    val defaults: Map<String, Int> = emptyMap(),
+    val defaults: Map<String, JsonElement> = emptyMap(),
 )
 
 /**
  * 内置工具稀疏覆盖，只改变说明和契约允许的可选默认值。
  * - 参数类型、必填性、执行性质及模型函数名不能被编辑器覆盖。
  * - 缺省参数与显式 null 分别处理，默认值不覆盖模型的明确输入。
- * - 具名装饰器完整委托 [AgentTool.isEnabled]，避免覆盖层丢失原工具启停判断。
+ * - 仅解析配置，不创建处理器或覆盖实时可用性策略。
  */
 object BuiltinToolOverrideCodec {
     private val ALLOWED_KEYS = setOf(
@@ -32,42 +34,41 @@ object BuiltinToolOverrideCodec {
         "parameterDescriptions",
         "defaults",
     )
-    private val EDITABLE_DEFAULT_KEYS = listOf("limit", "offset")
 
     /**
-     * 校验覆盖后返回冻结包装处理器，空覆盖保持原处理器。
-     *
-     * @param tool 冻结的工具契约及处理器。
-     * @param raw 待严格解析的 JSON 文本。
-     * @return 通过校验的包装处理器。
+     * 根据规格解析冻结配置，展示名仅由界面使用。
+     * @param specification 原始契约和可编辑默认值规格。
+     * @param raw 稀疏覆写；空值沿用内置配置。
+     * @return 直接交给工具构造函数的执行配置。
      */
-    fun apply(tool: AgentTool, raw: String?): AgentTool {
-        if (raw == null) return tool
-        // 先校验基础形状和当前内置工具的参数契约，防止非法参数或必填默认值进入运行期。
+    fun resolve(specification: ToolSpecification, raw: String?): EffectiveToolConfig {
+        val original = specification.definition()
+        if (raw == null) return EffectiveToolConfig(original)
         val value = ToolConfigCodec.parse(raw)
-        validateForSchema(tool.definition.toolId, tool.definition.parameters, value)
-        if (isEmpty(value)) return tool
-        val defaults = value.getAsJsonObject("defaults") ?: JsonObject()
-        val parameterDescriptions = value.getAsJsonObject("parameterDescriptions") ?: JsonObject()
-        val schema = tool.definition.parameters
-        // 空白说明回退到内置默认说明，避免保存空串意外剥离模型工具文档。
-        val baseDescription = value["description"]?.asString?.takeIf { it.isNotBlank() }
-            ?: tool.definition.description
-        val usageHint = value["usageHint"]?.asString?.takeIf { it.isNotBlank() }.orEmpty()
-        val definition = tool.definition.copy(
-            description = listOf(baseDescription, usageHint)
-                .filter { it.isNotBlank() }
-                .joinToString("\n"),
-            parameters = schema.copy(properties = schema.properties.mapValues { (name, child) ->
-                val customDescription = parameterDescriptions[name]?.asString?.takeIf { it.isNotBlank() }
-                child.copy(description = customDescription ?: child.description)
-            }),
-            configurationDigest = AgentJson.digest(raw),
+        validateForSchema(
+            specification.toolId,
+            original.parameters,
+            value,
+            specification.editableDefaults
         )
-        return OverriddenAgentTool(
-            mDelegate = tool,
-            definition = definition,
-            mDefaults = defaults.deepCopy(),
+        // 展示元数据不参与兼容性判断，空白覆盖仍回退原始模型说明。
+        val execution = value.deepCopy().apply { remove("displayName") }
+        if (isEmpty(execution)) return EffectiveToolConfig(original)
+        val data = decode(raw)
+        val description =
+            listOf(data.description.takeIf { it.isNotBlank() } ?: original.description,
+                data.usageHint).filter { it.isNotBlank() }.joinToString("\n")
+        val definition = original.copy(
+            description = description,
+            parameters = original.parameters.copy(properties = original.parameters.properties.mapValues { (key, child) ->
+                child.copy(description = data.parameterDescriptions[key]?.takeIf { it.isNotBlank() }
+                    ?: child.description)
+            }),
+            configurationDigest = AgentJson.digest(AgentJson.canonical(execution)),
+        )
+        return EffectiveToolConfig(
+            definition,
+            execution.getAsJsonObject("defaults")?.deepCopy() ?: JsonObject()
         )
     }
 
@@ -85,7 +86,7 @@ object BuiltinToolOverrideCodec {
             ?.associate { (key, item) -> key to item.asString }
             .orEmpty()
         val defaults = value.getAsJsonObject("defaults")?.entrySet()
-            ?.associate { (key, item) -> key to item.asBigDecimal.intValueExact() }
+            ?.associate { (key, item) -> key to item.deepCopy() }
             .orEmpty()
         return BuiltinToolOverrideData(
             displayName = value["displayName"]?.asString.orEmpty(),
@@ -117,14 +118,10 @@ object BuiltinToolOverrideCodec {
         }
         if (data.defaults.isNotEmpty()) {
             add("defaults", JsonObject().apply {
-                data.defaults.forEach { (key, number) -> addProperty(key, number) }
+                data.defaults.forEach { (key, value) -> add(key, value.deepCopy()) }
             })
         }
     }.toString()
-
-    /** 返回指定内置工具允许配置默认值的可选分页参数列表。 */
-    fun editableDefaultKeys(schema: ToolSchema): List<String> =
-        EDITABLE_DEFAULT_KEYS.filter { key -> key in schema.properties && key !in schema.required }
 
     /** 判断覆写对象是否未包含任何有效自定义项，避免保存空白记录误标为已自定义。 */
     fun isEmpty(value: JsonObject): Boolean {
@@ -145,25 +142,31 @@ object BuiltinToolOverrideCodec {
      * @param schema 目标内置工具的权威参数 Schema。
      * @param value 已解析的覆写 JSON 对象。
      */
-    fun validateForSchema(id: String, schema: ToolSchema, value: JsonObject) {
+    fun validateForSchema(
+        id: String, schema: ToolSchema, value: JsonObject,
+        editableDefaults: List<EditableDefaultSpec> = BuiltinToolRegistrations.catalog.find(id)?.specification?.editableDefaults.orEmpty(),
+    ) {
         validateShape(id, value)
         // 必填参数不得因用户默认值而隐式变成可选，保护授权和证据契约。
         val defaults = value.getAsJsonObject("defaults") ?: JsonObject()
         defaults.entrySet().forEach { (name, child) ->
             val property = schema.properties[name]
-                ?: throw ToolConfigValidationException("invalid_override", "Unknown default parameter")
+                ?: throw ToolConfigValidationException(
+                    ToolErrorCode.INVALID_OVERRIDE,
+                    "Unknown default parameter"
+                )
             requireConfig(
-                name in EDITABLE_DEFAULT_KEYS &&
+                editableDefaults.any { it.key == name } &&
                     name !in schema.required &&
                     ToolSchemaValidator.validate(property, child).isEmpty(),
-                "invalid_override",
+                ToolErrorCode.INVALID_OVERRIDE,
                 "Invalid built-in default",
             )
         }
         val parameterDescriptions = value.getAsJsonObject("parameterDescriptions") ?: JsonObject()
         requireConfig(
             parameterDescriptions.keySet().all { it in schema.properties },
-            "invalid_override",
+            ToolErrorCode.INVALID_OVERRIDE,
             "Unknown parameter description",
         )
     }
@@ -176,8 +179,8 @@ object BuiltinToolOverrideCodec {
      */
     fun validateShape(id: String, value: JsonObject) {
         requireConfig(
-            id in ToolConfigCodec.LOCAL_NAMES && value.keySet().all { it in ALLOWED_KEYS },
-            "invalid_override",
+            id.isNotBlank() && value.keySet().all { it in ALLOWED_KEYS },
+            ToolErrorCode.INVALID_OVERRIDE,
             "Invalid built-in override",
         )
         // 校验文本说明字段类型与长度上限。
@@ -187,7 +190,7 @@ object BuiltinToolOverrideCodec {
                 requireConfig(
                     element.isJsonPrimitive && element.asJsonPrimitive.isString &&
                         element.asString.length <= 8000,
-                    "invalid_override",
+                    ToolErrorCode.INVALID_OVERRIDE,
                     "Invalid built-in description",
                 )
             }
@@ -195,53 +198,28 @@ object BuiltinToolOverrideCodec {
         // 校验参数说明映射与分页默认值类型和区间。
         if (value.has("parameterDescriptions")) {
             val map = value["parameterDescriptions"]
-            requireConfig(map.isJsonObject, "invalid_override", "Invalid parameter descriptions")
+            requireConfig(
+                map.isJsonObject,
+                ToolErrorCode.INVALID_OVERRIDE,
+                "Invalid parameter descriptions"
+            )
             map.asJsonObject.entrySet().forEach { (_, text) ->
                 requireConfig(
                     text.isJsonPrimitive && text.asJsonPrimitive.isString && text.asString.length <= 2000,
-                    "invalid_override",
+                    ToolErrorCode.INVALID_OVERRIDE,
                     "Invalid parameter description",
                 )
             }
         }
         if (value.has("defaults")) {
             val defaults = value["defaults"]
-            requireConfig(defaults.isJsonObject, "invalid_override", "Invalid built-in defaults")
-            defaults.asJsonObject.entrySet().forEach { (name, child) ->
-                requireConfig(
-                    name in EDITABLE_DEFAULT_KEYS && child.isJsonPrimitive && child.asJsonPrimitive.isNumber,
-                    "invalid_override",
-                    "Invalid built-in default",
-                )
-                val count = try {
-                    child.asBigDecimal.intValueExact()
-                } catch (error: ArithmeticException) {
-                    throw ToolConfigValidationException("invalid_override", "Invalid built-in default")
-                }
-                requireConfig(
-                    if (name == "limit") count in 1..20 else count >= 0,
-                    "invalid_override",
-                    "Invalid built-in page default",
-                )
-            }
+            requireConfig(
+                defaults.isJsonObject,
+                ToolErrorCode.INVALID_OVERRIDE,
+                "Invalid built-in defaults"
+            )
+
         }
     }
 
-    /** 完整转发启停与准备调用的具名内置覆盖装饰器。 */
-    private class OverriddenAgentTool(
-        private val mDelegate: AgentTool,
-        override val definition: AgentToolDefinition,
-        private val mDefaults: JsonObject,
-    ) : AgentTool {
-        override suspend fun isEnabled(): Boolean = mDelegate.isEnabled()
-
-        override suspend fun prepare(
-            context: ToolExecutionContext,
-            arguments: JsonObject,
-        ): ToolAction {
-            val effective = mDefaults.deepCopy()
-            arguments.entrySet().forEach { (name, child) -> effective.add(name, child.deepCopy()) }
-            return mDelegate.prepare(context, effective)
-        }
-    }
 }

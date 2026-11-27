@@ -10,6 +10,7 @@ import me.kafuuneko.rpclient.libs.agent.model.AgentRunState
 import me.kafuuneko.rpclient.libs.agent.model.ConversationRef
 import me.kafuuneko.rpclient.libs.agent.tool.ToolCallRequest
 import me.kafuuneko.rpclient.libs.agent.tool.ToolEffect
+import me.kafuuneko.rpclient.libs.agent.tool.ToolErrorCode
 import me.kafuuneko.rpclient.libs.agent.tool.ToolExecutor
 import me.kafuuneko.rpclient.libs.agent.tool.ToolRegistry
 import me.kafuuneko.rpclient.libs.agent.tool.ToolResult
@@ -20,11 +21,11 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMToolChoice
 import me.kafuuneko.rpclient.libs.llm.model.LLMToolExchange
 import me.kafuuneko.rpclient.libs.llm.model.LLMToolGenerationRequest
+import me.kafuuneko.rpclient.libs.llm.model.LLMToolProtocolException
 import me.kafuuneko.rpclient.libs.llm.model.LLMToolStreamEvent
 import me.kafuuneko.rpclient.libs.llm.model.LLMToolTurn
-import me.kafuuneko.rpclient.libs.llm.model.LLMToolProtocolException
-import me.kafuuneko.rpclient.libs.prompt.request.PromptTokenizerRegistry
 import me.kafuuneko.rpclient.libs.prompt.request.PromptBudgetExceededException
+import me.kafuuneko.rpclient.libs.prompt.request.PromptTokenizerRegistry
 import me.kafuuneko.rpclient.libs.room.entity.ConversationToolPolicy
 import me.kafuuneko.rpclient.libs.room.repository.AgentRunRepository
 import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
@@ -108,6 +109,7 @@ class AgentRuntime(
                 mRuns.transition(token, AgentRunState.Committing)
                 val committed = mCommitter.commit(token, plan, turn.content)
                 mRuns.finish(committed, AgentRunState.Completed)
+                mRegistry.release(token.runId)
                 mCheckpoints.delete("run/${token.runId}")
                 mRuns.invocations(token.runId).mapNotNull { it.checkpointKey }
                     .forEach { mCheckpoints.delete(it) }
@@ -143,6 +145,7 @@ class AgentRuntime(
         mRuns.checkpoint(token, key, digest)
     }
 
+    /** 预占请求成本并按流式或非流式模式获取一轮模型响应，结束后核销实际用量。 */
     private suspend fun requestModel(
         token: AgentExecutionToken,
         plan: AgentTurnPlan,
@@ -150,6 +153,7 @@ class AgentRuntime(
         inputTokens: Long,
         policy: ConversationToolPolicy
     ): LLMToolTurn {
+        // 先切换运行状态并预占估算成本，确保中途失败或取消也能记账。
         mRuns.transition(token, AgentRunState.RequestingModel)
         val step = mRuns.reserveRequest(
             token,
@@ -161,6 +165,7 @@ class AgentRuntime(
         mProgress.begin(token.conversation, token.runId)
         if (request.choice == LLMToolChoice.None) mPartials[token.conversation.key] =
             AgentPartialReply(token, plan, "")
+        // 在剩余主动时间预算内执行模型请求，仅对禁工具收尾请求记录可挽救正文。
         val turn = withTimeout(activeBudget(token, policy)) {
             if (!plan.input.streaming) mLLM.generateToolTurn(plan.input.provider, request)
             else {
@@ -186,6 +191,7 @@ class AgentRuntime(
                 finished ?: throw AgentRuntimeException("stream_interrupted")
             }
         }
+        // 清理临时预览状态，按服务端上报或同源估算核销本步用量。
         mPartials.remove(token.conversation.key)
         mProgress.complete(token.conversation, token.runId, turn.content, turn.reasoning)
         val usage = turn.usage.takeIf { plan.input.provider.useServerReportedUsage }
@@ -202,6 +208,7 @@ class AgentRuntime(
         return turn
     }
 
+    /** 按冻结工具定义构造调用批次并交由执行器派发，遇等待态或致命错误立即中止后续调用。 */
     private suspend fun executeTools(
         token: AgentExecutionToken,
         checkpoint: AgentRuntimeCheckpoint,
@@ -209,6 +216,7 @@ class AgentRuntime(
         policy: ConversationToolPolicy
     ): List<JsonObject> {
         mRuns.transition(token, AgentRunState.ExecutingTools)
+        // 按本轮冻结指纹查找每个工具定义，运行中改配置不能悄悄改变并发判定或契约。
         val definitions = mComposer.request(checkpoint.plan).tools.associateBy { it.name }
         val calls = pending.calls.mapIndexed { index, call ->
             val definition = definitions[call.name]
@@ -228,12 +236,14 @@ class AgentRuntime(
                 call.remoteId,
                 independent = registered?.definition?.let { it.effect == ToolEffect.ReadOnly && it.parallelSafe } == true)
         }
+        // 在剩余主动预算内执行工具批次并记录主动耗时。
         val start = System.nanoTime()
         val remaining = activeBudget(token, policy)
         val results =
             withTimeout(remaining) { mExecutor.executeBatch(token, calls) }
         mRuns.addActiveTime(token, (System.nanoTime() - start) / 1_000_000)
-        if (results.any { it is ToolResult.FatalError }) throw AgentRuntimeException("tool_execution_failed")
+        // 致命错误直接终止运行，等待用户前持久化检查点并释放执行栈。
+        if (results.any { it is ToolResult.FatalError }) throw AgentRuntimeException(ToolErrorCode.TOOL_EXECUTION_FAILED)
         if (results.any { it is ToolResult.AwaitingUser }) {
             save(token, checkpoint)
             throw AgentWaitingForUser()
@@ -283,7 +293,7 @@ class AgentRuntime(
         val response = try {
             withTimeout(activeBudget(token, policy)) { mLLM.generateToolTurn(provider, request) }
         } catch (error: LLMToolProtocolException) {
-            if (error.code != "incomplete_or_rejected") throw error
+            if (error.code != ToolErrorCode.INCOMPLETE_OR_REJECTED) throw error
             // 额度截断的摘要不替换历史，保守保留已消耗估算且只尝试一次。
             mRuns.completeRequest(
                 token,
@@ -334,12 +344,19 @@ class AgentRuntime(
     private fun repeatsWithoutProgress(checkpoint: AgentRuntimeCheckpoint): Boolean {
         val last = checkpoint.exchanges.takeLast(3)
         if (last.size != 3) return false
+        // 按本轮冻结指纹复核执行性质，只要含非确定性读取或写入便放行。
         if (last.any { exchange ->
                 exchange.turn.calls.any { call ->
-                    mRegistry.available(checkpoint.plan.toolDigests.keys)
+                    checkpoint.plan.toolDigests.mapNotNull { (id, digest) ->
+                        mRegistry.find(
+                            id,
+                            digest
+                        )
+                    }
                         .firstOrNull { it.definition.name == call.name }?.definition?.effect != ToolEffect.ReadOnly
                 }
             }) return false
+        // 比较连续三轮调用参数与规范化结果指纹，完全一致即触发强制收尾。
         return last.map { exchange ->
             AgentJson.digest(exchange.turn.calls.joinToString { it.name + it.arguments } + exchange.results.joinToString {
                 AgentJson.canonical(

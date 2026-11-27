@@ -1886,4 +1886,5 @@
     <string name="tool_settings_unbound">Unbound</string>
     <string name="tool_settings_usage_hint_label">Additional usage hint</string>
     <string name="tool_settings_value_label">Value</string>
+    <string name="tool_settings_deleted_external_tool">Deleted external tool</string>
 </resources>

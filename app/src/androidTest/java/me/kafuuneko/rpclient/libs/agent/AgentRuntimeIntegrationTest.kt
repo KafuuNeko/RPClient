@@ -5,21 +5,26 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import com.google.gson.JsonPrimitive
 import java.io.File
+import java.util.UUID
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.createAppModules
+import me.kafuuneko.rpclient.feature.agent.AgentUiCoordinator
+import me.kafuuneko.rpclient.feature.agent.model.AgentUiState
+import me.kafuuneko.rpclient.feature.toolsettings.ToolSettingsEditor
 import me.kafuuneko.rpclient.libs.AppModel
-import me.kafuuneko.rpclient.libs.agent.model.AgentJson
 import me.kafuuneko.rpclient.libs.agent.connection.HttpToolConfigCodec
 import me.kafuuneko.rpclient.libs.agent.connection.HttpToolConnection
+import me.kafuuneko.rpclient.libs.agent.connection.ToolConfigCodec
 import me.kafuuneko.rpclient.libs.agent.connection.ToolCredentialRepository
 import me.kafuuneko.rpclient.libs.agent.connection.ToolHttpEngine
-import me.kafuuneko.rpclient.libs.agent.connection.ToolConfigCodec
-import me.kafuuneko.rpclient.libs.agent.connection.HttpAgentTools
+import me.kafuuneko.rpclient.libs.agent.model.AgentJson
 import me.kafuuneko.rpclient.libs.agent.model.AgentRunState
 import me.kafuuneko.rpclient.libs.agent.model.ConversationRef
 import me.kafuuneko.rpclient.libs.agent.model.ToolInvocationState
@@ -35,10 +40,22 @@ import me.kafuuneko.rpclient.libs.agent.runtime.ConversationGenerationActivityRe
 import me.kafuuneko.rpclient.libs.agent.runtime.FileAgentCheckpointStore
 import me.kafuuneko.rpclient.libs.agent.runtime.GroupChatAgentRuntime
 import me.kafuuneko.rpclient.libs.agent.tool.ToolCallRequest
+import me.kafuuneko.rpclient.libs.agent.tool.ToolEffect
+import me.kafuuneko.rpclient.libs.agent.tool.ToolExecutionContext
 import me.kafuuneko.rpclient.libs.agent.tool.ToolExecutor
 import me.kafuuneko.rpclient.libs.agent.tool.ToolRegistry
 import me.kafuuneko.rpclient.libs.agent.tool.ToolResult
+import me.kafuuneko.rpclient.libs.agent.tool.ToolSchema
 import me.kafuuneko.rpclient.libs.agent.tool.ToolUserRequestKind
+import me.kafuuneko.rpclient.libs.agent.tool.ToolWriteDisposition
+import me.kafuuneko.rpclient.libs.agent.tool.base.AbstractLocalWriteTool
+import me.kafuuneko.rpclient.libs.agent.tool.base.LocalChangePlan
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.EditableDefaultSpec
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.ToolGroup
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.ToolRegistration
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.ToolSpecification
+import me.kafuuneko.rpclient.libs.agent.tool.proposal.LocalProposalHandler
+import me.kafuuneko.rpclient.libs.prompt.tool.ToolPromptSpec
 import me.kafuuneko.rpclient.libs.llm.ToolCallingCapabilityResolver
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationOptions
 import me.kafuuneko.rpclient.libs.llm.model.LLMGenerationRequest
@@ -47,11 +64,11 @@ import me.kafuuneko.rpclient.libs.llm.model.LLMMessageRole
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderProtocol
 import me.kafuuneko.rpclient.libs.llm.model.LLMProviderType
 import me.kafuuneko.rpclient.libs.memory.MemoryTarget
-import me.kafuuneko.rpclient.libs.prompt.request.PromptBudgetExceededException
 import me.kafuuneko.rpclient.libs.prompt.model.PromptMessageDraft
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSource
 import me.kafuuneko.rpclient.libs.prompt.model.PromptSourceKind
 import me.kafuuneko.rpclient.libs.prompt.preset.PromptTemplateSnapshot
+import me.kafuuneko.rpclient.libs.prompt.request.PromptBudgetExceededException
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.RequestLogDatabase
 import me.kafuuneko.rpclient.libs.room.entity.Character
@@ -60,6 +77,7 @@ import me.kafuuneko.rpclient.libs.room.entity.GroupChatSession
 import me.kafuuneko.rpclient.libs.room.entity.LLMProvider
 import me.kafuuneko.rpclient.libs.room.entity.Lorebook
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
+import me.kafuuneko.rpclient.libs.room.entity.ToolConnection
 import me.kafuuneko.rpclient.libs.room.migration.AgentDatabaseConstraints
 import me.kafuuneko.rpclient.libs.room.migration.MemoryDatabaseConstraints
 import me.kafuuneko.rpclient.libs.room.repository.AgentRunRepository
@@ -69,8 +87,6 @@ import me.kafuuneko.rpclient.libs.room.repository.LLMRepository
 import me.kafuuneko.rpclient.libs.room.repository.MemoryRepository
 import me.kafuuneko.rpclient.libs.room.repository.SceneStateRepository
 import me.kafuuneko.rpclient.libs.room.repository.ToolConfigRepository
-import me.kafuuneko.rpclient.libs.room.entity.ToolConnection
-import java.util.UUID
 import me.kafuuneko.rpclient.libs.room.withTestPersonas
 import me.kafuuneko.rpclient.utils.jsonArray
 import me.kafuuneko.rpclient.utils.jsonObject
@@ -85,6 +101,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.KoinApplication
+import org.koin.core.qualifier.named
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 
@@ -475,6 +492,7 @@ class AgentRuntimeIntegrationTest {
         val token = mRuns.start(mConversation, mCharacterId, 1)
         val step = mRuns.appendStep(token, "Tools")
         val registry = get<ToolRegistry>()
+        registry.refresh()
         var ordinal = 0
         suspend fun execute(id: String, args: JsonObject): ToolResult {
             val tool = requireNotNull(registry.find(id))
@@ -717,7 +735,8 @@ class AgentRuntimeIntegrationTest {
         )
         val token = mRuns.start(mConversation, mCharacterId, 1)
         val step = mRuns.appendStep(token, "Tools")
-        val tool = requireNotNull(get<ToolRegistry>().find("upsert_memory"))
+        val registry = get<ToolRegistry>().also { it.refresh() }
+        val tool = requireNotNull(registry.find("upsert_memory"))
         var ordinal = 0
         suspend fun upsert(args: JsonObject): ToolResult = get<ToolExecutor>().execute(
             token,
@@ -930,7 +949,7 @@ class AgentRuntimeIntegrationTest {
                 assertTrue(result.exceptionOrNull() is AgentWaitingForUser)
                 assertEquals(1, external.requests.size)
                 val waiting = requireNotNull(mManager.waiting(mConversation))
-                assertEquals(ToolUserRequestKind.ExternalWriteConfirmation, waiting.kind)
+                assertEquals(ToolUserRequestKind.ExternalReadConfirmation, waiting.kind)
                 assertEquals("tool.fixture", waiting.details["destinationHost"].asString)
                 // 确认窗口打开后收紧全局权限，旧检查点不能绕开新的启停设置。
                 configurations.save(connection.copy(enabled = false))
@@ -1047,7 +1066,7 @@ class AgentRuntimeIntegrationTest {
         configurations.save(connection)
         configurations.save(configurations.template(false).copy(connectionId = connection.id))
         val exported = configurations.export()
-        configurations.import(exported, get<HttpAgentTools>()::validateOverride)
+        configurations.import(exported)
         assertEquals(2, configurations.connections().size)
         assertEquals(2, configurations.tools().size)
         assertEquals(2, configurations.tools().map { it.connectionId }.distinct().size)
@@ -1059,13 +1078,260 @@ class AgentRuntimeIntegrationTest {
         )
         assertTrue(runCatching {
             configurations.import(
-                bad.toString(),
-                get<HttpAgentTools>()::validateOverride
+                bad.toString()
             )
         }.isFailure)
         assertEquals(2, configurations.connections().size)
         assertEquals(2, configurations.tools().size)
     }
+
+    /** 单次 Koin 工具注册应完整接入默认策略、编辑器、协调器、运行期默认值与多态提案提交。 */
+    @Test
+    fun singleCustomRegistrationFlowsThroughPolicyEditorRuntimeAndProposalCommit(): Unit =
+        runBlocking {
+            val committed = mutableListOf<Pair<String, Long>>()
+            val proposalHandler = object : LocalProposalHandler {
+                override val operations = setOf("custom_note")
+                override suspend fun dependsOnPending(
+                    context: ToolExecutionContext,
+                    proposal: JsonObject,
+                ): Boolean = false
+
+                override suspend fun commit(
+                    context: ToolExecutionContext,
+                    proposal: JsonObject,
+                    finalMessageId: Long,
+                ): Boolean {
+                    committed += "${proposal["tag"].asString}:${proposal["evidence"].asString}" to finalMessageId
+                    return true
+                }
+            }
+            val registration = ToolRegistration(
+                specification = ToolSpecification(
+                    toolId = "custom_note",
+                    prompt = ToolPromptSpec(
+                        description = "Record a custom verified note.",
+                        parameters = ToolSchema(
+                            type = ToolSchema.Type.Object,
+                            properties = linkedMapOf(
+                                "evidence" to ToolSchema(ToolSchema.Type.String, minLength = 1),
+                                "tag" to ToolSchema(ToolSchema.Type.String, minLength = 1),
+                            ),
+                            required = setOf("evidence"),
+                        ),
+                    ),
+                    group = ToolGroup.Utility,
+                    effect = ToolEffect.LocalWrite,
+                    editableDefaults = listOf(
+                        EditableDefaultSpec(
+                            key = "tag",
+                            defaultValue = JsonPrimitive("default"),
+                            labelRes = R.string.tool_settings_default_limit,
+                        ),
+                    ),
+                ),
+                order = 5,
+                labelRes = R.string.agent_step_tools,
+                factory = { config, _ ->
+                    object : AbstractLocalWriteTool(config) {
+                        override suspend fun planChange(
+                            context: ToolExecutionContext,
+                            arguments: JsonObject,
+                        ): LocalChangePlan {
+                            val proposal = arguments.deepCopy().apply {
+                                addProperty("operation", "custom_note")
+                                addProperty("proposalId", context.invocationId)
+                                addProperty("sourceMessageId", 0L)
+                            }
+                            return LocalChangePlan(
+                                ToolResult.Success(
+                                    jsonObject("proposal" to proposal),
+                                    ToolWriteDisposition.Proposed,
+                                ),
+                            ) {}
+                        }
+                    }
+                },
+                proposalHandler = { proposalHandler },
+            )
+            // 使用同一内存库挂载自定义注册项，验证无需修改执行器、提交器或页面协调器即可全链路工作。
+            val customApp = koinApplication {
+                androidContext(mContext)
+                modules(
+                    createAppModules(),
+                    module {
+                        single<AppDatabase> { mDatabase }
+                        single<RequestLogDatabase> { mLogs }
+                        single<AgentCheckpointStore> { FileAgentCheckpointStore(mDirectory) }
+                        single<ToolHttpEngine> { fixtureToolHttpEngine() }
+                        single<ToolRegistration>(named("custom_note")) { registration }
+                    },
+                )
+            }
+            try {
+                val runs = customApp.koin.get<AgentRunRepository>()
+                val editor = customApp.koin.get<ToolSettingsEditor>()
+                val coordinator = customApp.koin.get<AgentUiCoordinator>()
+                val manager = customApp.koin.get<AgentRunManager>()
+                val session = ConversationRef.Single(
+                    customApp.koin.get<ChatRepository>().createSession(
+                        characterId = mCharacterId,
+                        title = "CustomTool",
+                        userNote = "",
+                        lorebookEntryIds = emptyList(),
+                        userPersonaId = 1,
+                    ),
+                )
+                runs.saveSettings(session, true, null)
+                assertTrue("custom_note" in runs.enabledTools(runs.policy(session)))
+                val draft = requireNotNull(editor.builtin("custom_note"))
+                editor.saveBuiltinDraft(
+                    draft.copy(
+                        displayName = "Custom Note",
+                        editableDefaults = draft.editableDefaults.map { it.copy(value = "pinned") },
+                    ),
+                )
+                val uiState = coordinator.load(session, AgentUiState(), settings = true)
+                assertEquals(
+                    "Custom Note",
+                    uiState.tools.firstOrNull { it.id == "custom_note" }?.label,
+                )
+                val evidence = "The lantern flares brightly."
+                AgentHttpServer { index, _ ->
+                    AgentHttpServer.Reply(
+                        if (index == 1) {
+                            call("custom_note", jsonObject("evidence" to evidence))
+                        } else {
+                            text(evidence)
+                        },
+                    )
+                }.use { server ->
+                    val llm = provider(server)
+                    manager.run(input(llm).copy(conversation = session))
+                    val message = requireNotNull(mChats.getLatestMessageBySessionId(session.id))
+                    assertEquals(listOf("pinned:$evidence" to message.id), committed)
+                }
+            } finally {
+                customApp.koin.get<AgentRunManager>().stopAll()
+                customApp.koin.get<AgentApplicationScope>().scope.cancel()
+                customApp.koin.get<OkHttpClient>().dispatcher.cancelAll()
+                customApp.close()
+            }
+        }
+
+    /** 等待期间仅修改展示名不影响冷启动恢复；修改执行契约后冷启动必须拒绝续跑，畸形剧情 JSON 保持可恢复错误。 */
+    @Test
+    fun waitingRunSurvivesDisplayNameRenameButRejectsContractChangeAfterColdRestart(): Unit =
+        runBlocking {
+            val configurations = get<ToolConfigRepository>()
+            // 先验证畸形 value_json 在剧情写入准备阶段仍返回可恢复错误，而非中止整次运行。
+            val prepToken = mRuns.start(mConversation, mCharacterId, 1)
+            val prepStep = mRuns.appendStep(prepToken, "Tools")
+            val registry = get<ToolRegistry>().also { it.refresh() }
+            val sceneTool = requireNotNull(registry.find("update_scene_state"))
+            val malformedResult = get<ToolExecutor>().execute(
+                prepToken,
+                ToolCallRequest(
+                    prepStep,
+                    0,
+                    "update_scene_state",
+                    1,
+                    sceneTool.digest,
+                    jsonObject(
+                        "expectedRevision" to 0,
+                        "sourceMessageId" to 0,
+                        "evidence" to "Broken literal",
+                        "changes" to jsonArray(
+                            listOf(
+                                jsonObject(
+                                    "path" to JsonArray().apply { add("location") },
+                                    "value_json" to "{not-json",
+                                ),
+                            ),
+                        ),
+                    ).toString(),
+                ),
+            )
+            assertTrue(malformedResult is ToolResult.RecoverableError)
+            mRuns.finish(prepToken, AgentRunState.Completed)
+
+            // 等待期间仅修改内置展示名，新建冷容器恢复仍须成功续跑。
+            AgentHttpServer { index, _ ->
+                AgentHttpServer.Reply(
+                    if (index == 1) {
+                        call("ask_user", jsonObject("question" to "Proceed?"))
+                    } else {
+                        text("Continued safely.")
+                    },
+                )
+            }.use { server ->
+                val llm = provider(server)
+                assertTrue(runCatching { mManager.run(input(llm)) }.exceptionOrNull() is AgentWaitingForUser)
+                configurations.saveOverride("ask_user", """{"displayName":"Ask Prompt"}""")
+                val coldRenameApp = koinApplication {
+                    androidContext(mContext)
+                    modules(
+                        createAppModules(),
+                        module {
+                            single<AppDatabase> { mDatabase }
+                            single<RequestLogDatabase> { mLogs }
+                            single<AgentCheckpointStore> { FileAgentCheckpointStore(mDirectory) }
+                            single<ToolHttpEngine> { fixtureToolHttpEngine() }
+                        },
+                    )
+                }
+                try {
+                    coldRenameApp.koin.get<AgentRunManager>().resume(mConversation, "Yes", false)
+                    assertEquals(
+                        "Continued safely.",
+                        mChats.getLatestMessageBySessionId(mConversation.id)?.content,
+                    )
+                } finally {
+                    coldRenameApp.koin.get<AgentApplicationScope>().scope.cancel()
+                    coldRenameApp.koin.get<OkHttpClient>().dispatcher.cancelAll()
+                    coldRenameApp.close()
+                }
+            }
+
+            // 等待期间修改生效默认参数会改变执行指纹，冷启动恢复必须拒绝以新契约续跑。
+            AgentHttpServer { index, _ ->
+                AgentHttpServer.Reply(
+                    if (index == 1) {
+                        call("ask_user", jsonObject("question" to "Second pause?"))
+                    } else {
+                        text("Should not reach.")
+                    },
+                )
+            }.use { server ->
+                val llm = provider(server)
+                assertTrue(runCatching { mManager.run(input(llm)) }.exceptionOrNull() is AgentWaitingForUser)
+                configurations.saveOverride("search_memory", """{"defaults":{"limit":5}}""")
+                val coldContractApp = koinApplication {
+                    androidContext(mContext)
+                    modules(
+                        createAppModules(),
+                        module {
+                            single<AppDatabase> { mDatabase }
+                            single<RequestLogDatabase> { mLogs }
+                            single<AgentCheckpointStore> { FileAgentCheckpointStore(mDirectory) }
+                            single<ToolHttpEngine> { fixtureToolHttpEngine() }
+                        },
+                    )
+                }
+                try {
+                    assertTrue(
+                        runCatching {
+                            coldContractApp.koin.get<AgentRunManager>()
+                                .resume(mConversation, "Yes", false)
+                        }.isFailure,
+                    )
+                } finally {
+                    coldContractApp.koin.get<AgentApplicationScope>().scope.cancel()
+                    coldContractApp.koin.get<OkHttpClient>().dispatcher.cancelAll()
+                    coldContractApp.close()
+                }
+            }
+        }
 
     private suspend fun provider(
         server: AgentHttpServer,

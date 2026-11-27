@@ -3,6 +3,7 @@ package me.kafuuneko.rpclient.libs.agent.runtime
 import me.kafuuneko.rpclient.libs.agent.model.AgentExecutionToken
 import me.kafuuneko.rpclient.libs.agent.model.ConversationRef
 import me.kafuuneko.rpclient.libs.agent.tool.ToolExecutionContext
+import me.kafuuneko.rpclient.libs.agent.tool.proposal.LocalProposalRegistry
 import me.kafuuneko.rpclient.libs.groupchat.GroupChatOutputSanitizer
 import me.kafuuneko.rpclient.libs.regex.RegexMessageProcessor
 import me.kafuuneko.rpclient.libs.room.AppDatabase
@@ -21,6 +22,7 @@ import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 class AgentReplyCommitter(
     private val mRuns: AgentRunRepository,
     private val mData: AgentLocalDataRepository,
+    private val mProposals: LocalProposalRegistry,
     private val mChats: ChatRepository,
     private val mGroups: GroupChatRepository,
     private val mDatabase: AppDatabase,
@@ -66,7 +68,7 @@ class AgentReplyCommitter(
                 input.characterId,
                 input.personaId
             )
-            supported.forEach { proposal -> mData.commitProposal(context, proposal, id) }
+            supported.forEach { proposal -> mProposals.commit(context, proposal, id) }
             mRuns.attachMessage(token, id)
         }
     }

@@ -1886,4 +1886,5 @@
     <string name="tool_settings_unbound">Non associé</string>
     <string name="tool_settings_usage_hint_label">Indication d\'utilisation supplémentaire</string>
     <string name="tool_settings_value_label">Valeur</string>
+    <string name="tool_settings_deleted_external_tool">Outil externe supprimé</string>
 </resources>

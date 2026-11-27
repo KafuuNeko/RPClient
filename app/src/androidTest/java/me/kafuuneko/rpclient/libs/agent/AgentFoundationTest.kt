@@ -290,6 +290,36 @@ class AgentFoundationTest {
         assertEquals(1, sends)
     }
 
+    /** 外部结果后的再次读取使用独立确认类型，恢复后只派发一次并可回放。 */
+    @Test
+    fun externalReadConfirmationResumesAndReplays(): Unit = runBlocking {
+        var sends = 0
+        val tool = object : AgentTool {
+            override val definition = definition(ToolEffect.ReadOnly).copy(external = true)
+            override suspend fun prepare(
+                context: ToolExecutionContext,
+                arguments: JsonObject
+            ): ToolAction =
+                ToolAction.ExternalRead("example.invalid", JsonObject()) { sends++; success() }
+        }
+        val registry = ToolRegistry(listOf(tool))
+        val executor = ToolExecutor(registry, mRuns, mStore)
+        enable(mSingle, "test")
+        val token = mRuns.start(mSingle, mCharacterId, 1)
+        val step = mRuns.appendStep(token, "Tools")
+        // 首次外发结果建立不可信输入边界，随后读取必须先持久化等待态。
+        assertTrue(executor.execute(token, call(registry, step, 0)) is ToolResult.Success)
+        val next = call(registry, step, 1)
+        val waiting = executor.execute(token, next) as ToolResult.AwaitingUser
+        assertEquals(ToolUserRequestKind.ExternalReadConfirmation, waiting.kind)
+        assertEquals(1, sends)
+        // 确认与调用身份绑定；重放已完成调用不能再发送网络请求。
+        mRuns.confirmInvocation(token, AgentJson.digest("${token.runId}/$step/1"))
+        assertTrue(executor.execute(token, next) is ToolResult.Success)
+        assertTrue(executor.execute(token, next) is ToolResult.Success)
+        assertEquals(2, sends)
+    }
+
     /** 记忆只读策略和未知参数应在处理器准备阶段之前拒绝。 */
     @Test
     fun memoryReadOnlyAndSchemaRejectExecution(): Unit = runBlocking {

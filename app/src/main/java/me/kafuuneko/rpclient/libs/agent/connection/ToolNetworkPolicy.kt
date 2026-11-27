@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.libs.agent.connection
 
 import java.io.IOException
 import java.net.InetAddress
+import me.kafuuneko.rpclient.libs.agent.tool.ToolErrorCode
 import okhttp3.Dns
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -24,9 +25,10 @@ object ToolNetworkPolicy {
      * @return 仅支持 HTTP(S) 且不含嵌入凭据的地址。
      */
     fun url(raw: String): HttpUrl {
-        val result = raw.toHttpUrlOrNull() ?: throw ToolHttpException("http_invalid_url")
+        val result =
+            raw.toHttpUrlOrNull() ?: throw ToolHttpException(ToolErrorCode.HTTP_INVALID_URL)
         if (result.username.isNotEmpty() || result.password.isNotEmpty()) {
-            throw ToolHttpException("http_invalid_url")
+            throw ToolHttpException(ToolErrorCode.HTTP_INVALID_URL)
         }
         return result
     }
@@ -40,7 +42,7 @@ object ToolNetworkPolicy {
     fun checkLiteralHost(host: String, allowPrivate: Boolean) {
         if (allowPrivate || (!host.contains(':') && !host.matches(Regex("[0-9.]+")))) return
         val address = runCatching { InetAddress.getByName(host) }.getOrNull()
-        if (address == null || !isPublic(address)) throw ToolHttpException("http_address_blocked")
+        if (address == null || !isPublic(address)) throw ToolHttpException(ToolErrorCode.HTTP_ADDRESS_BLOCKED)
     }
 
     /**
@@ -91,7 +93,7 @@ class ToolSafeDns(
     override fun lookup(hostname: String): List<InetAddress> {
         val addresses = mDelegate.lookup(hostname)
         if (addresses.isEmpty() || (!mAllowPrivate && addresses.any { !ToolNetworkPolicy.isPublic(it) })) {
-            throw ToolHttpException("http_address_blocked")
+            throw ToolHttpException(ToolErrorCode.HTTP_ADDRESS_BLOCKED)
         }
         return addresses
     }

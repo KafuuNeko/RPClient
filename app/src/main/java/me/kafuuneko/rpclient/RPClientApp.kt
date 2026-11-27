@@ -11,7 +11,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.kafuuneko.rpclient.feature.agent.AgentUiCoordinator
+import me.kafuuneko.rpclient.feature.toolsettings.ToolSettingsEditor
 import me.kafuuneko.rpclient.libs.AppModel
+import me.kafuuneko.rpclient.libs.agent.connection.AndroidHtmlTextExtractor
+import me.kafuuneko.rpclient.libs.agent.connection.HtmlTextExtractor
+import me.kafuuneko.rpclient.libs.agent.connection.HttpAgentTools
+import me.kafuuneko.rpclient.libs.agent.connection.HttpToolInvoker
+import me.kafuuneko.rpclient.libs.agent.connection.ToolConfigTransferRepository
+import me.kafuuneko.rpclient.libs.agent.connection.ToolConfigurationStatus
+import me.kafuuneko.rpclient.libs.agent.connection.ToolCredentialRepository
+import me.kafuuneko.rpclient.libs.agent.connection.ToolHttpEngine
 import me.kafuuneko.rpclient.libs.agent.runtime.AgentApplicationScope
 import me.kafuuneko.rpclient.libs.agent.runtime.AgentCheckpointCodec
 import me.kafuuneko.rpclient.libs.agent.runtime.AgentCheckpointStore
@@ -28,12 +37,13 @@ import me.kafuuneko.rpclient.libs.agent.runtime.GroupChatAgentRuntime
 import me.kafuuneko.rpclient.libs.agent.tool.AgentTool
 import me.kafuuneko.rpclient.libs.agent.tool.ToolExecutor
 import me.kafuuneko.rpclient.libs.agent.tool.ToolRegistry
-import me.kafuuneko.rpclient.libs.agent.tool.builtin.BuiltinAgentTools
-import me.kafuuneko.rpclient.libs.agent.connection.HttpAgentTools
-import me.kafuuneko.rpclient.libs.agent.connection.ToolCredentialRepository
-import me.kafuuneko.rpclient.libs.agent.connection.ToolHttpEngine
-import me.kafuuneko.rpclient.libs.agent.connection.ToolConfigTransferRepository
-import me.kafuuneko.rpclient.libs.room.repository.ToolConfigRepository
+import me.kafuuneko.rpclient.libs.agent.tool.builtin.memory.MemoryWriteService
+import me.kafuuneko.rpclient.libs.agent.tool.builtin.scene.SceneStateService
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.BuiltinToolRegistrations
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.ToolCatalog
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.ToolRegistration
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.ToolServices
+import me.kafuuneko.rpclient.libs.agent.tool.proposal.LocalProposalRegistry
 import me.kafuuneko.rpclient.libs.appearance.BackgroundImageRuntime
 import me.kafuuneko.rpclient.libs.appearance.DialogAppearanceManager
 import me.kafuuneko.rpclient.libs.appearance.PageBackgroundProvider
@@ -101,6 +111,7 @@ import me.kafuuneko.rpclient.libs.room.repository.PageBackgroundRepository
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
 import me.kafuuneko.rpclient.libs.room.repository.SceneStateRepository
 import me.kafuuneko.rpclient.libs.room.repository.StoryRepository
+import me.kafuuneko.rpclient.libs.room.repository.ToolConfigRepository
 import me.kafuuneko.rpclient.libs.room.repository.UserPersonaRepository
 import me.kafuuneko.rpclient.libs.search.SearchDatabaseCallback
 import me.kafuuneko.rpclient.libs.story.StoryArchiveCodec
@@ -120,6 +131,7 @@ import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.singleOf
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 /** 应用进程入口，初始化偏好存储与全局 Koin 依赖图。 */
@@ -196,16 +208,48 @@ internal fun createAppModules() = module {
     singleOf(::AgentRunRepository)
     singleOf(::SceneStateRepository)
     singleOf(::AgentLocalDataRepository)
-    singleOf(::BuiltinAgentTools)
+    BuiltinToolRegistrations.entries.forEach { registration ->
+        single<ToolRegistration>(named(registration.specification.toolId)) { registration }
+    }
+    single { ToolCatalog(getAll()) }
+    singleOf(::MemoryWriteService)
+    singleOf(::SceneStateService)
+    singleOf(::ToolServices)
+    single {
+        LocalProposalRegistry(get<ToolCatalog>().registrations.mapNotNull {
+            it.proposalHandler?.invoke(
+                get()
+            )
+        })
+    }
+    single<HtmlTextExtractor> { AndroidHtmlTextExtractor() }
+    singleOf(::HttpToolInvoker)
+    singleOf(::ToolConfigurationStatus)
+    singleOf(::ToolSettingsEditor)
     singleOf(::ToolConfigRepository)
     singleOf(::ToolCredentialRepository)
     singleOf(::ToolConfigTransferRepository)
     single { ToolHttpEngine() }
     singleOf(::HttpAgentTools)
     single {
+        val configurations = get<ToolConfigRepository>()
+        val catalog = get<ToolCatalog>()
+        val services = get<ToolServices>()
+        val external = get<HttpAgentTools>()
+        val runs = get<AgentRunRepository>()
         ToolRegistry(
-            get<BuiltinAgentTools>().create() + getAll<AgentTool>(),
-            { get<HttpAgentTools>().create() })
+            mBase = getAll<AgentTool>(),
+            mSource = {
+                val snapshot = configurations.snapshot()
+                catalog.create(
+                    snapshot.overrides.associate { it.toolId to it.configJson },
+                    services
+                ) +
+                    external.create(snapshot.tools, snapshot.connections)
+            },
+            mConfigurationVersion = { configurations.version },
+            mActiveRunIds = { runs.activeRunIds() },
+        )
     }
     singleOf(::ToolCallingCapabilityResolver)
     singleOf(::AgentApplicationScope)
@@ -215,19 +259,20 @@ internal fun createAppModules() = module {
     singleOf(::AgentProgressStore)
     singleOf(::AgentRuntime)
     singleOf(::ConversationGenerationActivityRegistry)
-    single { AgentDataLifecycle({ get<AgentRunManager>() }, get(), get()) }
+    single {
+        AgentDataLifecycle(
+            mManager = { get<AgentRunManager>() },
+            mRuns = get(),
+            mSearch = get(),
+            mConfigurations = get()
+        )
+    }
     singleOf(::AgentRunManager)
     single {
         AgentUiCoordinator(
-            get(),
-            { get<AgentRunManager>() },
-            get(),
-            get(),
-            get(),
-            get(),
-            get(),
-            get(),
-            get(),
+            mRuns = get(), mManager = { get<AgentRunManager>() },
+            mChats = get(), mGroups = get(), mPresets = get(), mScenes = get(),
+            mProgress = get(), mToolConfigurations = get(), mToolStatus = get(), mCatalog = get(),
         )
     }
     singleOf(::ChatAgentRuntime)

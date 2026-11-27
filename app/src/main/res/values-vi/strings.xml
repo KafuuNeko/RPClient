@@ -1875,4 +1875,5 @@ Thất bại: %2$d</string>
     <string name="tool_settings_unbound">Chưa gắn kết nối</string>
     <string name="tool_settings_usage_hint_label">Gợi ý sử dụng bổ sung</string>
     <string name="tool_settings_value_label">Giá trị</string>
+    <string name="tool_settings_deleted_external_tool">Công cụ bên ngoài đã xóa</string>
 </resources>

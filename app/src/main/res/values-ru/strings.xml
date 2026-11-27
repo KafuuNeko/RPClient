@@ -1896,4 +1896,5 @@
     <string name="tool_settings_unbound">Не привязано</string>
     <string name="tool_settings_usage_hint_label">Дополнительная подсказка</string>
     <string name="tool_settings_value_label">Значение</string>
+    <string name="tool_settings_deleted_external_tool">Удалённый внешний инструмент</string>
 </resources>

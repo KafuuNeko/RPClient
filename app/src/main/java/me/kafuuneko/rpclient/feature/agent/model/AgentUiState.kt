@@ -2,6 +2,7 @@ package me.kafuuneko.rpclient.feature.agent.model
 
 import androidx.annotation.StringRes
 import me.kafuuneko.rpclient.libs.agent.model.AgentRunState
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.ToolGroup
 
 /**
  * 单聊与群聊共用的 Agent 面板状态树。
@@ -47,28 +48,11 @@ sealed interface AgentSettingsDialog {
     data object Scene : AgentSettingsDialog
 }
 
-/** 内置工具的功能分组，用于工具选择弹窗内分组展示。 */
-enum class AgentToolGroup {
-    Lore,
-
-    Chat,
-
-    Memory,
-
-    Scene,
-
-    Utility,
-
-    Interaction,
-
-    Network,
-}
-
 /** 单个可选工具的展示元数据。 */
 data class AgentToolItem(
     val id: String,
     @param:StringRes val labelRes: Int,
-    val group: AgentToolGroup,
+    val group: ToolGroup,
     val enabled: Boolean,
     val writesMemory: Boolean = false,
     val label: String? = null,
@@ -218,4 +202,5 @@ sealed interface AgentUiAction {
     data object Cancel : AgentUiAction
 }
 
+/** 可在运行限额弹窗中编辑的字段标识。 */
 enum class AgentLimitField { Rounds, Calls, Requests, Tokens, Seconds, Watermark }

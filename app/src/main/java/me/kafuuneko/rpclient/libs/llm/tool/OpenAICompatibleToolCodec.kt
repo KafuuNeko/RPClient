@@ -16,8 +16,7 @@ import me.kafuuneko.rpclient.utils.jsonObject
 
 /** Chat Completions 原生函数轮次，保留 reasoning_content 供推理模型续接。 */
 internal class OpenAICompatibleToolCodec : ToolProtocolCodec {
-    /** 按原轮次追加 assistant 与紧随其后的 tool 结果。 */
-    /** 将冻结工具和已完成交换按协议原序编码。 */
+    /** 将冻结工具及已完成交换按协议原序编码，assistant 后紧随对应 tool 结果。 */
     override fun extend(payload: JsonObject, request: LLMToolGenerationRequest) {
         // 工具结果必须保持调用位置，不能改变已经发送的前缀。
         request.checkExchanges()
@@ -69,12 +68,14 @@ internal class OpenAICompatibleToolCodec : ToolProtocolCodec {
 
     /** 完整消息作为续接快照，拒绝多候选和未知客户端工具类型。 */
     override fun decode(response: JsonObject, model: String): LLMToolTurn {
+        // 先检查协议级错误、唯一候选与拒答字段。
         response.checkError()
         val choice = response.objects("choices").singleOrNull()
             ?: throw LLMToolProtocolException("invalid_choices")
         val message =
             choice.objectOrNull("message") ?: throw LLMToolProtocolException("missing_message")
         if (message.cleanString("refusal").isNotEmpty()) throw LLMToolProtocolException("refusal")
+        // 仅接受 function 类型工具调用并校验必填函数名与远程调用 ID。
         val calls = message.objects("tool_calls").map { call ->
             if (call.required("type") != "function") throw LLMToolProtocolException("unsupported_call")
             val function =
@@ -98,19 +99,19 @@ internal class OpenAICompatibleToolCodec : ToolProtocolCodec {
     /** 分片按 index 优先、远程 ID 次之关联，缺少两者且歧义时拒绝。 */
     override fun stream(): ToolStreamAccumulator = Stream(this)
 
-    private class Stream(private val codec: OpenAICompatibleToolCodec) : ToolStreamAccumulator {
-        private val calls = sortedMapOf<Int, JsonObject>()
-        private val message = jsonObject("role" to "assistant", "content" to "")
-        private val root = JsonObject()
-        private var reason = ""
-        private var terminal = false
+    private class Stream(private val mCodec: OpenAICompatibleToolCodec) : ToolStreamAccumulator {
+        private val mCalls = sortedMapOf<Int, JsonObject>()
+        private val mMessage = jsonObject("role" to "assistant", "content" to "")
+        private val mRoot = JsonObject()
+        private var mReason = ""
+        private var mTerminal = false
 
         /** 消费一帧协议事件，未完成字段只保存在当前缓冲。 */
         override fun accept(type: String, data: JsonObject) {
             data.checkError()
-            data.get("model")?.let { root.add("model", it) }
-            data.get("usage")?.takeUnless { it.isJsonNull }?.let { root.add("usage", it) }
-            if (terminal) return
+            data.get("model")?.let { mRoot.add("model", it) }
+            data.get("usage")?.takeUnless { it.isJsonNull }?.let { mRoot.add("usage", it) }
+            if (mTerminal) return
             val choices = data.objects("choices")
             if (choices.size > 1) throw LLMToolProtocolException("multiple_choices")
             val choice = choices.firstOrNull() ?: return
@@ -118,27 +119,27 @@ internal class OpenAICompatibleToolCodec : ToolProtocolCodec {
             // 只有明确的停止原因才结束调用聚合，[DONE] 或 EOF 不能补齐半截参数。
             delta.cleanString("refusal").takeIf { it.isNotEmpty() }
                 ?.let { throw LLMToolProtocolException("refusal") }
-            message.append("content", delta.cleanString("content"))
-            message.append(
+            mMessage.append("content", delta.cleanString("content"))
+            mMessage.append(
                 "reasoning_content",
                 delta.cleanString("reasoning_content").ifEmpty { delta.cleanString("reasoning") })
             delta.objects("tool_calls").forEach { mergeCall(it) }
             choice.cleanString("finish_reason").takeIf { it.isNotEmpty() }
                 ?.let {
-                    reason = it
-                    terminal = true
+                    mReason = it
+                    mTerminal = true
                 }
         }
 
         private fun mergeCall(delta: JsonObject) {
             val id = delta.cleanString("id")
             val index = delta.intOrNull("index")
-                ?: calls.entries.firstOrNull { id.isNotEmpty() && it.value.cleanString("id") == id }?.key
-                ?: if (calls.isEmpty()) 0 else if (calls.size == 1 && id.isEmpty()) calls.firstKey() else if (id.isNotEmpty()) calls.lastKey() + 1 else throw LLMToolProtocolException(
+                ?: mCalls.entries.firstOrNull { id.isNotEmpty() && it.value.cleanString("id") == id }?.key
+                ?: if (mCalls.isEmpty()) 0 else if (mCalls.size == 1 && id.isEmpty()) mCalls.firstKey() else if (id.isNotEmpty()) mCalls.lastKey() + 1 else throw LLMToolProtocolException(
                     "ambiguous_call_delta"
                 )
             if (index !in 0..19) throw LLMToolProtocolException("invalid_call_index")
-            val call = calls.getOrPut(index) {
+            val call = mCalls.getOrPut(index) {
                 jsonObject(
                     "type" to "function",
                     "function" to jsonObject("name" to "", "arguments" to "")
@@ -167,13 +168,13 @@ internal class OpenAICompatibleToolCodec : ToolProtocolCodec {
 
         /** 校验终态及未闭合块后生成可执行轮次。 */
         override fun finish(model: String): LLMToolTurn {
-            if (!terminal) throw LLMToolProtocolException("stream_interrupted")
-            if (calls.isNotEmpty()) message.add("tool_calls", jsonArray(calls.values))
-            root.add(
+            if (!mTerminal) throw LLMToolProtocolException("stream_interrupted")
+            if (mCalls.isNotEmpty()) mMessage.add("tool_calls", jsonArray(mCalls.values))
+            mRoot.add(
                 "choices",
-                jsonArray(listOf(jsonObject("message" to message, "finish_reason" to reason)))
+                jsonArray(listOf(jsonObject("message" to mMessage, "finish_reason" to mReason)))
             )
-            return codec.decode(root, model)
+            return mCodec.decode(mRoot, model)
         }
     }
 }

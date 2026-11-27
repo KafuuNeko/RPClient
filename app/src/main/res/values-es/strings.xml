@@ -1887,4 +1887,5 @@
     <string name="tool_settings_unbound">Sin vincular</string>
     <string name="tool_settings_usage_hint_label">Sugerencia adicional de uso</string>
     <string name="tool_settings_value_label">Valor</string>
+    <string name="tool_settings_deleted_external_tool">Herramienta externa eliminada</string>
 </resources>

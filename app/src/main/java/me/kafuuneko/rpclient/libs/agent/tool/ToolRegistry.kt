@@ -1,7 +1,6 @@
 package me.kafuuneko.rpclient.libs.agent.tool
 
 import com.google.gson.JsonObject
-import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.kafuuneko.rpclient.libs.agent.model.AgentJson
@@ -22,9 +21,15 @@ class RegisteredAgentTool internal constructor(
 class ToolRegistry(
     private val mBase: List<AgentTool>,
     private val mSource: (suspend () -> List<AgentTool>)? = null,
+    private val mConfigurationVersion: (() -> Long)? = null,
+    private val mActiveRunIds: (suspend () -> Set<String>)? = null,
+    private val mCacheLimit: Int = MAX_CACHED_VERSIONS,
 ) {
     private val mMutex = Mutex()
-    private val mVersions = ConcurrentHashMap<String, RegisteredAgentTool>()
+    private val mStateLock = Any()
+    private val mVersions = linkedMapOf<String, RegisteredAgentTool>()
+    private val mRetained = mutableMapOf<String, Set<String>>()
+    private var mPublishedVersion: Long? = null
 
     @Volatile
     private var mTools = register(mBase)
@@ -33,25 +38,57 @@ class ToolRegistry(
     suspend fun refresh() {
         val source = mSource ?: return
         mMutex.withLock {
-            val dynamic = source()
-            val replaced = dynamic.mapTo(HashSet()) { it.definition.toolId }
-            val next = register(mBase.filterNot { it.definition.toolId in replaced } + dynamic)
-            // 仅在版本变化时写入历史映射，并限制非活动缓存上限防止长期运行内存无限增长。
-            mTools.forEach { mVersions[it.digest] = it }
-            next.forEach { mVersions[it.digest] = it }
-            mTools = next
-            if (mVersions.size > MAX_CACHED_VERSIONS) {
-                val activeDigests = next.mapTo(HashSet()) { it.digest }
-                val removable = mVersions.keys.filterNot { it in activeDigests }
-                removable.take(mVersions.size - MAX_CACHED_VERSIONS).forEach { mVersions.remove(it) }
+            val version = mConfigurationVersion?.invoke()
+            if (version != null && version == mPublishedVersion) return@withLock
+            // 先完整编译，再原子发布；ID 或模型函数名冲突不会静默替换已授权工具。
+            val next = register(mBase + source())
+            val retainedBeforeQuery = synchronized(mStateLock) { mRetained.keys.toSet() }
+            val active = mActiveRunIds?.invoke()
+            synchronized(mStateLock) {
+                if (active != null) (retainedBeforeQuery - active).forEach(mRetained::remove)
+                mTools.forEach { mVersions[it.digest] = it }
+                next.forEach { mVersions[it.digest] = it }
+                mTools = next
+                mPublishedVersion = version
+                evictUnused()
             }
         }
     }
 
-    /** 整库替换时清理旧库处理器，避免相同 ID 与旧配置碰撞。 */
+    /** 整库替换时清理旧库处理器与运行引用，版本时钟下一次强制刷新。 */
     suspend fun clear() = mMutex.withLock {
-        mVersions.clear()
-        mTools = register(mBase)
+        synchronized(mStateLock) {
+            mVersions.clear()
+            mRetained.clear()
+            mPublishedVersion = null
+            mTools = register(mBase)
+        }
+    }
+
+    /** @return 选择并原子保留本轮全部工具，后续等待也不会被缓存淘汰。 */
+    fun retainAvailable(runId: String, enabledIds: Set<String>): List<RegisteredAgentTool> =
+        synchronized(mStateLock) {
+            available(enabledIds).also {
+                mRetained[runId] = it.mapTo(linkedSetOf()) { tool -> tool.digest }
+            }
+        }
+
+    /** 恢复检查点前保留其中的执行指纹，不能从类名重建历史配置。 */
+    fun retain(runId: String, digests: Collection<String>) = synchronized(mStateLock) {
+        mRetained[runId] = digests.toSet()
+    }
+
+    /** 运行进入终态后释放指纹引用，避免无配置变更期间长期累积已结束运行记录。 */
+    fun release(runId: String) = synchronized(mStateLock) {
+        if (mRetained.remove(runId) != null) evictUnused()
+    }
+
+    /** 仅按入队顺序回收无当前目录及活动运行引用的版本，活动版本可暂时超过缓存上限。 */
+    private fun evictUnused() {
+        val retained = mTools.mapTo(hashSetOf()) { it.digest }
+        mRetained.values.forEach { retained.addAll(it) }
+        val candidates = mVersions.keys.filterNot { it in retained }
+        candidates.take((mVersions.size - mCacheLimit).coerceAtLeast(0)).forEach(mVersions::remove)
     }
 
     private fun register(tools: List<AgentTool>): List<RegisteredAgentTool> {
@@ -103,10 +140,13 @@ class ToolRegistry(
         }
     }
 
-    /** 根据客户端稳定 ID 查找；未知工具不回退到模型提供的名称。 */
+    /** 根据客户端稳定 ID 查找已发布工具；动态目录来源需先经 [refresh] 发布。 */
     fun find(toolId: String, digest: String? = null): RegisteredAgentTool? =
-        mTools.firstOrNull { it.definition.toolId == toolId && (digest == null || it.digest == digest) }
-            ?: digest?.let { mVersions[it]?.takeIf { tool -> tool.definition.toolId == toolId } }
+        synchronized(mStateLock) {
+            mTools.firstOrNull { it.definition.toolId == toolId && (digest == null || it.digest == digest) }
+                ?: digest?.let { mVersions[it]?.takeIf { tool -> tool.definition.toolId == toolId } }
+
+        }
 
     /** 保持注册顺序并按会话白名单选择，用于冻结模型请求前缀。 */
     fun available(enabledIds: Set<String>): List<RegisteredAgentTool> =

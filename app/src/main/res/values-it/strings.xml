@@ -1865,4 +1865,5 @@ Non riusciti: %2$d</string>
     <string name="tool_settings_unbound">Non associato</string>
     <string name="tool_settings_usage_hint_label">Suggerimento d\'uso aggiuntivo</string>
     <string name="tool_settings_value_label">Valore</string>
+    <string name="tool_settings_deleted_external_tool">Strumento esterno eliminato</string>
 </resources>

@@ -52,17 +52,17 @@ object RestrictedCalculator {
     /** 计算四则、幂、括号和白名单数学函数，返回有限数值。 */
     fun calculate(expression: String): Double = Parser(expression).calculate()
 
-    private class Parser(private val input: String) {
-        private var position = 0
-        private var steps = 0
-        private var depth = 0
+    private class Parser(private val mInput: String) {
+        private var mPosition = 0
+        private var mSteps = 0
+        private var mDepth = 0
 
         /** 完整消费表达式，拒绝尾随代码、非有限结果和超限输入。 */
         fun calculate(): Double {
-            require(input.length in 1..1024) { "Invalid expression length" }
+            require(mInput.length in 1..1024) { "Invalid expression length" }
             val result = expression()
             whitespace()
-            require(position == input.length && result.isFinite()) { "Invalid arithmetic result" }
+            require(mPosition == mInput.length && result.isFinite()) { "Invalid arithmetic result" }
             return result
         }
 
@@ -95,34 +95,34 @@ object RestrictedCalculator {
         }
 
         private fun unaryBounded(): Double {
-            require(++depth <= 32) { "Expression is too deep" }
-            return unary().also { depth-- }
+            require(++mDepth <= 32) { "Expression is too deep" }
+            return unary().also { mDepth-- }
         }
 
         private fun power(): Double {
             val value = primary()
             if (!take('^')) return value
-            require(++depth <= 32) { "Expression is too deep" }
-            return checked(value.pow(unary())).also { depth-- }
+            require(++mDepth <= 32) { "Expression is too deep" }
+            return checked(value.pow(unary())).also { mDepth-- }
         }
 
         private fun primary(): Double {
-            require(++steps <= 512 && ++depth <= 32) { "Expression is too complex" }
+            require(++mSteps <= 512 && ++mDepth <= 32) { "Expression is too complex" }
             val result = when {
                 take('(') -> expression().also { require(take(')')) { "Missing closing parenthesis" } }
                 else -> atom()
             }
-            depth--
+            mDepth--
             return result
         }
 
         private fun atom(): Double {
             // 名称只能解析白名单常量或单参数数学函数，不查找宿主变量。
             whitespace()
-            val start = position
-            if (position < input.length && input[position].isLetter()) {
-                while (position < input.length && input[position].isLetterOrDigit()) position++
-                val name = input.substring(start, position).lowercase()
+            val start = mPosition
+            if (mPosition < mInput.length && mInput[mPosition].isLetter()) {
+                while (mPosition < mInput.length && mInput[mPosition].isLetterOrDigit()) mPosition++
+                val name = mInput.substring(start, mPosition).lowercase()
                 if (name == "pi") return Math.PI
                 if (name == "e") return Math.E
                 require(take('(')) { "Function argument required" }
@@ -147,25 +147,25 @@ object RestrictedCalculator {
                     }
                 )
             }
-            while (position < input.length && (input[position].isDigit() || input[position] == '.')) position++
-            require(position > start) { "Number required" }
-            return checked(input.substring(start, position).toDouble())
+            while (mPosition < mInput.length && (mInput[mPosition].isDigit() || mInput[mPosition] == '.')) mPosition++
+            require(mPosition > start) { "Number required" }
+            return checked(mInput.substring(start, mPosition).toDouble())
         }
 
         private fun checked(value: Double): Double {
-            require(++steps <= 512 && value.isFinite()) { "Invalid arithmetic result" }
+            require(++mSteps <= 512 && value.isFinite()) { "Invalid arithmetic result" }
             return value
         }
 
         private fun take(char: Char): Boolean {
             whitespace()
-            if (position >= input.length || input[position] != char) return false
-            position++
+            if (mPosition >= mInput.length || mInput[mPosition] != char) return false
+            mPosition++
             return true
         }
 
         private fun whitespace() {
-            while (position < input.length && input[position].isWhitespace()) position++
+            while (mPosition < mInput.length && mInput[mPosition].isWhitespace()) mPosition++
         }
     }
 }

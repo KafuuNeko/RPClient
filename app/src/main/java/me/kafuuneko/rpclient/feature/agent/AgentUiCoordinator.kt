@@ -7,39 +7,29 @@ import me.kafuuneko.rpclient.R
 import me.kafuuneko.rpclient.feature.agent.model.AgentLimitDraft
 import me.kafuuneko.rpclient.feature.agent.model.AgentLimitField
 import me.kafuuneko.rpclient.feature.agent.model.AgentPresetItem
-import me.kafuuneko.rpclient.feature.agent.model.AgentQuestionItem
-import me.kafuuneko.rpclient.feature.agent.model.AgentQuestionKind
 import me.kafuuneko.rpclient.feature.agent.model.AgentSceneRevisionItem
 import me.kafuuneko.rpclient.feature.agent.model.AgentSettingsDialog
-import me.kafuuneko.rpclient.feature.agent.model.AgentStepItem
-import me.kafuuneko.rpclient.feature.agent.model.AgentStepKind
-import me.kafuuneko.rpclient.feature.agent.model.AgentTaskItem
-import me.kafuuneko.rpclient.feature.agent.model.AgentToolCallItem
-import me.kafuuneko.rpclient.feature.agent.model.AgentToolCallStatus
-import me.kafuuneko.rpclient.feature.agent.model.AgentToolGroup
 import me.kafuuneko.rpclient.feature.agent.model.AgentToolItem
 import me.kafuuneko.rpclient.feature.agent.model.AgentUiAction
 import me.kafuuneko.rpclient.feature.agent.model.AgentUiState
-import me.kafuuneko.rpclient.feature.agent.model.AgentWriteDisposition
+import me.kafuuneko.rpclient.libs.agent.connection.ToolConfigCodec
+import me.kafuuneko.rpclient.libs.agent.connection.ToolConfigurationStatus
 import me.kafuuneko.rpclient.libs.agent.model.AgentJson
 import me.kafuuneko.rpclient.libs.agent.model.AgentRunState
 import me.kafuuneko.rpclient.libs.agent.model.ConversationRef
 import me.kafuuneko.rpclient.libs.agent.model.SceneStateChange
-import me.kafuuneko.rpclient.libs.agent.model.ToolInvocationState
 import me.kafuuneko.rpclient.libs.agent.runtime.AgentProgressStore
 import me.kafuuneko.rpclient.libs.agent.runtime.AgentRunManager
-import me.kafuuneko.rpclient.libs.agent.tool.ToolResult
-import me.kafuuneko.rpclient.libs.agent.tool.ToolUserRequestKind
-import me.kafuuneko.rpclient.libs.agent.tool.ToolWriteDisposition
-import me.kafuuneko.rpclient.libs.room.entity.ToolInvocation
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.BuiltinToolRegistrations
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.ToolCatalog
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.ToolGroup
+import me.kafuuneko.rpclient.libs.room.entity.ConversationToolPolicy
+import me.kafuuneko.rpclient.libs.room.entity.ToolDefinition
 import me.kafuuneko.rpclient.libs.room.repository.AgentRunRepository
 import me.kafuuneko.rpclient.libs.room.repository.ChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.GroupChatRepository
 import me.kafuuneko.rpclient.libs.room.repository.PromptPresetRepository
 import me.kafuuneko.rpclient.libs.room.repository.SceneStateRepository
-import me.kafuuneko.rpclient.libs.agent.connection.HttpToolConfigCodec
-import me.kafuuneko.rpclient.libs.agent.connection.ToolConfigCodec
-import me.kafuuneko.rpclient.libs.agent.connection.ToolCredentialRepository
 import me.kafuuneko.rpclient.libs.room.repository.ToolConfigRepository
 
 /**
@@ -57,7 +47,9 @@ class AgentUiCoordinator(
     private val mScenes: SceneStateRepository,
     private val mProgress: AgentProgressStore,
     private val mToolConfigurations: ToolConfigRepository? = null,
-    private val mCredentials: ToolCredentialRepository? = null,
+    private val mToolStatus: ToolConfigurationStatus? = null,
+    private val mCatalog: ToolCatalog = BuiltinToolRegistrations.catalog,
+    private val mPresenter: AgentTaskPresenter = AgentTaskPresenter(mRuns, mProgress, mCatalog),
 ) {
     private val mPrettyGson = GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create()
 
@@ -125,49 +117,7 @@ class AgentUiCoordinator(
         }
         // 读取运行摘要，并将每个步骤关联到具体工具调用状态。
         val runs = mRuns.observe(conversation).first()
-        val tasks = runs.map { run ->
-            val invocationsByStep = mRuns.invocations(run.id).groupBy { it.stepId }
-            val steps = mRuns.steps(run.id).map { step ->
-                val kind = when (step.kind) {
-                    "Tools" -> AgentStepKind.Tools
-                    "Compaction" -> AgentStepKind.Compaction
-                    else -> AgentStepKind.Model
-                }
-                val kindRes = when (kind) {
-                    AgentStepKind.Tools -> R.string.agent_step_tools
-                    AgentStepKind.Compaction -> R.string.agent_step_compaction
-                    AgentStepKind.Model -> R.string.agent_step_model
-                }
-                val stepTools = invocationsByStep[step.id].orEmpty().map { invocation ->
-                    toToolCallItem(invocation, customToolLabels)
-                }
-                AgentStepItem(
-                    kindRes = kindRes,
-                    completed = step.completedAt != null,
-                    kind = kind,
-                    tokens = step.actualTokens,
-                    toolCalls = stepTools,
-                )
-            }
-            val progress = mProgress.get(conversation, run.id)
-            val isActive = !run.state.isTerminal
-            AgentTaskItem(
-                id = run.id,
-                messageId = run.messageId,
-                statusRes = status(run.state),
-                active = isActive,
-                waiting = run.state == AgentRunState.WaitingForUser,
-                modelRequests = run.modelRequests,
-                toolCalls = run.toolCalls,
-                tokens = run.totalTokens,
-                steps = steps,
-                liveText = if (isActive) progress?.text.orEmpty() else "",
-                reasoning = progress?.reasoning.orEmpty(),
-                reasonRes = R.string.agent_repeated_reads.takeIf { run.outcomeCode == "repeated_reads" },
-                characterId = run.characterId,
-                runState = run.state,
-            )
-        }
+        val tasks = mPresenter.tasks(conversation, runs, customToolLabels)
         // 仅当存在等待态运行时读取本机挂起问题或确认摘要，并区分记忆提升与外部联网确认。
         val waiting = if (runs.any { it.state == AgentRunState.WaitingForUser }) {
             mManager().waiting(conversation)
@@ -176,7 +126,7 @@ class AgentUiCoordinator(
         }
         val activeRunId = runs.firstOrNull { !it.state.isTerminal }?.id
         val question = waiting?.takeIf { activeRunId != null }?.let { result ->
-            toQuestionItem(requireNotNull(activeRunId), result)
+            mPresenter.toQuestionItem(requireNotNull(activeRunId), result)
         }
         val base = previous.copy(
             enabled = enabled,
@@ -185,6 +135,14 @@ class AgentUiCoordinator(
             selectedPresetId = preset,
         )
         if (!settings) return base
+        return loadSettings(conversation, base, overrideDisplayNames, configuredTools)
+    }
+
+    /** 设置数据仅在打开设置时加载，任务刷新不反复构建剧情和预设列表。 */
+    private suspend fun loadSettings(
+        conversation: ConversationRef, base: AgentUiState,
+        overrideDisplayNames: Map<String, String>, configuredTools: List<ToolDefinition>,
+    ): AgentUiState {
         // 加载设置页所需的工具清单、预设列表、成本限额与剧情状态修订历史。
         val policy = mRuns.policy(conversation)
         val selected = mRuns.enabledTools(policy)
@@ -202,29 +160,25 @@ class AgentUiCoordinator(
             mPresets.observePresets().first()
                 .filter { it.preset.id > 0 }
                 .map { AgentPresetItem(id = it.preset.id, name = it.preset.name) }
-        // 检查每个 HTTP 工具所绑连接的可用性与本机凭据，避免未配置工具在会话设置中毫无提示。
+        // 按连接一次性探测 URL 与本机凭据就绪状态，避免多个绑定工具重复访问 Keystore。
         val connectionsById = mToolConfigurations?.connections().orEmpty().associateBy { it.id }
-        val connectionNeedsConfig = connectionsById.mapValues { (_, connection) ->
-            val config = runCatching { HttpToolConfigCodec.connection(connection.configJson) }.getOrNull()
-            if (config == null || config.url.isBlank()) {
-                true
-            } else if (config.authMode != "None") {
-                val ref = config.credentialRef
-                ref == null || (mCredentials != null && mCredentials.read(ref) == null)
-            } else {
-                false
-            }
+        val connectionStates = connectionsById.mapValues { (_, connection) ->
+            mToolStatus?.connectionState(connection)
         }
         val external = configuredTools.filter { tool ->
             tool.enabled || "http.${tool.id}" in selected
         }.map { tool ->
             val bound = tool.connectionId?.let(connectionsById::get)
-            val missing = tool.kind != "ReadUrl" &&
-                (bound == null || !bound.enabled || connectionNeedsConfig[bound.id] == true)
+            val readiness = bound?.let { connectionStates[it.id] }
+            val missing = mToolStatus?.needsConfiguration(
+                kind = tool.kind,
+                connectionEnabled = bound?.enabled == true,
+                connectionMissing = readiness?.needsConfiguration ?: true,
+            ) ?: false
             AgentToolItem(
                 id = "http.${tool.id}",
                 labelRes = R.string.tool_settings_title,
-                group = AgentToolGroup.Network,
+                group = ToolGroup.Network,
                 enabled = "http.${tool.id}" in selected,
                 label = tool.name,
                 needsConfiguration = missing,
@@ -233,14 +187,15 @@ class AgentUiCoordinator(
         }
         return base.copy(
             settingsLoaded = true,
-            tools = TOOL_SPECS.map { spec ->
+            tools = mCatalog.registrations.map { registration ->
+                val spec = registration.specification
                 AgentToolItem(
-                    id = spec.id,
-                    labelRes = spec.labelRes,
+                    id = spec.toolId,
+                    labelRes = registration.labelRes,
                     group = spec.group,
-                    enabled = spec.id in selected,
+                    enabled = spec.toolId in selected,
                     writesMemory = spec.writesMemory,
-                    label = overrideDisplayNames[spec.id],
+                    label = overrideDisplayNames[spec.toolId],
                 )
             } + external,
             presets = presets,
@@ -263,89 +218,76 @@ class AgentUiCoordinator(
     }
 
     /** 不涉及持久化的展开、弹窗打开关闭与草稿变更；返回空表示需要执行领域操作。 */
-    fun local(state: AgentUiState, action: AgentUiAction): AgentUiState? = when (action) {
-        AgentUiAction.OpenToolsDialog -> state.copy(
-            settingsDialog = AgentSettingsDialog.Tools(
-                selectedToolIds = state.tools.filter { it.enabled }
-                    .mapTo(LinkedHashSet()) { it.id },
-            ),
-            errorRes = null,
-        )
-
-        is AgentUiAction.ToggleDraftTool -> {
-            val dialog = state.settingsDialog as? AgentSettingsDialog.Tools ?: return state
-            val nextSelected = if (action.id in dialog.selectedToolIds) {
-                dialog.selectedToolIds - action.id
-            } else {
-                dialog.selectedToolIds + action.id
-            }
-            state.copy(settingsDialog = dialog.copy(selectedToolIds = nextSelected))
-        }
-
-        is AgentUiAction.SetAllDraftTools -> {
-            val dialog = state.settingsDialog as? AgentSettingsDialog.Tools ?: return state
-            val nextSelected = if (action.enabled) {
-                state.tools.mapTo(LinkedHashSet()) { it.id }
-            } else {
-                emptySet()
-            }
-            state.copy(settingsDialog = dialog.copy(selectedToolIds = nextSelected))
-        }
-
-        AgentUiAction.OpenLimitsDialog -> state.copy(
-            settingsDialog = AgentSettingsDialog.Limits(draft = state.limits),
-            errorRes = null,
-        )
-
-        is AgentUiAction.ChangeLimit -> {
-            val dialog = state.settingsDialog as? AgentSettingsDialog.Limits
-            val source = dialog?.draft ?: state.limits
-            val updated = when (action.field) {
-                AgentLimitField.Rounds -> source.copy(rounds = action.value)
-                AgentLimitField.Calls -> source.copy(calls = action.value)
-                AgentLimitField.Requests -> source.copy(requests = action.value)
-                AgentLimitField.Tokens -> source.copy(tokens = action.value)
-                AgentLimitField.Seconds -> source.copy(seconds = action.value)
-                AgentLimitField.Watermark -> source.copy(watermark = action.value)
-            }
-            if (dialog != null) {
-                state.copy(settingsDialog = dialog.copy(draft = updated, errorRes = null))
-            } else {
-                state.copy(limits = updated, errorRes = null)
-            }
-        }
-
-        AgentUiAction.ResetDefaultLimits -> {
-            val dialog = state.settingsDialog as? AgentSettingsDialog.Limits ?: return state
-            state.copy(
-                settingsDialog = dialog.copy(
-                    draft = AgentLimitDraft(),
-                    errorRes = null,
+    fun local(state: AgentUiState, action: AgentUiAction): AgentUiState? {
+        // 仅处理纯内存态弹窗切换、草稿编辑与任务折叠，持久化动作交由 update 执行。
+        return when (action) {
+            AgentUiAction.OpenToolsDialog -> state.copy(
+                settingsDialog = AgentSettingsDialog.Tools(
+                    selectedToolIds = state.tools.filter { it.enabled }
+                        .mapTo(LinkedHashSet()) { it.id },
                 ),
+                errorRes = null,
             )
+
+            is AgentUiAction.ToggleDraftTool -> {
+                val dialog = state.settingsDialog as? AgentSettingsDialog.Tools ?: return state
+                val nextSelected = if (action.id in dialog.selectedToolIds) {
+                    dialog.selectedToolIds - action.id
+                } else {
+                    dialog.selectedToolIds + action.id
+                }
+                state.copy(settingsDialog = dialog.copy(selectedToolIds = nextSelected))
+            }
+
+            is AgentUiAction.SetAllDraftTools -> {
+                val dialog = state.settingsDialog as? AgentSettingsDialog.Tools ?: return state
+                val nextSelected = if (action.enabled) {
+                    state.tools.mapTo(LinkedHashSet()) { it.id }
+                } else {
+                    emptySet()
+                }
+                state.copy(settingsDialog = dialog.copy(selectedToolIds = nextSelected))
+            }
+
+            AgentUiAction.OpenLimitsDialog -> state.copy(
+                settingsDialog = AgentSettingsDialog.Limits(draft = state.limits),
+                errorRes = null,
+            )
+
+            is AgentUiAction.ChangeLimit -> changeLimit(state, action)
+
+            AgentUiAction.ResetDefaultLimits -> {
+                val dialog = state.settingsDialog as? AgentSettingsDialog.Limits ?: return state
+                state.copy(
+                    settingsDialog = dialog.copy(
+                        draft = AgentLimitDraft(),
+                        errorRes = null,
+                    ),
+                )
+            }
+
+            AgentUiAction.OpenSceneDialog -> state.copy(
+                settingsDialog = AgentSettingsDialog.Scene,
+                errorRes = null,
+            )
+
+            AgentUiAction.DismissSettingsDialog -> state.copy(
+                settingsDialog = AgentSettingsDialog.None,
+                errorRes = null,
+            )
+
+            is AgentUiAction.ToggleTask -> state.copy(
+                expandedRunIds = if (action.runId in state.expandedRunIds) {
+                    state.expandedRunIds - action.runId
+                } else {
+                    state.expandedRunIds + action.runId
+                },
+            )
+
+            is AgentUiAction.ChangeAnswer -> state.copy(answerDraft = action.value.take(4000))
+
+            else -> null
         }
-
-        AgentUiAction.OpenSceneDialog -> state.copy(
-            settingsDialog = AgentSettingsDialog.Scene,
-            errorRes = null,
-        )
-
-        AgentUiAction.DismissSettingsDialog -> state.copy(
-            settingsDialog = AgentSettingsDialog.None,
-            errorRes = null,
-        )
-
-        is AgentUiAction.ToggleTask -> state.copy(
-            expandedRunIds = if (action.runId in state.expandedRunIds) {
-                state.expandedRunIds - action.runId
-            } else {
-                state.expandedRunIds + action.runId
-            },
-        )
-
-        is AgentUiAction.ChangeAnswer -> state.copy(answerDraft = action.value.take(4000))
-
-        else -> null
     }
 
     /**
@@ -361,32 +303,12 @@ class AgentUiCoordinator(
         state: AgentUiState,
         action: AgentUiAction,
     ): AgentUiState {
-        // 取消等待或活动中的 Agent 运行。
+        // 取消等待或活动中的 Agent 运行，或执行独立剧情撤销流程。
         if (action == AgentUiAction.Cancel) {
             mManager().stop(conversation)
             return load(conversation, state)
         }
-        // 撤销最近一次剧情状态修订并刷新历史视图。
-        if (action == AgentUiAction.UndoScene) {
-            mManager().stop(conversation)
-            val revisions = mScenes.revisions(conversation)
-            val current = mScenes.get(conversation)
-            if (revisions.isEmpty()) return state
-            val next = AgentJson.parse(
-                revisions.getOrNull(revisions.lastIndex - 1)?.stateJson ?: "{}",
-            ).asJsonObject
-            val old = AgentJson.parse(current.stateJson).asJsonObject
-            val changes = (old.keySet() + next.keySet()).map { key ->
-                SceneStateChange(listOf(key), next[key])
-            }
-            mScenes.update(
-                conversation = conversation,
-                expectedRevision = current.revision,
-                changes = changes,
-                effectiveAfterMessageId = revisions.last().effectiveAfterMessageId,
-            )
-            return load(conversation, state, settings = true)
-        }
+        if (action == AgentUiAction.UndoScene) return undoScene(conversation, state)
         // 读取当前权威策略并按动作计算目标配置。
         var policy = mRuns.policy(conversation)
         var enabled = state.enabled
@@ -399,7 +321,6 @@ class AgentUiCoordinator(
             }
 
             is AgentUiAction.SelectPreset -> presetId = action.id
-
             is AgentUiAction.ToggleMemoryReadOnly -> {
                 policy = policy.copy(memoryReadOnly = action.enabled)
             }
@@ -421,24 +342,8 @@ class AgentUiCoordinator(
 
             AgentUiAction.SaveLimits -> {
                 val dialog = state.settingsDialog as? AgentSettingsDialog.Limits
-                val draft = dialog?.draft ?: state.limits
-                val parsed = runCatching {
-                    policy.copy(
-                        maxToolRounds = draft.rounds.trim().toInt(),
-                        maxToolCalls = draft.calls.trim().toInt(),
-                        maxModelRequests = draft.requests.trim().toInt(),
-                        maxTotalTokens = draft.tokens.trim().toLong(),
-                        maxActiveMillis = Math.multiplyExact(draft.seconds.trim().toLong(), 1000L),
-                        compactionWatermarkPercent = draft.watermark.trim().toInt(),
-                    )
-                }.getOrNull()
-                if (parsed == null) {
-                    return if (dialog != null) {
-                        state.copy(settingsDialog = dialog.copy(errorRes = R.string.agent_invalid_settings))
-                    } else {
-                        state.copy(errorRes = R.string.agent_invalid_settings)
-                    }
-                }
+                val parsed = parseLimitPolicy(policy, dialog?.draft ?: state.limits)
+                    ?: return invalidLimitState(state)
                 policy = parsed
                 nextDialog = AgentSettingsDialog.None
             }
@@ -448,13 +353,8 @@ class AgentUiCoordinator(
         // 校验并原子保存策略，若限额越界则保留弹窗并就地提示。
         try {
             mRuns.saveSettings(conversation, enabled, presetId, policy)
-        } catch (error: IllegalArgumentException) {
-            val dialog = state.settingsDialog as? AgentSettingsDialog.Limits
-            return if (dialog != null) {
-                state.copy(settingsDialog = dialog.copy(errorRes = R.string.agent_invalid_settings))
-            } else {
-                state.copy(errorRes = R.string.agent_invalid_settings)
-            }
+        } catch (_: IllegalArgumentException) {
+            return invalidLimitState(state)
         }
         mManager().stop(conversation)
         return load(
@@ -462,6 +362,78 @@ class AgentUiCoordinator(
             previous = state.copy(settingsDialog = nextDialog, errorRes = null),
             settings = true,
         )
+    }
+
+    /** 解析限额草稿为策略数值；格式非法或毫秒换算溢出时返回空。 */
+    private fun parseLimitPolicy(
+        policy: ConversationToolPolicy,
+        draft: AgentLimitDraft,
+    ) = runCatching {
+        policy.copy(
+            maxToolRounds = draft.rounds.trim().toInt(),
+            maxToolCalls = draft.calls.trim().toInt(),
+            maxModelRequests = draft.requests.trim().toInt(),
+            maxTotalTokens = draft.tokens.trim().toLong(),
+            maxActiveMillis = Math.multiplyExact(draft.seconds.trim().toLong(), 1000L),
+            compactionWatermarkPercent = draft.watermark.trim().toInt(),
+        )
+    }.getOrNull()
+
+    /** 将限额校验错误写回当前弹窗或面板，保留用户已输入的草稿。 */
+    private fun invalidLimitState(state: AgentUiState): AgentUiState {
+        val dialog = state.settingsDialog as? AgentSettingsDialog.Limits
+        return if (dialog != null) {
+            state.copy(settingsDialog = dialog.copy(errorRes = R.string.agent_invalid_settings))
+        } else {
+            state.copy(errorRes = R.string.agent_invalid_settings)
+        }
+    }
+
+    /** 更新限额草稿并保留当前弹窗层级，不写入权威策略。 */
+    private fun changeLimit(state: AgentUiState, action: AgentUiAction.ChangeLimit): AgentUiState {
+        // 优先修改打开中的限额弹窗草稿，否则回写外层预览草稿。
+        val dialog = state.settingsDialog as? AgentSettingsDialog.Limits
+        val source = dialog?.draft ?: state.limits
+        val updated = when (action.field) {
+            AgentLimitField.Rounds -> source.copy(rounds = action.value)
+            AgentLimitField.Calls -> source.copy(calls = action.value)
+            AgentLimitField.Requests -> source.copy(requests = action.value)
+            AgentLimitField.Tokens -> source.copy(tokens = action.value)
+            AgentLimitField.Seconds -> source.copy(seconds = action.value)
+            AgentLimitField.Watermark -> source.copy(watermark = action.value)
+        }
+        return if (dialog != null) {
+            state.copy(settingsDialog = dialog.copy(draft = updated, errorRes = null))
+        } else {
+            state.copy(limits = updated, errorRes = null)
+        }
+    }
+
+    /** 撤销前先停止运行，再以乐观修订写入前一份剧情快照。 */
+    private suspend fun undoScene(
+        conversation: ConversationRef,
+        state: AgentUiState
+    ): AgentUiState {
+        // 先中止当前会话的活动运行，避免撤销期间并发写入冲突。
+        mManager().stop(conversation)
+        val revisions = mScenes.revisions(conversation)
+        val current = mScenes.get(conversation)
+        if (revisions.isEmpty()) return state
+        // 计算回退到上一修订所需的键级差异，并以当前修订号执行乐观更新。
+        val next = AgentJson.parse(
+            revisions.getOrNull(revisions.lastIndex - 1)?.stateJson ?: "{}",
+        ).asJsonObject
+        val old = AgentJson.parse(current.stateJson).asJsonObject
+        val changes = (old.keySet() + next.keySet()).map { key ->
+            SceneStateChange(listOf(key), next[key])
+        }
+        mScenes.update(
+            conversation = conversation,
+            expectedRevision = current.revision,
+            changes = changes,
+            effectiveAfterMessageId = revisions.last().effectiveAfterMessageId,
+        )
+        return load(conversation, state, settings = true)
     }
 
     /** 新输入只取消确实存在的 Agent 占有者，普通路径无需初始化工具运行器。 */
@@ -472,92 +444,6 @@ class AgentUiCoordinator(
     /** 页面离开时保留等待任务，普通页面无需创建运行器。 */
     suspend fun leaveActive(conversation: ConversationRef) {
         if (mRuns.active(conversation) != null) mManager().leave(conversation)
-    }
-
-    /** 将挂起的用户提问或确认载荷转换为结构化卡片模型。 */
-    private fun toQuestionItem(
-        runId: String,
-        result: ToolResult.AwaitingUser,
-    ): AgentQuestionItem {
-        val kind = when (result.kind) {
-            ToolUserRequestKind.Input -> AgentQuestionKind.Input
-            ToolUserRequestKind.LocalWriteConfirmation -> AgentQuestionKind.LocalWriteConfirmation
-            ToolUserRequestKind.ExternalWriteConfirmation -> {
-                if (result.details["externalEffect"]?.asString == "read") {
-                    AgentQuestionKind.ExternalReadConfirmation
-                } else {
-                    AgentQuestionKind.ExternalWriteConfirmation
-                }
-            }
-        }
-        // 外部联网确认提取工具名、目标主机和脱敏参数键值，本地确认保留原摘录文本。
-        val toolName = result.details["toolName"]?.takeIf { it.isJsonPrimitive }?.asString
-            ?.takeIf(String::isNotBlank)
-        val host = result.details["destinationHost"]?.takeIf { it.isJsonPrimitive }?.asString
-            ?.takeIf(String::isNotBlank)
-        val parameters = result.details["parameters"]?.takeIf { it.isJsonObject }?.asJsonObject
-            ?.entrySet()
-            ?.map { (key, value) ->
-                val text = if (value.isJsonPrimitive) value.asString else value.toString()
-                key to text
-            }
-            .orEmpty()
-        val details = result.details.entrySet()
-            .filter { it.key !in setOf("operation", "toolName", "externalEffect", "destinationHost", "parameters") }
-            .joinToString("\n") { entry ->
-                val value = entry.value
-                if (value.isJsonPrimitive) value.asString else value.toString()
-            }
-        return AgentQuestionItem(
-            runId = runId,
-            question = result.question,
-            options = result.options,
-            confirmation = kind != AgentQuestionKind.Input,
-            details = details,
-            kind = kind,
-            toolName = toolName,
-            destinationHost = host,
-            parameterLines = parameters,
-        )
-    }
-
-    /** 将持久化工具调用映射为脱敏展示模型，优先呈现自定义名称与 HTTP 工具函数名。 */
-    private fun toToolCallItem(
-        invocation: ToolInvocation,
-        customLabels: Map<String, String>,
-    ): AgentToolCallItem {
-        val labelRes = TOOL_LABELS[invocation.toolId] ?: R.string.agent_step_tools
-        val label = customLabels[invocation.toolId]
-        val status = when (invocation.state) {
-            ToolInvocationState.Prepared, ToolInvocationState.Dispatching -> AgentToolCallStatus.Running
-            ToolInvocationState.Completed -> AgentToolCallStatus.Completed
-            ToolInvocationState.Failed -> AgentToolCallStatus.Failed
-            ToolInvocationState.AwaitingUser -> AgentToolCallStatus.WaitingForUser
-            ToolInvocationState.UnknownOutcome -> AgentToolCallStatus.Unknown
-        }
-        val disposition = when (invocation.writeDisposition) {
-            ToolWriteDisposition.Committed.name -> AgentWriteDisposition.Committed
-            ToolWriteDisposition.Proposed.name -> AgentWriteDisposition.Proposed
-            else -> null
-        }
-        return AgentToolCallItem(
-            id = invocation.id,
-            toolId = invocation.toolId,
-            labelRes = labelRes,
-            status = status,
-            writeDisposition = disposition,
-            label = label,
-        )
-    }
-
-    private fun status(state: AgentRunState): Int = when (state) {
-        AgentRunState.WaitingForUser -> R.string.agent_state_waiting
-        AgentRunState.Completed -> R.string.agent_state_completed
-        AgentRunState.Cancelled -> R.string.agent_state_cancelled
-        AgentRunState.Interrupted -> R.string.agent_state_interrupted
-        AgentRunState.Expired -> R.string.agent_state_expired
-        AgentRunState.Failed -> R.string.agent_state_failed
-        else -> R.string.agent_state_running
     }
 
     /** 将紧凑 JSON 剧情状态格式化为易读多行文本，空对象返回空串以便展示空态。 */
@@ -578,57 +464,4 @@ class AgentUiCoordinator(
             }
     }
 
-    /** 内置工具的展示元数据，供设置页与任务卡统一引用。 */
-    private data class ToolSpec(
-        val id: String,
-        val labelRes: Int,
-        val group: AgentToolGroup,
-        val writesMemory: Boolean = false,
-    )
-
-    companion object {
-        private val TOOL_SPECS = listOf(
-            ToolSpec("search_lore", R.string.agent_tool_search_lore, AgentToolGroup.Lore),
-            ToolSpec("read_lore_entry", R.string.agent_tool_read_lore_entry, AgentToolGroup.Lore),
-            ToolSpec("search_chat", R.string.agent_tool_search_chat, AgentToolGroup.Chat),
-            ToolSpec("read_messages", R.string.agent_tool_read_messages, AgentToolGroup.Chat),
-            ToolSpec("search_memory", R.string.agent_tool_search_memory, AgentToolGroup.Memory),
-            ToolSpec("read_memory", R.string.agent_tool_read_memory, AgentToolGroup.Memory),
-            ToolSpec(
-                "upsert_memory",
-                R.string.agent_tool_upsert_memory,
-                AgentToolGroup.Memory,
-                writesMemory = true,
-            ),
-            ToolSpec(
-                "correct_memory",
-                R.string.agent_tool_correct_memory,
-                AgentToolGroup.Memory,
-                writesMemory = true,
-            ),
-            ToolSpec(
-                "invalidate_memory",
-                R.string.agent_tool_invalidate_memory,
-                AgentToolGroup.Memory,
-                writesMemory = true,
-            ),
-            ToolSpec(
-                "promote_memory_scope",
-                R.string.agent_tool_promote_memory_scope,
-                AgentToolGroup.Memory,
-                writesMemory = true,
-            ),
-            ToolSpec("get_scene_state", R.string.agent_tool_get_scene_state, AgentToolGroup.Scene),
-            ToolSpec(
-                "update_scene_state",
-                R.string.agent_tool_update_scene_state,
-                AgentToolGroup.Scene
-            ),
-            ToolSpec("roll_dice", R.string.agent_tool_roll_dice, AgentToolGroup.Utility),
-            ToolSpec("calculate", R.string.agent_tool_calculate, AgentToolGroup.Utility),
-            ToolSpec("ask_user", R.string.agent_tool_ask_user, AgentToolGroup.Interaction),
-        )
-
-        val TOOL_LABELS: Map<String, Int> = TOOL_SPECS.associate { it.id to it.labelRes }
-    }
 }

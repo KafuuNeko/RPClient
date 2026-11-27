@@ -49,23 +49,34 @@ object ToolResultCodec {
     }
 
     /** 解码已通过信封指纹校验的结果，未知结果类型显式失败。 */
-    fun decode(value: JsonObject): ToolResult = when (value["kind"].asString) {
-        "success" -> ToolResult.Success(
-            value.getAsJsonObject("data").deepCopy(),
-            value["writeDisposition"]?.asString?.let(ToolWriteDisposition::valueOf),
-            value["truncated"].asBoolean, value["nextCursor"]?.asString,
-        )
+    fun decode(value: JsonObject): ToolResult {
+        // 按稳定 kind 字段还原结果，并对旧检查点的外发读取标记执行兼容剥离。
+        return when (value["kind"].asString) {
+            "success" -> ToolResult.Success(
+                value.getAsJsonObject("data").deepCopy(),
+                value["writeDisposition"]?.asString?.let(ToolWriteDisposition::valueOf),
+                value["truncated"].asBoolean, value["nextCursor"]?.asString,
+            )
 
-        "recoverable_error" -> ToolResult.RecoverableError(value["code"].asString)
-        "fatal_error" -> ToolResult.FatalError(value["code"].asString)
-        "awaiting_user" -> ToolResult.AwaitingUser(
-            value["question"].asString,
-            value.getAsJsonArray("options").map { it.asString },
-            ToolUserRequestKind.valueOf(value["requestKind"].asString),
-            value.getAsJsonObject("details").deepCopy()
-        )
+            "recoverable_error" -> ToolResult.RecoverableError(value["code"].asString)
+            "fatal_error" -> ToolResult.FatalError(value["code"].asString)
+            "awaiting_user" -> ToolResult.AwaitingUser(
+                value["question"].asString,
+                value.getAsJsonArray("options").map { it.asString },
+                requestKind(value),
+                value.getAsJsonObject("details").deepCopy().apply { remove("externalEffect") }
+            )
 
-        else -> error("Unsupported tool result kind")
+            else -> error("Unsupported tool result kind")
+        }
+    }
+
+    /** 旧检查点用写入确认加 read 标记表示外发读取，仅在读取边界做一次兼容转换。 */
+    private fun requestKind(value: JsonObject): ToolUserRequestKind {
+        val kind = ToolUserRequestKind.valueOf(value["requestKind"].asString)
+        return if (kind == ToolUserRequestKind.ExternalWriteConfirmation &&
+            value.getAsJsonObject("details")["externalEffect"]?.asString == "read"
+        ) ToolUserRequestKind.ExternalReadConfirmation else kind
     }
 
     private fun textLength(value: JsonElement): Int = when {

@@ -4,6 +4,7 @@ import java.util.concurrent.ConcurrentHashMap
 import me.kafuuneko.rpclient.libs.agent.model.AgentExecutionToken
 import me.kafuuneko.rpclient.libs.agent.model.AgentJson
 import me.kafuuneko.rpclient.libs.agent.model.ConversationRef
+import me.kafuuneko.rpclient.libs.agent.tool.ToolErrorCode
 import me.kafuuneko.rpclient.libs.agent.tool.ToolExecutionContext
 import me.kafuuneko.rpclient.libs.agent.tool.ToolRegistry
 import me.kafuuneko.rpclient.libs.llm.RoutingSessionId
@@ -57,6 +58,12 @@ class AgentPromptComposer(
     /** 等待恢复及新运行开始前重新读取配置，用冻结指纹定位对应版本。 */
     suspend fun refreshTools() = mRegistry.refresh()
 
+    /** 恢复前保护检查点引用的工具版本，缺失旧版本仍明确拒绝续跑。 */
+    fun retainTools(runId: String, digests: Collection<String>) = mRegistry.retain(runId, digests)
+
+    /** 运行终止后释放内存中的指纹保留记录。 */
+    fun releaseTools(runId: String) = mRegistry.release(runId)
+
     /** 整库替换后丢弃旧工具处理器及检查器引用。 */
     suspend fun clearTools() = mRegistry.clear()
 
@@ -71,6 +78,7 @@ class AgentPromptComposer(
     ) {
         val request = projection
         val tokenizer = mTokenizers.resolve(plan.input.provider)
+        // 按消息粒度计量基础前缀，标注剧情状态来源供检查器区分。
         val items = request.base.messages.mapIndexed { index, message ->
             val source =
                 if (message.content.startsWith("[Scene state]")) PromptSource(PromptSourceKind.SceneState) else PromptSource(
@@ -85,6 +93,7 @@ class AgentPromptComposer(
                 message.images
             )
         }.toMutableList()
+        // 按冻结指纹拼接本轮暴露给模型的工具契约快照。
         val definitions =
             request.tools.joinToString("\n") {
                 mRegistry.find(
@@ -101,6 +110,7 @@ class AgentPromptComposer(
                 definitions
             )
         )
+        // 缓存与真实发送同源的 Token 统计结果，不暴露原始工具交换链。
         mInspections[plan.input.conversation.key] = PromptInspection(
             plan.input.provider.model,
             tokenizer.name,
@@ -122,18 +132,20 @@ class AgentPromptComposer(
         presetId: Long?,
         token: AgentExecutionToken
     ): AgentTurnPlan {
+        // 先按配置版本刷新目录，再解析本轮冻结预设并执行字面宏展开。
         mRegistry.refresh()
         val snapshot = AgentPromptSnapshot.resolve(
             input.templates,
             mPresets.getAgentSnapshot(presetId).templates
         ).templates
         val scope = MacroScope(input.macros.mapValues { MacroValue.Literal(it.value) })
-        fun render(text: String) = promptMacroExpander.expand(text, scope).text
+        val render: (String) -> String = { text -> promptMacroExpander.expand(text, scope).text }
         val instruction = listOf(
             snapshot.agentInstruction, snapshot.agentToolGuidance,
             snapshot.agentGroupInstruction.takeIf { input.conversation is ConversationRef.Group }
                 .orEmpty()
-        ).map(::render).filter(String::isNotBlank).joinToString("\n\n")
+        ).map(render).filter(String::isNotBlank).joinToString("\n\n")
+        // 组装固定系统前缀、当前剧情状态与去重后的可见记忆上下文。
         val scene = mScenes.get(input.conversation)
         val prefix = listOfNotNull(
             input.provider.systemPrompt.takeIf(String::isNotBlank)
@@ -159,8 +171,9 @@ class AgentPromptComposer(
         }, snapshot, scope)
         val fixedPrefix = prefix + listOfNotNull(
             memoryText.takeIf(String::isNotBlank)?.let { LLMMessage(LLMMessageRole.System, it) })
+        // 原子保留本轮允许的工具指纹，只读记忆策略下过滤记忆写工具。
         val policy = mRuns.policy(input.conversation)
-        val tools = mRegistry.available(mRuns.enabledTools(policy))
+        val tools = mRegistry.retainAvailable(token.runId, mRuns.enabledTools(policy))
             .filterNot { policy.memoryReadOnly && it.definition.writesMemory }
         val request = input.request.copy(
             messages = fixedPrefix + input.request.messages,
@@ -197,7 +210,7 @@ class AgentPromptComposer(
     fun request(plan: AgentTurnPlan): LLMToolGenerationRequest {
         val tools = plan.toolDigests.map { (id, digest) ->
             mRegistry.find(id, digest)?.definition
-                ?: throw AgentRuntimeException("tool_contract_changed")
+                ?: throw AgentRuntimeException(ToolErrorCode.TOOL_CONTRACT_CHANGED)
         }
         return LLMToolGenerationRequest(plan.input.request, tools, systemPromptApplied = true)
     }

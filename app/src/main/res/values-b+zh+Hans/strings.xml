@@ -1870,4 +1870,5 @@
     <string name="tool_settings_unbound">未绑定连接</string>
     <string name="tool_settings_usage_hint_label">附加使用提示</string>
     <string name="tool_settings_value_label">值</string>
+    <string name="tool_settings_deleted_external_tool">已删除的外部工具</string>
 </resources>

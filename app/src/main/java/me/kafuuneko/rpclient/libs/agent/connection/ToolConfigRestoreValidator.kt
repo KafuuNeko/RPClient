@@ -3,7 +3,7 @@ package me.kafuuneko.rpclient.libs.agent.connection
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.google.gson.JsonObject
 import java.util.UUID
-import me.kafuuneko.rpclient.libs.agent.tool.builtin.BuiltinAgentTools
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.BuiltinToolRegistrations
 
 /**
  * 整库替换前的 HTTP 配置校验边界。
@@ -50,18 +50,23 @@ object ToolConfigRestoreValidator {
                         addProperty("kind", rows.getString(6))
                     }
                     val tool = ToolConfigCodec.readTool(value, id)
-                    ToolConfigCodec.validateBindings(tool, tool.connectionId?.let(connectionMethods::get))
+                    ToolConfigCodec.validateBindings(
+                        tool,
+                        tool.connectionId?.let(connectionMethods::get)
+                    )
                 }
             }
         // 按内置工具真实参数 Schema 完整校验稀疏覆盖，防止恢复后运行期加载崩溃。
-        val schemas = BuiltinAgentTools.PARAMETER_SCHEMAS
+        val catalog = BuiltinToolRegistrations.catalog
         db.query("SELECT toolId, configJson FROM builtin_tool_overrides").use { rows ->
             while (rows.moveToNext()) {
                 val toolId = rows.getString(0)
-                val schema = requireNotNull(schemas[toolId]) { "Unknown built-in tool override" }
+                val specification =
+                    requireNotNull(catalog.find(toolId)) { "Unknown built-in tool override" }.specification
                 BuiltinToolOverrideCodec.validateForSchema(
                     id = toolId,
-                    schema = schema,
+                    schema = specification.prompt.parameters,
+                    editableDefaults = specification.editableDefaults,
                     value = ToolConfigCodec.parse(rows.getString(1)),
                 )
             }

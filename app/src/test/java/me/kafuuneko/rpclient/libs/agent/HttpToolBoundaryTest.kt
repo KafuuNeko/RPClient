@@ -1,6 +1,7 @@
 package me.kafuuneko.rpclient.libs.agent
 
 import com.google.gson.JsonObject
+import com.google.gson.JsonPrimitive
 import java.net.InetAddress
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
@@ -8,24 +9,24 @@ import me.kafuuneko.rpclient.libs.agent.connection.BuiltinToolOverrideCodec
 import me.kafuuneko.rpclient.libs.agent.connection.BuiltinToolOverrideData
 import me.kafuuneko.rpclient.libs.agent.connection.HttpToolConfigCodec
 import me.kafuuneko.rpclient.libs.agent.connection.HttpToolMapping
-import me.kafuuneko.rpclient.libs.agent.connection.ToolHttpPayload
 import me.kafuuneko.rpclient.libs.agent.connection.HttpToolResultCodec
+import me.kafuuneko.rpclient.libs.agent.connection.ToolConfigCodec
 import me.kafuuneko.rpclient.libs.agent.connection.ToolConfigValidationException
 import me.kafuuneko.rpclient.libs.agent.connection.ToolHttpException
+import me.kafuuneko.rpclient.libs.agent.connection.ToolHttpPayload
 import me.kafuuneko.rpclient.libs.agent.connection.ToolJsonPointer
 import me.kafuuneko.rpclient.libs.agent.connection.ToolNetworkPolicy
 import me.kafuuneko.rpclient.libs.agent.connection.ToolSafeDns
-import me.kafuuneko.rpclient.libs.agent.connection.ToolConfigCodec
 import me.kafuuneko.rpclient.libs.agent.model.AgentJson
-import me.kafuuneko.rpclient.libs.agent.tool.AgentTool
-import me.kafuuneko.rpclient.libs.agent.tool.AgentToolDefinition
 import me.kafuuneko.rpclient.libs.agent.tool.ToolAction
-import me.kafuuneko.rpclient.libs.agent.tool.ToolEffect
 import me.kafuuneko.rpclient.libs.agent.tool.ToolExecutionContext
 import me.kafuuneko.rpclient.libs.agent.tool.ToolResult
 import me.kafuuneko.rpclient.libs.agent.tool.ToolResultCodec
 import me.kafuuneko.rpclient.libs.agent.tool.ToolSchemaCodec
-import me.kafuuneko.rpclient.libs.agent.tool.builtin.BuiltinAgentTools
+import me.kafuuneko.rpclient.libs.agent.tool.base.AbstractAgentTool
+import me.kafuuneko.rpclient.libs.agent.tool.base.ToolAvailability
+import me.kafuuneko.rpclient.libs.agent.tool.base.ToolAvailabilityState
+import me.kafuuneko.rpclient.libs.agent.tool.catalog.BuiltinToolRegistrations
 import me.kafuuneko.rpclient.utils.jsonArray
 import me.kafuuneko.rpclient.utils.jsonObject
 import okhttp3.Dns
@@ -292,32 +293,25 @@ class HttpToolBoundaryTest {
     }
 
     @Test
-    fun builtinOverrideDelegatesEnabledPreservesBlankDescriptionAndValidatesSchema() = runBlocking {
+    fun builtinOverridePreservesAvailabilityBlankDescriptionAndValidatesSchema() = runBlocking {
         // 内置覆盖必须透传 isEnabled、保留空白说明回退并校验默认参数是否属于目标 Schema。
-        val rollDiceSchema = requireNotNull(BuiltinAgentTools.PARAMETER_SCHEMAS["roll_dice"])
-        val disabledTool = object : AgentTool {
-            override val definition = AgentToolDefinition(
-                toolId = "roll_dice",
-                name = "roll_dice",
-                contractVersion = 1,
-                description = "Default dice description",
-                parameters = rollDiceSchema,
-                effect = ToolEffect.NonDeterministicRead,
-            )
-
-            override suspend fun isEnabled(): Boolean = false
-
-            override suspend fun prepare(
-                context: ToolExecutionContext,
-                arguments: JsonObject,
-            ): ToolAction = ToolAction.Read { ToolResult.Success(JsonObject()) }
-        }
+        val specification =
+            requireNotNull(BuiltinToolRegistrations.catalog.find("roll_dice")).specification
+        val rollDiceSchema = specification.prompt.parameters
         val rawOverride = BuiltinToolOverrideCodec.encode(
             BuiltinToolOverrideData(displayName = "Dice", description = "   ")
         )
-        val wrapped = BuiltinToolOverrideCodec.apply(disabledTool, rawOverride)
-        assertEquals("Default dice description", wrapped.definition.description)
-        assertFalse(wrapped.isEnabled())
+        val resolved = BuiltinToolOverrideCodec.resolve(specification, rawOverride)
+        val tool = object :
+            AbstractAgentTool(resolved, ToolAvailability { ToolAvailabilityState.Revoked }) {
+            override suspend fun createAction(
+                context: ToolExecutionContext,
+                arguments: JsonObject
+            ): ToolAction =
+                ToolAction.Read { ToolResult.Success(JsonObject()) }
+        }
+        assertEquals(specification.prompt.description, tool.definition.description)
+        assertFalse(tool.isEnabled())
         assertTrue(
             BuiltinToolOverrideCodec.isEmpty(
                 ToolConfigCodec.parse(BuiltinToolOverrideCodec.encode(BuiltinToolOverrideData()))
@@ -329,7 +323,7 @@ class HttpToolBoundaryTest {
                 rollDiceSchema,
                 ToolConfigCodec.parse(
                     BuiltinToolOverrideCodec.encode(
-                        BuiltinToolOverrideData(defaults = mapOf("limit" to 10))
+                        BuiltinToolOverrideData(defaults = mapOf("limit" to JsonPrimitive(10)))
                     )
                 ),
             )

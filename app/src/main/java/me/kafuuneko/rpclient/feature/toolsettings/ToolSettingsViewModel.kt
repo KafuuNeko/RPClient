@@ -2,8 +2,6 @@ package me.kafuuneko.rpclient.feature.toolsettings
 
 import androidx.annotation.StringRes
 import androidx.lifecycle.viewModelScope
-import com.google.gson.JsonArray
-import com.google.gson.JsonObject
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -11,43 +9,30 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.kafuuneko.rpclient.R
-import me.kafuuneko.rpclient.feature.agent.AgentUiCoordinator
-import me.kafuuneko.rpclient.feature.agent.model.AgentToolGroup
-import me.kafuuneko.rpclient.feature.toolsettings.presentation.BuiltinParamDraft
-import me.kafuuneko.rpclient.feature.toolsettings.presentation.BuiltinToolListItem
 import me.kafuuneko.rpclient.feature.toolsettings.presentation.HttpBindingDraft
-import me.kafuuneko.rpclient.feature.toolsettings.presentation.HttpToolListItem
 import me.kafuuneko.rpclient.feature.toolsettings.presentation.KeyValueDraft
 import me.kafuuneko.rpclient.feature.toolsettings.presentation.ToolCodeEditorTarget
-import me.kafuuneko.rpclient.feature.toolsettings.presentation.ToolConnectionListItem
-import me.kafuuneko.rpclient.feature.toolsettings.presentation.ToolSettingsContentState
 import me.kafuuneko.rpclient.feature.toolsettings.presentation.ToolSettingsDialogState
 import me.kafuuneko.rpclient.feature.toolsettings.presentation.ToolSettingsEditorMode
 import me.kafuuneko.rpclient.feature.toolsettings.presentation.ToolSettingsTab
 import me.kafuuneko.rpclient.feature.toolsettings.presentation.ToolSettingsUiIntent
 import me.kafuuneko.rpclient.feature.toolsettings.presentation.ToolSettingsUiState
 import me.kafuuneko.rpclient.feature.toolsettings.presentation.ToolSettingsViewEvent
-import me.kafuuneko.rpclient.libs.agent.connection.BuiltinToolOverrideCodec
-import me.kafuuneko.rpclient.libs.agent.connection.BuiltinToolOverrideData
 import me.kafuuneko.rpclient.libs.agent.connection.HttpAgentTools
-import me.kafuuneko.rpclient.libs.agent.connection.HttpToolBinding
 import me.kafuuneko.rpclient.libs.agent.connection.HttpToolConfigCodec
-import me.kafuuneko.rpclient.libs.agent.connection.HttpToolConnection
-import me.kafuuneko.rpclient.libs.agent.connection.HttpToolMapping
+import me.kafuuneko.rpclient.libs.agent.connection.HttpToolKind
+import me.kafuuneko.rpclient.libs.agent.connection.ToolAuthMode
 import me.kafuuneko.rpclient.libs.agent.connection.ToolConfigCodec
 import me.kafuuneko.rpclient.libs.agent.connection.ToolConfigTransferRepository
 import me.kafuuneko.rpclient.libs.agent.connection.ToolConfigValidationException
 import me.kafuuneko.rpclient.libs.agent.connection.ToolCredentialRepository
 import me.kafuuneko.rpclient.libs.agent.connection.ToolNetworkPolicy
 import me.kafuuneko.rpclient.libs.agent.model.AgentJson
+import me.kafuuneko.rpclient.libs.agent.tool.ToolErrorCode
 import me.kafuuneko.rpclient.libs.agent.tool.ToolResult
-import me.kafuuneko.rpclient.libs.agent.tool.ToolSchema
-import me.kafuuneko.rpclient.libs.agent.tool.ToolSchemaCodec
 import me.kafuuneko.rpclient.libs.core.AppViewEvent
 import me.kafuuneko.rpclient.libs.core.CoreViewModelWithEvent
 import me.kafuuneko.rpclient.libs.core.UiIntentObserver
-import me.kafuuneko.rpclient.libs.room.entity.ToolConnection
-import me.kafuuneko.rpclient.libs.room.entity.ToolDefinition
 import me.kafuuneko.rpclient.libs.room.repository.ToolConfigRepository
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -64,6 +49,7 @@ class ToolSettingsViewModel :
     private val mConfigurations by inject<ToolConfigRepository>()
     private val mCredentials by inject<ToolCredentialRepository>()
     private val mTools by inject<HttpAgentTools>()
+    private val mEditor by inject<ToolSettingsEditor>()
     private val mTransfer by inject<ToolConfigTransferRepository>()
     private var mPendingExport: String? = null
     private var mTestJob: Job? = null
@@ -81,6 +67,7 @@ class ToolSettingsViewModel :
     private fun onBack() {
         val state = getOrNull<ToolSettingsUiState.Normal>() ?: return
         val dialog = state.dialog
+        // 逐层退出嵌套子代码编辑器与运行中测试弹窗，确保网络请求立即取消。
         if (dialog is ToolSettingsDialogState.ToolEditor && dialog.activeCodeEditor != null) {
             state.copy(dialog = dialog.copy(activeCodeEditor = null)).setup()
             return
@@ -90,6 +77,7 @@ class ToolSettingsViewModel :
             state.copy(dialog = ToolSettingsDialogState.None).setup()
             return
         }
+        // 持久化 IO 忙碌期间拦截普通返回，否则关闭弹窗或进入结束过渡态。
         if (state.busy) return
         if (dialog != ToolSettingsDialogState.None) {
             state.copy(dialog = ToolSettingsDialogState.None).setup()
@@ -120,7 +108,7 @@ class ToolSettingsViewModel :
     @UiIntentObserver(ToolSettingsUiIntent.EditConnection::class)
     private fun onEditConnection(intent: ToolSettingsUiIntent.EditConnection) = perform {
         val source = mConfigurations.connection(intent.id) ?: return@perform
-        val editor = buildConnectionEditor(source, ToolSettingsEditorMode.Edit)
+        val editor = mEditor.buildConnectionEditor(source, ToolSettingsEditorMode.Edit)
         getOrNull<ToolSettingsUiState.Normal>()?.copy(dialog = editor)?.setup()
     }
 
@@ -128,7 +116,7 @@ class ToolSettingsViewModel :
     @UiIntentObserver(ToolSettingsUiIntent.CopyConnection::class)
     private fun onCopyConnection(intent: ToolSettingsUiIntent.CopyConnection) = perform {
         val source = mConfigurations.connection(intent.id) ?: return@perform
-        val copied = buildConnectionEditor(source, ToolSettingsEditorMode.Copy).copy(
+        val copied = mEditor.buildConnectionEditor(source, ToolSettingsEditorMode.Copy).copy(
             id = UUID.randomUUID().toString(),
             name = "${source.name} (2)",
             credentialRef = null,
@@ -189,7 +177,8 @@ class ToolSettingsViewModel :
         // 先写入新密文再更新连接引用，写库失败时立即回滚新建密文文件。
         val reference = mCredentials.save(intent.secret)
         try {
-            val nextAuthMode = config.authMode.takeUnless { it == "None" } ?: "Bearer"
+            val nextAuthMode =
+                config.authMode.takeUnless { it == ToolAuthMode.None } ?: ToolAuthMode.Bearer
             val nextAuthHeader = config.authHeader.ifBlank {
                 defaultAuthFieldName(nextAuthMode)
             }
@@ -217,6 +206,7 @@ class ToolSettingsViewModel :
     /** 解绑当前连接的凭据并清理本机孤立密文文件。 */
     @UiIntentObserver(ToolSettingsUiIntent.ClearCredential::class)
     private fun onClearCredential() = perform(onError = ::showDialogError) {
+        // 先清空数据库中的凭据引用，再回收未被任何连接引用的本地密文。
         val dialog = getOrNull<ToolSettingsUiState.Normal>()?.dialog
             as? ToolSettingsDialogState.Credential ?: return@perform
         val connection = mConfigurations.connection(dialog.connectionId) ?: return@perform
@@ -286,7 +276,12 @@ class ToolSettingsViewModel :
     /** 追加一条连接静态 Query 参数草稿。 */
     @UiIntentObserver(ToolSettingsUiIntent.AddConnectionQuery::class)
     private fun onAddConnectionQuery() {
-        updateConnectionDraft { it.copy(queryParams = it.queryParams + KeyValueDraft(), errorRes = null) }
+        updateConnectionDraft {
+            it.copy(
+                queryParams = it.queryParams + KeyValueDraft(),
+                errorRes = null
+            )
+        }
     }
 
     /** 修改指定索引的静态 Query 参数。 */
@@ -345,7 +340,8 @@ class ToolSettingsViewModel :
     @UiIntentObserver(ToolSettingsUiIntent.CreateTool::class)
     private fun onCreateTool() {
         val state = ready() ?: return
-        val editor = buildToolEditor(mConfigurations.newTool(), ToolSettingsEditorMode.Create)
+        val editor =
+            mEditor.buildToolEditor(mConfigurations.newTool(), ToolSettingsEditorMode.Create)
         state.copy(dialog = editor).setup()
     }
 
@@ -356,7 +352,7 @@ class ToolSettingsViewModel :
         val template = mConfigurations.template(intent.readUrl)
         val existingNames = state.content.tools.mapTo(HashSet()) { it.name }
         val uniqueName = suggestUniqueToolName(template.name, existingNames)
-        val editor = buildToolEditor(
+        val editor = mEditor.buildToolEditor(
             template.copy(name = uniqueName),
             ToolSettingsEditorMode.Create,
         )
@@ -367,7 +363,7 @@ class ToolSettingsViewModel :
     @UiIntentObserver(ToolSettingsUiIntent.EditTool::class)
     private fun onEditTool(intent: ToolSettingsUiIntent.EditTool) = perform {
         val source = mConfigurations.tool(intent.id) ?: return@perform
-        val editor = buildToolEditor(source, ToolSettingsEditorMode.Edit)
+        val editor = mEditor.buildToolEditor(source, ToolSettingsEditorMode.Edit)
         getOrNull<ToolSettingsUiState.Normal>()?.copy(dialog = editor)?.setup()
     }
 
@@ -377,7 +373,7 @@ class ToolSettingsViewModel :
         val source = mConfigurations.tool(intent.id) ?: return@perform
         val existingNames = mConfigurations.tools().mapTo(HashSet()) { it.name }
         val copyName = suggestUniqueToolName(source.name, existingNames)
-        val copied = buildToolEditor(
+        val copied = mEditor.buildToolEditor(
             source.copy(id = UUID.randomUUID().toString(), name = copyName),
             ToolSettingsEditorMode.Copy,
         )
@@ -513,6 +509,7 @@ class ToolSettingsViewModel :
     /** 确认独立 JSON 代码编辑器修改并刷新参数摘要预览。 */
     @UiIntentObserver(ToolSettingsUiIntent.ApplyCodeEditor::class)
     private fun onApplyCodeEditor(intent: ToolSettingsUiIntent.ApplyCodeEditor) {
+        // 截断超长文本并按编辑目标回填对应 JSON 草稿与摘要，同时关闭子编辑器。
         val text = intent.value.take(256 * 1024)
         updateToolDraft { draft ->
             when (intent.target) {
@@ -541,38 +538,7 @@ class ToolSettingsViewModel :
     /** 打开内置工具的结构化覆写编辑器，展示原始说明与真实参数清单。 */
     @UiIntentObserver(ToolSettingsUiIntent.EditBuiltin::class)
     private fun onEditBuiltin(intent: ToolSettingsUiIntent.EditBuiltin) = perform {
-        val definition = mTools.builtinDefinitions().firstOrNull { it.toolId == intent.toolId }
-            ?: return@perform
-        val existingRaw = mConfigurations.overrides().firstOrNull { it.toolId == intent.toolId }
-            ?.configJson
-        val override = runCatching { BuiltinToolOverrideCodec.decode(existingRaw) }
-            .getOrDefault(BuiltinToolOverrideData())
-        val defaultLabelRes = AgentUiCoordinator.TOOL_LABELS[definition.toolId]
-            ?: R.string.tool_settings_builtins
-        // 从权威 Schema 派生真实参数列表与允许调整的分页默认值键。
-        val params = definition.parameters.properties.map { (paramName, schema) ->
-            BuiltinParamDraft(
-                name = paramName,
-                typeLabel = schema.type.name.lowercase(),
-                required = paramName in definition.parameters.required,
-                defaultDescription = schema.description,
-                overrideDescription = override.parameterDescriptions[paramName].orEmpty(),
-            )
-        }
-        val editableDefaults = BuiltinToolOverrideCodec.editableDefaultKeys(definition.parameters)
-        val editor = ToolSettingsDialogState.BuiltinEditor(
-            toolId = definition.toolId,
-            defaultLabelRes = defaultLabelRes,
-            originalDescription = definition.description,
-            displayName = override.displayName,
-            description = override.description,
-            usageHint = override.usageHint,
-            parameters = params,
-            editableDefaults = editableDefaults,
-            defaultLimit = override.defaults["limit"]?.toString().orEmpty(),
-            defaultOffset = override.defaults["offset"]?.toString().orEmpty(),
-            customized = existingRaw != null,
-        )
+        val editor = mEditor.builtin(intent.toolId) ?: return@perform
         getOrNull<ToolSettingsUiState.Normal>()?.copy(dialog = editor)?.setup()
     }
 
@@ -631,13 +597,10 @@ class ToolSettingsViewModel :
     /** 更新内置工具可选分页默认值草稿。 */
     @UiIntentObserver(ToolSettingsUiIntent.ChangeBuiltinDefault::class)
     private fun onChangeBuiltinDefault(intent: ToolSettingsUiIntent.ChangeBuiltinDefault) {
-        val digits = intent.value.filter { it.isDigit() }.take(6)
         updateBuiltinDraft { draft ->
-            when (intent.key) {
-                "limit" -> draft.copy(defaultLimit = digits, errorRes = null)
-                "offset" -> draft.copy(defaultOffset = digits, errorRes = null)
-                else -> draft
-            }
+            draft.copy(editableDefaults = draft.editableDefaults.map { field ->
+                if (field.key == intent.key) field.copy(value = intent.value.take(4000)) else field
+            }, errorRes = null)
         }
     }
 
@@ -646,9 +609,9 @@ class ToolSettingsViewModel :
     private fun onSaveDialog() = perform(onError = ::showDialogError) {
         val dialog = getOrNull<ToolSettingsUiState.Normal>()?.dialog ?: return@perform
         when (dialog) {
-            is ToolSettingsDialogState.ConnectionEditor -> saveConnectionDraft(dialog)
-            is ToolSettingsDialogState.ToolEditor -> saveToolDraft(dialog)
-            is ToolSettingsDialogState.BuiltinEditor -> saveBuiltinDraft(dialog)
+            is ToolSettingsDialogState.ConnectionEditor -> mEditor.saveConnectionDraft(dialog)
+            is ToolSettingsDialogState.ToolEditor -> mEditor.saveToolDraft(dialog)
+            is ToolSettingsDialogState.BuiltinEditor -> mEditor.saveBuiltinDraft(dialog)
             else -> return@perform
         }
         closeDialog()
@@ -688,11 +651,13 @@ class ToolSettingsViewModel :
     /** 打开测试弹窗，并按工具参数 Schema 自动生成参数模板与提示。 */
     @UiIntentObserver(ToolSettingsUiIntent.OpenTestDialog::class)
     private fun onOpenTestDialog(intent: ToolSettingsUiIntent.OpenTestDialog) = perform {
+        // 读取工具及绑定连接摘要，公网读取不绑定连接故目标留空。
         val tool = mConfigurations.tool(intent.toolId) ?: return@perform
         val connection = tool.connectionId?.let { mConfigurations.connection(it) }
-        val config = connection?.let { runCatching { HttpToolConfigCodec.connection(it.configJson) }.getOrNull() }
+        val config =
+            connection?.let { runCatching { HttpToolConfigCodec.connection(it.configJson) }.getOrNull() }
         val destination = when {
-            tool.kind == "ReadUrl" -> ""
+            tool.kind == HttpToolKind.ReadUrl -> ""
             config != null && config.url.isNotBlank() -> {
                 val host = runCatching { ToolNetworkPolicy.url(config.url).host }.getOrDefault("")
                 if (host.isNotBlank()) "${config.method} $host" else ""
@@ -700,6 +665,7 @@ class ToolSettingsViewModel :
 
             else -> ""
         }
+        // 生成参数提示与默认测试参数模板，打开待确认执行的测试弹窗。
         val testDialog = ToolSettingsDialogState.Test(
             toolId = tool.id,
             toolName = tool.name,
@@ -729,7 +695,10 @@ class ToolSettingsViewModel :
         // 解析与校验测试参数失败时原地反馈具体错误，避免触发无效网络请求。
         val arguments = try {
             val parsed = AgentJson.parse(test.arguments)
-            if (!parsed.isJsonObject) throw ToolConfigValidationException("invalid_json", "Expected JSON object")
+            if (!parsed.isJsonObject) throw ToolConfigValidationException(
+                ToolErrorCode.INVALID_JSON,
+                "Expected JSON object"
+            )
             parsed.asJsonObject
         } catch (error: Exception) {
             state.copy(
@@ -808,7 +777,7 @@ class ToolSettingsViewModel :
         getOrNull<ToolSettingsUiState.Normal>()?.copy(choosingDocument = false)?.setup()
         val uri = intent.uri ?: return
         perform {
-            mConfigurations.import(mTransfer.read(uri), mTools::validateOverride)
+            mConfigurations.import(mTransfer.read(uri))
             reload()
             AppViewEvent.PopupToastMessageByResId(R.string.tool_settings_import_success).tryEmit()
         }
@@ -833,261 +802,11 @@ class ToolSettingsViewModel :
         super.onCleared()
     }
 
-    /** 保存结构化连接表单至权威配置仓库。 */
-    private suspend fun saveConnectionDraft(draft: ToolSettingsDialogState.ConnectionEditor) {
-        val timeoutSeconds = draft.timeoutSeconds.trim().toLongOrNull()
-            ?: throw ToolConfigValidationException("invalid_limits", "Invalid timeout")
-        val maxResponseKiB = draft.maxResponseKiB.trim().toIntOrNull()
-            ?: throw ToolConfigValidationException("invalid_limits", "Invalid max response size")
-        // 忽略完全空白的键值对行；填写了键或值其中一项但另一项缺键时明确报错。
-        val queryMap = linkedMapOf<String, String>()
-        draft.queryParams.forEach { row ->
-            val key = row.key.trim()
-            if (key.isEmpty() && row.value.isEmpty()) return@forEach
-            if (key.isEmpty()) throw ToolConfigValidationException("invalid_mapping", "Empty query key")
-            queryMap[key] = row.value
-        }
-        val headerMap = linkedMapOf<String, String>()
-        draft.headers.forEach { row ->
-            val key = row.key.trim()
-            if (key.isEmpty() && row.value.isEmpty()) return@forEach
-            if (key.isEmpty()) throw ToolConfigValidationException("invalid_headers", "Empty header name")
-            headerMap[key] = row.value
-        }
-        val config = HttpToolConnection(
-            url = draft.url.trim(),
-            method = draft.method,
-            query = queryMap,
-            headers = headerMap,
-            authMode = draft.authMode,
-            authHeader = draft.authHeader.trim().ifEmpty { defaultAuthFieldName(draft.authMode) },
-            credentialRef = draft.credentialRef,
-            timeoutMillis = timeoutSeconds * 1000L,
-            maxResponseBytes = maxResponseKiB * 1024,
-            allowPrivateAddresses = draft.allowPrivateAddresses,
-        )
-        mConfigurations.save(
-            ToolConnection(
-                id = draft.id,
-                name = draft.name.trim(),
-                configJson = HttpToolConfigCodec.encode(config),
-                enabled = draft.enabled,
-            ),
-        )
-    }
-
-    /** 保存结构化 HTTP 工具表单至权威配置仓库。 */
-    private suspend fun saveToolDraft(draft: ToolSettingsDialogState.ToolEditor) {
-        val mappingJson = if (draft.kind == "ReadUrl") {
-            "{}"
-        } else {
-            val bodyObject = ToolConfigCodec.parse(draft.bodyJson.ifBlank { "{}" })
-            // 过滤空白绑定与字段投影，组装结构化映射再交由编解码器强校验。
-            val bindings = draft.bindings.mapNotNull { row ->
-                val argument = row.argument.trim()
-                val path = row.path.trim()
-                if (argument.isEmpty() && path.isEmpty()) return@mapNotNull null
-                val normalizedArg = if (argument.startsWith('/')) argument else "/$argument"
-                val normalizedPath = if (row.target == "body" && path.isNotEmpty() && !path.startsWith('/')) {
-                    "/$path"
-                } else {
-                    path
-                }
-                HttpToolBinding(argument = normalizedArg, target = row.target, path = normalizedPath)
-            }
-            val fields = linkedMapOf<String, String>()
-            draft.fields.forEach { row ->
-                val key = row.key.trim()
-                val path = row.value.trim()
-                if (key.isEmpty() && path.isEmpty()) return@forEach
-                if (key.isEmpty()) throw ToolConfigValidationException("invalid_mapping", "Empty field name")
-                fields[key] = if (path.isEmpty() || path.startsWith('/')) path else "/$path"
-            }
-            val responsePath = draft.responsePath.trim().let { raw ->
-                if (raw.isEmpty() || raw.startsWith('/')) raw else "/$raw"
-            }
-            val errorPath = draft.errorPath.trim().takeIf { it.isNotEmpty() }?.let { raw ->
-                if (raw.startsWith('/')) raw else "/$raw"
-            }
-            val nextCursorPath = draft.nextCursorPath.trim().takeIf { it.isNotEmpty() }?.let { raw ->
-                if (raw.startsWith('/')) raw else "/$raw"
-            }
-            HttpToolConfigCodec.encode(
-                HttpToolMapping(
-                    body = bodyObject,
-                    bindings = bindings,
-                    responsePath = responsePath,
-                    errorPath = errorPath,
-                    nextCursorPath = nextCursorPath,
-                    fields = fields,
-                ),
-            )
-        }
-        mConfigurations.save(
-            ToolDefinition(
-                id = draft.id,
-                name = draft.name.trim(),
-                description = draft.description.trim(),
-                parametersJson = draft.parametersJson,
-                mappingJson = mappingJson,
-                connectionId = if (draft.kind == "ReadUrl") null else draft.connectionId,
-                kind = draft.kind,
-                enabled = draft.enabled,
-            ),
-        )
-    }
-
-    /** 保存内置工具稀疏覆写表单；全部清空时自动恢复内置默认配置。 */
-    private suspend fun saveBuiltinDraft(draft: ToolSettingsDialogState.BuiltinEditor) {
-        val defaults = linkedMapOf<String, Int>()
-        if ("limit" in draft.editableDefaults && draft.defaultLimit.isNotBlank()) {
-            defaults["limit"] = draft.defaultLimit.trim().toIntOrNull()
-                ?: throw ToolConfigValidationException("invalid_override", "Invalid default limit")
-        }
-        if ("offset" in draft.editableDefaults && draft.defaultOffset.isNotBlank()) {
-            defaults["offset"] = draft.defaultOffset.trim().toIntOrNull()
-                ?: throw ToolConfigValidationException("invalid_override", "Invalid default offset")
-        }
-        val paramDescriptions = draft.parameters
-            .associate { it.name to it.overrideDescription.trim() }
-            .filterValues { it.isNotEmpty() }
-        val encoded = BuiltinToolOverrideCodec.encode(
-            BuiltinToolOverrideData(
-                displayName = draft.displayName.trim(),
-                description = draft.description.trim(),
-                usageHint = draft.usageHint.trim(),
-                parameterDescriptions = paramDescriptions,
-                defaults = defaults,
-            ),
-        )
-        mTools.validateOverride(draft.toolId, encoded)
-        mConfigurations.saveOverride(draft.toolId, encoded)
-    }
-
-    /** 从数据库重新构建连接、HTTP 工具与内置工具的非敏感摘要列表。 */
+    /** 重新读取权威配置，保持当前页签和弹窗草稿。 */
     private suspend fun reload() {
-        val rawConnections = mConfigurations.connections()
-        val rawTools = mConfigurations.tools()
-        val boundCounts = rawTools.mapNotNull { it.connectionId }.groupingBy { it }.eachCount()
-        // 逐个检查连接 URL 与本机凭据可用性，不将密钥正文放入 UI 模型。
-        val connectionItems = rawConnections.map { connection ->
-            val config = runCatching { HttpToolConfigCodec.connection(connection.configJson) }
-                .getOrElse { HttpToolConnection("") }
-            val hasCredential = config.credentialRef?.let { mCredentials.read(it) != null } == true
-            val missing = config.url.isBlank() || (config.authMode != "None" && !hasCredential)
-            ToolConnectionListItem(
-                id = connection.id,
-                name = connection.name,
-                url = config.url,
-                method = config.method,
-                authMode = config.authMode,
-                authHeader = config.authHeader,
-                hasCredential = hasCredential,
-                allowPrivateAddresses = config.allowPrivateAddresses,
-                enabled = connection.enabled,
-                needsConfiguration = missing,
-                boundToolCount = boundCounts[connection.id] ?: 0,
-            )
-        }
-        val connectionMap = connectionItems.associateBy { it.id }
-        val toolItems = rawTools.map { tool ->
-            val bound = tool.connectionId?.let(connectionMap::get)
-            val missing = tool.kind != "ReadUrl" &&
-                (bound == null || !bound.enabled || bound.needsConfiguration)
-            HttpToolListItem(
-                id = tool.id,
-                name = tool.name,
-                description = tool.description,
-                kind = tool.kind,
-                enabled = tool.enabled,
-                connectionName = bound?.name,
-                connectionMethod = bound?.method,
-                needsConfiguration = missing,
-            )
-        }
-        // 内置工具按统一顺序展示本地化默认名、自定义名及简要描述。
-        val overrides = mConfigurations.overrides().associate { it.toolId to it.configJson }
-        val definitionsById = mTools.builtinDefinitions().associateBy { it.toolId }
-        val builtinItems = BUILTIN_DISPLAY_ORDER.map { (id, group) ->
-            val overrideData = overrides[id]?.let {
-                runCatching { BuiltinToolOverrideCodec.decode(it) }.getOrNull()
-            }
-            val effectiveDescription = overrideData?.description?.takeIf { it.isNotBlank() }
-                ?: definitionsById[id]?.description.orEmpty()
-            BuiltinToolListItem(
-                id = id,
-                defaultLabelRes = AgentUiCoordinator.TOOL_LABELS[id] ?: R.string.tool_settings_builtins,
-                customDisplayName = overrideData?.displayName?.takeIf { it.isNotBlank() },
-                group = group,
-                descriptionPreview = effectiveDescription,
-                customized = id in overrides,
-            )
-        }
+        val content = mEditor.content()
         val state = getOrNull<ToolSettingsUiState.Normal>() ?: return
-        state.copy(
-            content = ToolSettingsContentState(
-                tab = state.content.tab,
-                tools = toolItems,
-                connections = connectionItems,
-                builtins = builtinItems,
-            ),
-        ).setup()
-    }
-
-    /** 将连接实体解析为结构化表单草稿。 */
-    private suspend fun buildConnectionEditor(
-        value: ToolConnection,
-        mode: ToolSettingsEditorMode,
-    ): ToolSettingsDialogState.ConnectionEditor {
-        val config = HttpToolConfigCodec.connection(value.configJson)
-        val hasCredential = config.credentialRef?.let { mCredentials.read(it) != null } == true
-        return ToolSettingsDialogState.ConnectionEditor(
-            id = value.id,
-            mode = mode,
-            name = value.name,
-            url = config.url,
-            method = config.method,
-            authMode = config.authMode,
-            authHeader = config.authHeader,
-            credentialRef = config.credentialRef,
-            hasCredential = hasCredential,
-            timeoutSeconds = (config.timeoutMillis / 1000L).toString(),
-            maxResponseKiB = (config.maxResponseBytes / 1024).coerceAtLeast(1).toString(),
-            allowPrivateAddresses = config.allowPrivateAddresses,
-            queryParams = config.query.map { (k, v) -> KeyValueDraft(k, v) },
-            headers = config.headers.map { (k, v) -> KeyValueDraft(k, v) },
-            enabled = value.enabled,
-        )
-    }
-
-    /** 将工具实体解析为结构化表单草稿。 */
-    private fun buildToolEditor(
-        value: ToolDefinition,
-        mode: ToolSettingsEditorMode,
-    ): ToolSettingsDialogState.ToolEditor {
-        val prettyParams = runCatching {
-            ToolConfigCodec.pretty(ToolConfigCodec.parse(value.parametersJson))
-        }.getOrDefault(value.parametersJson)
-        val mapping = runCatching { HttpToolConfigCodec.mapping(value.mappingJson) }
-            .getOrDefault(HttpToolMapping())
-        val prettyBody = runCatching { ToolConfigCodec.pretty(mapping.body) }.getOrDefault("{}")
-        return ToolSettingsDialogState.ToolEditor(
-            id = value.id,
-            mode = mode,
-            kind = value.kind,
-            name = value.name,
-            description = value.description,
-            connectionId = value.connectionId,
-            parametersJson = prettyParams,
-            parameterSummary = summarizeSchema(prettyParams),
-            responsePath = mapping.responsePath,
-            errorPath = mapping.errorPath.orEmpty(),
-            nextCursorPath = mapping.nextCursorPath.orEmpty(),
-            bodyJson = prettyBody,
-            bindings = mapping.bindings.map { HttpBindingDraft(it.argument, it.target, it.path) },
-            fields = mapping.fields.map { (k, v) -> KeyValueDraft(k, v) },
-            enabled = value.enabled,
-        )
+        state.copy(content = content.copy(tab = state.content.tab)).setup()
     }
 
     /** 清理本机凭据目录中已不被任何连接引用的密文文件。 */
@@ -1104,6 +823,7 @@ class ToolSettingsViewModel :
         val state = getOrNull<ToolSettingsUiState.Normal>() ?: return
         val test = state.dialog as? ToolSettingsDialogState.Test ?: return
         if (test.toolId != toolId) return
+        // 成功时裁剪格式化 JSON 预览，失败时映射稳定诊断码而非展示异常原文。
         when (result) {
             is ToolResult.Success -> {
                 val preview = ToolConfigCodec.pretty(result.data).take(MAX_TEST_PREVIEW_CHARS)
@@ -1182,7 +902,7 @@ class ToolSettingsViewModel :
     ) {
         val state = ready() ?: return
         val dialog = state.dialog as? ToolSettingsDialogState.BuiltinEditor ?: return
-        state.copy(dialog = transform(dialog)).setup()
+        state.copy(dialog = mEditor.preview(transform(dialog))).setup()
     }
 
     private fun showDialogError(@StringRes errorRes: Int) {
@@ -1201,7 +921,8 @@ class ToolSettingsViewModel :
     }
 
     private fun closeDialog() {
-        getOrNull<ToolSettingsUiState.Normal>()?.copy(dialog = ToolSettingsDialogState.None)?.setup()
+        getOrNull<ToolSettingsUiState.Normal>()?.copy(dialog = ToolSettingsDialogState.None)
+            ?.setup()
     }
 
     private fun ready(): ToolSettingsUiState.Normal? =
@@ -1214,6 +935,7 @@ class ToolSettingsViewModel :
         },
         block: suspend () -> Unit,
     ) {
+        // 先置忙碌状态拦截并发点击，再在 IO 调度器执行配置读写并保证退出时复位。
         val state = ready() ?: return
         state.copy(busy = true).setup()
         viewModelScope.launch {
@@ -1229,119 +951,7 @@ class ToolSettingsViewModel :
         }
     }
 
-    /** 根据参数 Schema 生成紧凑参数摘要列表供编辑器与测试框展示。 */
-    private fun summarizeSchema(rawSchema: String): List<String> {
-        val schema = runCatching { ToolSchemaCodec.decode(rawSchema) }.getOrNull() ?: return emptyList()
-        return schema.properties.entries.take(12).map { (name, child) ->
-            val mark = if (name in schema.required) "*" else ""
-            "$name$mark (${child.type.name.lowercase()})"
-        }
-    }
-
-    /** 根据工具参数 Schema 预生成可直接填写的测试参数 JSON 模板。 */
-    private fun defaultTestArguments(rawSchema: String): String {
-        val schema = runCatching { ToolSchemaCodec.decode(rawSchema) }.getOrNull() ?: return "{}"
-        val selectedKeys = if (schema.required.isNotEmpty()) {
-            schema.properties.keys.filter { it in schema.required }
-        } else {
-            schema.properties.keys.take(3)
-        }
-        val sample = JsonObject()
-        selectedKeys.forEach { key ->
-            val prop = schema.properties[key] ?: return@forEach
-            when (prop.type) {
-                ToolSchema.Type.String -> sample.addProperty(
-                    key,
-                    if (key == "url") "https://example.com" else "",
-                )
-
-                ToolSchema.Type.Integer -> sample.addProperty(key, prop.minimum?.toLong() ?: 0L)
-                ToolSchema.Type.Number -> sample.addProperty(key, prop.minimum ?: 0.0)
-                ToolSchema.Type.Boolean -> sample.addProperty(key, false)
-                ToolSchema.Type.Array -> sample.add(key, JsonArray())
-                ToolSchema.Type.Object -> sample.add(key, JsonObject())
-                ToolSchema.Type.Null -> sample.add(key, null)
-            }
-        }
-        return ToolConfigCodec.pretty(sample)
-    }
-
-    private fun suggestUniqueToolName(base: String, existing: Set<String>): String {
-        if (base !in existing) return base
-        var suffix = 2
-        while (true) {
-            val candidate = "${base.take(56)}_$suffix"
-            if (candidate !in existing) return candidate
-            suffix++
-        }
-    }
-
-    private fun defaultAuthFieldName(authMode: String): String = when (authMode) {
-        "Query" -> "api_key"
-        "ApiKey", "Header" -> "X-API-Key"
-        else -> "Authorization"
-    }
-
-    @StringRes
-    private fun validationErrorResource(error: Exception): Int {
-        val code = (error as? ToolConfigValidationException)?.code
-        return when (code) {
-            "invalid_json" -> R.string.tool_settings_error_invalid_json
-            "invalid_name" -> R.string.tool_settings_error_invalid_name
-            "duplicate_name" -> R.string.tool_settings_error_duplicate_name
-            "invalid_url" -> R.string.tool_settings_error_invalid_url
-            "credential_in_plain_config" -> R.string.tool_settings_error_plain_credential
-            "invalid_headers", "invalid_auth", "invalid_method", "invalid_limits" ->
-                R.string.tool_settings_error_invalid_connection
-
-            "invalid_schema" -> R.string.tool_settings_error_invalid_schema
-            "invalid_mapping" -> R.string.tool_settings_error_invalid_mapping
-            "connection_in_use_body_binding" -> R.string.tool_settings_error_connection_body_conflict
-            "missing_connection" -> R.string.tool_settings_needs_configuration
-            "invalid_override" -> R.string.tool_settings_error_invalid_override
-            "invalid_package" -> R.string.tool_settings_error_invalid_package
-            "invalid_test_arguments" -> R.string.tool_settings_error_invalid_test_args
-            "invalid_credential" -> R.string.tool_settings_error_invalid_credential
-            else -> R.string.tool_settings_invalid
-        }
-    }
-
-    @StringRes
-    private fun testErrorResource(code: String): Int = when (code) {
-        "http_needs_configuration" -> R.string.tool_settings_needs_configuration
-        "http_auth_required" -> R.string.tool_settings_test_auth_failed
-        "http_rate_limited" -> R.string.tool_settings_test_rate_limited
-        "http_timeout" -> R.string.tool_settings_test_timeout
-        "http_remote_error" -> R.string.tool_settings_test_remote_error
-        "http_address_blocked", "http_unsafe_redirect", "http_invalid_url", "http_redirect_limit" ->
-            R.string.tool_settings_blocked
-
-        "http_response_too_large", "http_item_too_large" -> R.string.tool_settings_too_large
-        "http_mapping_missing", "http_invalid_mapping", "http_invalid_json", "http_unsupported_content" ->
-            R.string.tool_settings_mapping_failed
-
-        else -> R.string.tool_settings_test_failed
-    }
-
     private companion object {
         const val MAX_TEST_PREVIEW_CHARS = 8000
-
-        val BUILTIN_DISPLAY_ORDER = listOf(
-            "search_lore" to AgentToolGroup.Lore,
-            "read_lore_entry" to AgentToolGroup.Lore,
-            "search_chat" to AgentToolGroup.Chat,
-            "read_messages" to AgentToolGroup.Chat,
-            "search_memory" to AgentToolGroup.Memory,
-            "read_memory" to AgentToolGroup.Memory,
-            "upsert_memory" to AgentToolGroup.Memory,
-            "correct_memory" to AgentToolGroup.Memory,
-            "invalidate_memory" to AgentToolGroup.Memory,
-            "promote_memory_scope" to AgentToolGroup.Memory,
-            "get_scene_state" to AgentToolGroup.Scene,
-            "update_scene_state" to AgentToolGroup.Scene,
-            "roll_dice" to AgentToolGroup.Utility,
-            "calculate" to AgentToolGroup.Utility,
-            "ask_user" to AgentToolGroup.Interaction,
-        )
     }
 }

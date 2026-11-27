@@ -1869,4 +1869,5 @@
     <string name="tool_settings_unbound">接続未設定</string>
     <string name="tool_settings_usage_hint_label">追加の利用ヒント</string>
     <string name="tool_settings_value_label">値</string>
+    <string name="tool_settings_deleted_external_tool">削除された外部ツール</string>
 </resources>

@@ -3,23 +3,18 @@ package me.kafuuneko.rpclient.libs.room.repository
 import com.google.gson.JsonObject
 import me.kafuuneko.rpclient.libs.agent.model.AgentJson
 import me.kafuuneko.rpclient.libs.agent.model.ConversationRef
-import me.kafuuneko.rpclient.libs.agent.model.SceneStateChange
-import me.kafuuneko.rpclient.libs.agent.model.SceneStateCodec
 import me.kafuuneko.rpclient.libs.agent.runtime.AgentCheckpointStore
+import me.kafuuneko.rpclient.libs.agent.tool.ToolErrorCode
 import me.kafuuneko.rpclient.libs.agent.tool.ToolExecutionContext
 import me.kafuuneko.rpclient.libs.agent.tool.ToolPreparationException
 import me.kafuuneko.rpclient.libs.agent.tool.ToolResult
 import me.kafuuneko.rpclient.libs.agent.tool.ToolWriteDisposition
 import me.kafuuneko.rpclient.libs.groupchat.cardMembers
-import me.kafuuneko.rpclient.libs.memory.MemoryDraft
 import me.kafuuneko.rpclient.libs.memory.MemoryEntry
-import me.kafuuneko.rpclient.libs.memory.MemoryKind
 import me.kafuuneko.rpclient.libs.memory.MemoryRestoreValidator
-import me.kafuuneko.rpclient.libs.memory.MemoryStatus
 import me.kafuuneko.rpclient.libs.memory.MemoryTarget
 import me.kafuuneko.rpclient.libs.room.AppDatabase
 import me.kafuuneko.rpclient.libs.room.entity.LorebookEntry
-import me.kafuuneko.rpclient.libs.room.entity.MemorySourceFields
 import me.kafuuneko.rpclient.libs.search.SearchCursor
 import me.kafuuneko.rpclient.libs.search.SearchEngineKind
 import me.kafuuneko.rpclient.libs.search.SearchKind
@@ -39,7 +34,6 @@ class AgentLocalDataRepository(
     private val mGroups: GroupChatRepository,
     private val mLorebooks: LorebookRepository,
     private val mMemories: MemoryRepository,
-    private val mScenes: SceneStateRepository,
     private val mSearch: ContentSearchRepository,
     private val mCheckpoints: AgentCheckpointStore,
 ) {
@@ -96,6 +90,7 @@ class AgentLocalDataRepository(
         cursor: JsonObject?
     ): ToolResult.Success {
         val conversation = context.token.conversation
+        // 仅在当前会话正文中执行分页检索，透传带索引版本的游标。
         val page = mSearch.search(
             SearchRequest(
                 query,
@@ -114,6 +109,7 @@ class AgentLocalDataRepository(
                     it["session"].asString
                 )
             })
+        // 仅编码下一页游标与截断后的摘要片段，避免暴露整条原始消息。
         val next = page.next?.let {
             jsonObject(
                 "revision" to it.revision,
@@ -158,6 +154,7 @@ class AgentLocalDataRepository(
         context: Int
     ): List<AgentMessage> {
         require(context in 0..5) { "Invalid message context" }
+        // 先验证锚点消息归属当前会话，再按窗口范围拉取邻近消息主键。
         val anchor = message(conversation, id)
         if (context == 0) return listOf(anchor)
         val ids = when (conversation) {
@@ -181,51 +178,6 @@ class AgentLocalDataRepository(
     suspend fun memories(context: ToolExecutionContext): List<MemoryEntry> =
         mMemories.visibleToAgent(target(context), context.characterId, context.personaId)
 
-    /** 在已授权记忆之上叠加当前运行提案，预览修订不会被误报为永久保存。 */
-    suspend fun memoryView(context: ToolExecutionContext): List<JsonObject> {
-        val view = memories(context).map { entry ->
-            jsonObject(
-                "memoryId" to entry.ref.id,
-                "table" to entry.ref.table.name,
-                "revision" to entry.fields.currentRevision,
-                "kind" to entry.fields.content.kind,
-                "status" to entry.fields.content.status,
-                "body" to entry.fields.content.body,
-                "proposed" to false
-            )
-        }.toMutableList()
-        proposals(context.token.runId).forEach { proposal ->
-            val operation = proposal["operation"].asString
-            if (operation !in setOf(
-                    "upsert_memory",
-                    "correct_memory",
-                    "invalidate_memory"
-                )
-            ) return@forEach
-            val old = view.firstOrNull {
-                it["memoryId"] == proposal["memoryId"] && it["table"] == proposal["table"] && proposal.has(
-                    "memoryId"
-                )
-            }
-            val next = old?.deepCopy() ?: jsonObject(
-                "kind" to proposal["kind"].asString,
-                "status" to "Active"
-            )
-            proposal["body"]?.let { next.add("body", it.deepCopy()) }
-            proposal["kind"]?.let { next.add("kind", it.deepCopy()) }
-            next.addProperty(
-                "status",
-                if (operation == "invalidate_memory") "Invalidated" else "Active"
-            )
-            next.addProperty("revision", (proposal["expectedRevision"]?.asLong ?: 0) + 1)
-            next.addProperty("proposed", true)
-            proposal["proposalId"]?.let { next.add("proposalId", it.deepCopy()) }
-            if (old != null) view.remove(old)
-            view.add(next)
-        }
-        return view
-    }
-
     /** 查询已完成调用里的未提交提案，检查点缺失必须停止，不能重算副作用。 */
     suspend fun proposals(runId: String): List<JsonObject> =
         mDatabase.getAgentRunDao().invocations(runId)
@@ -239,26 +191,16 @@ class AgentLocalDataRepository(
                     .getAsJsonObject("proposal").deepCopy()
             }.distinctBy { it["proposalId"]?.asString ?: AgentJson.canonical(it) }
 
-    /** 场景读取叠加本次尚未提交的增量，并明确标记预览状态。 */
-    suspend fun scene(context: ToolExecutionContext): JsonObject {
-        val state = mScenes.get(context.token.conversation)
-        val proposals =
-            proposals(context.token.runId).filter { it["operation"].asString == "update_scene_state" }
-        var json = state.stateJson
-        proposals.forEach { json = SceneStateCodec.apply(json, changes(it)) }
-        return jsonObject(
-            "revision" to state.revision + proposals.size,
-            "state" to AgentJson.parse(json),
-            "proposed" to proposals.isNotEmpty()
-        )
-    }
-
     /** 将当前用户证据绑定为已提交事实，角色生成证据留待最终正文核验。 */
-    suspend fun validateEvidence(context: ToolExecutionContext, proposal: JsonObject): Boolean {
+    suspend fun validateEvidence(
+        context: ToolExecutionContext,
+        proposal: JsonObject,
+        dependsOnPending: Boolean
+    ): Boolean {
         val id = proposal["sourceMessageId"]?.takeUnless { it.isJsonNull }?.asLong ?: 0L
         val quote = proposal["evidence"].asString
         if (quote.isBlank() || quote.length > 1000) {
-            throw ToolPreparationException("evidence_empty_or_too_long")
+            throw ToolPreparationException(ToolErrorCode.EVIDENCE_EMPTY_OR_TOO_LONG)
         }
         // 优先核验模型指定的消息 ID；当模型未见到真实数据库主键时，仅在当前会话已提交用户消息内按原文精确查找。
         if (id > 0L) {
@@ -271,12 +213,12 @@ class AgentLocalDataRepository(
                 }
             }
             val resolved = findCommittedUserMessage(context.token.conversation, quote)
-                ?: throw ToolPreparationException("evidence_not_found_in_user_messages")
+                ?: throw ToolPreparationException(ToolErrorCode.EVIDENCE_NOT_FOUND_IN_USER_MESSAGES)
             bindCommittedEvidence(proposal, resolved.first, resolved.second)
             return true
         }
         // 省略或传 0 时，若变更不依赖本轮未提交提案且原文确属当前会话用户消息，则直接绑定为已提交证据。
-        if (!dependsOnPendingProposal(context, proposal)) {
+        if (!dependsOnPending) {
             val resolved = findCommittedUserMessage(context.token.conversation, quote)
             if (resolved != null) {
                 bindCommittedEvidence(proposal, resolved.first, resolved.second)
@@ -326,37 +268,18 @@ class AgentLocalDataRepository(
         return null
     }
 
-    /** 判断本条写入是否基于同轮未提交提案的预览版本号，避免抢先以已提交身份越过前序提案。 */
-    private suspend fun dependsOnPendingProposal(
-        context: ToolExecutionContext,
-        proposal: JsonObject,
-    ): Boolean {
-        val operation =
-            proposal["operation"]?.takeUnless { it.isJsonNull }?.asString ?: return false
-        val expected =
-            proposal["expectedRevision"]?.takeUnless { it.isJsonNull }?.asLong ?: return false
-        if (operation == "update_scene_state") {
-            return mScenes.get(context.token.conversation).revision != expected
-        }
-        val memoryId = proposal["memoryId"]?.takeUnless { it.isJsonNull }?.asLong ?: return false
-        val table = proposal["table"]?.takeUnless { it.isJsonNull }?.asString ?: return false
-        val existing =
-            memories(context).firstOrNull { it.ref.id == memoryId && it.ref.table.name == table }
-                ?: return false
-        return existing.fields.currentRevision != expected
-    }
-
-    /** 短事务内提交已验证证据及版本的单个提案；网络与检查点读取必须已完成。 */
-    suspend fun commitProposal(
+    /** @return 已核验归属、逐字证据与内容指纹的来源；正文不支持时返回 null。 */
+    suspend fun proposalSource(
         context: ToolExecutionContext,
         proposal: JsonObject,
         finalMessageId: Long
-    ): Boolean {
-        val proposed = proposal["sourceMessageId"]?.asLong == 0L
+    ): AgentMessage? {
+        // 读取提案绑定的已提交消息或本次最终回复，并核验逐字摘录未漂移。
         val sourceId = proposal["sourceMessageId"]?.asLong?.takeIf { it > 0 } ?: finalMessageId
         val source = message(context.token.conversation, sourceId)
         val quote = proposal["evidence"].asString
-        if (!source.content.contains(quote)) return false
+        if (!source.content.contains(quote)) return null
+        // 若提案已记录指纹，则拒绝在消息被编辑后提交旧提案。
         proposal["sourceFingerprint"]?.let {
             require(
                 it.asString == MemoryRestoreValidator.fingerprint(
@@ -364,85 +287,11 @@ class AgentLocalDataRepository(
                 )
             ) { "Evidence changed" }
         }
-        val operation = proposal["operation"].asString
-        if (operation == "update_scene_state") {
-            // 前序提案未被最终正文支持时，不将依赖它的后续版本强行套到旧状态上。
-            if (proposed && mScenes.get(context.token.conversation).revision != proposal["expectedRevision"].asLong) return false
-            mScenes.applyAgentProposal(
-                context.token.conversation,
-                proposal["expectedRevision"].asLong,
-                changes(proposal),
-                sourceId
-            )
-            return true
-        }
-        // 引用只能来自当前可见集；写入继承条目必须显式提升授权，不能跨表偷偷改通用记忆。
-        val existing = proposal["memoryId"]?.asLong?.takeIf { it > 0 }?.let { id ->
-            memories(context).firstOrNull { it.ref.id == id && it.ref.table.name == proposal["table"]?.asString }
-                ?: error("Memory is not visible")
-        }
-        if (operation == "promote_memory_scope") {
-            requireNotNull(existing)
-            mMemories.promote(
-                existing.target,
-                existing.ref,
-                proposal["expectedRevision"].asLong,
-                context.characterId
-            )
-            return true
-        }
-        require(existing == null || existing.target == target(context)) { "Inherited memory is read only" }
-        if (proposed && existing != null && existing.fields.currentRevision != proposal["expectedRevision"].asLong) return false
-        val body =
-            if (operation == "invalidate_memory") requireNotNull(existing).fields.content.body else proposal["body"].asString
-        val draft = MemoryDraft(
-            body = body,
-            kind = proposal["kind"]?.asString?.let(MemoryKind::valueOf)
-                ?: existing?.fields?.content?.kind?.let(MemoryKind::valueOf) ?: MemoryKind.fact,
-            status = if (operation == "invalidate_memory") MemoryStatus.Invalidated else MemoryStatus.Active,
-            importance = existing?.fields?.content?.importance ?: 50,
-            pinned = existing?.fields?.content?.pinned ?: false,
-            personaId = existing?.fields?.personaId ?: context.personaId,
-            privateCharacterId = existing?.privateCharacterId
-                ?: if (context.token.conversation is ConversationRef.Group) context.characterId else null
-        )
-        val evidence = MemorySourceFields(
-            0,
-            if (context.token.conversation is ConversationRef.Single) "ChatMessage" else "GroupMessage",
-            "Observed",
-            sourceKey = "${context.token.conversation.key}/$sourceId",
-            chatMessageId = sourceId.takeIf { context.token.conversation is ConversationRef.Single },
-            groupMessageId = sourceId.takeIf { context.token.conversation is ConversationRef.Group },
-            authorKey = if (source.user) "user/${context.personaId}" else "character/${context.characterId}",
-            fingerprint = MemoryRestoreValidator.fingerprint(source.content),
-            quote = quote,
-            rangeStart = source.content.indexOf(quote),
-            rangeEnd = source.content.indexOf(quote) + quote.length,
-            originRef = context.invocationId,
-            createdAt = System.currentTimeMillis()
-        )
-        mMemories.saveAgent(
-            target(context),
-            draft,
-            existing?.ref,
-            proposal["expectedRevision"]?.asLong ?: 0,
-            listOf(evidence)
-        )
-        return true
+        return source
     }
 
-    /** 解析类型化路径及 JSON 字面量，再交给领域 Codec 验证半结构化约束。 */
-    fun changes(proposal: JsonObject): List<SceneStateChange> =
-        proposal.getAsJsonArray("changes").map { element ->
-            val change = element.asJsonObject
-            SceneStateChange(
-                change.getAsJsonArray("path").map { it.asString },
-                change["value_json"]?.takeUnless { it.isJsonNull }?.asString?.let {
-                    AgentJson.parse(it)
-                })
-        }
-
-    private fun target(context: ToolExecutionContext): MemoryTarget =
+    /** 将客户端授权身份转换为记忆范围，不接受模型覆盖。 */
+    fun target(context: ToolExecutionContext): MemoryTarget =
         when (val conversation = context.token.conversation) {
             is ConversationRef.Single -> MemoryTarget.Chat(conversation.id)
             is ConversationRef.Group -> MemoryTarget.Group(conversation.id)

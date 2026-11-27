@@ -1890,4 +1890,5 @@ Falhas: %2$d</string>
     <string name="tool_settings_unbound">Não vinculada</string>
     <string name="tool_settings_usage_hint_label">Dica adicional de uso</string>
     <string name="tool_settings_value_label">Valor</string>
+    <string name="tool_settings_deleted_external_tool">Ferramenta externa excluída</string>
 </resources>

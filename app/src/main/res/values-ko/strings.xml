@@ -1868,4 +1868,5 @@
     <string name="tool_settings_unbound">연결되지 않음</string>
     <string name="tool_settings_usage_hint_label">추가 사용 힌트</string>
     <string name="tool_settings_value_label">값</string>
+    <string name="tool_settings_deleted_external_tool">삭제된 외부 도구</string>
 </resources>

@@ -33,7 +33,7 @@ data class ToolExecutionContext(
 enum class ToolWriteDisposition { Proposed, Committed }
 
 /** 确认与普通提问分别处理，不能把 ask_user 的回答当作外部写入授权。 */
-enum class ToolUserRequestKind { Input, ExternalWriteConfirmation, LocalWriteConfirmation }
+enum class ToolUserRequestKind { Input, ExternalReadConfirmation, ExternalWriteConfirmation, LocalWriteConfirmation }
 
 /**
  * 工具执行结果，只进入工具交换链及本机检查点。

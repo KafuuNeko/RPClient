@@ -32,7 +32,7 @@ data class ConversationToolPolicy(
     @PrimaryKey val conversationKey: String,
     val chatId: Long? = null,
     val groupId: Long? = null,
-    val enabledToolIdsJson: String = "[\"search_lore\",\"read_lore_entry\",\"search_chat\",\"read_messages\",\"search_memory\",\"read_memory\",\"upsert_memory\",\"correct_memory\",\"invalidate_memory\",\"promote_memory_scope\",\"roll_dice\",\"calculate\",\"get_scene_state\",\"update_scene_state\",\"ask_user\"]",
+    val enabledToolIdsJson: String = "[]",
     val memoryReadOnly: Boolean = false,
     val autoPromoteMemory: Boolean = false,
     val maxToolRounds: Int = 5,

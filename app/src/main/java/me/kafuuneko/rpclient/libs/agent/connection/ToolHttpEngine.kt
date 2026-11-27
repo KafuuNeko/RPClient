@@ -12,6 +12,7 @@ import javax.net.SocketFactory
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.suspendCancellableCoroutine
+import me.kafuuneko.rpclient.libs.agent.tool.ToolErrorCode
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.Dns
@@ -54,32 +55,39 @@ class ToolHttpEngine(
         readUrl: Boolean = false,
     ): ToolHttpPayload {
         // 网页读取模式禁止携带任何凭据或自定义请求头。
-        if (readUrl && (config.authMode != "None" || config.credentialRef != null || config.headers.isNotEmpty() || secret != null)) {
-            throw ToolHttpException("http_invalid_configuration")
+        if (readUrl && (config.authMode != ToolAuthMode.None || config.credentialRef != null || config.headers.isNotEmpty() || secret != null)) {
+            throw ToolHttpException(ToolErrorCode.HTTP_INVALID_CONFIGURATION)
         }
-        if (config.authMode != "None" && secret == null) {
-            throw ToolHttpException("http_needs_configuration")
+        if (config.authMode != ToolAuthMode.None && secret == null) {
+            throw ToolHttpException(ToolErrorCode.HTTP_NEEDS_CONFIGURATION)
         }
         // 组装目标 URL 与查询参数；Query 认证放在最后注入，防止被模型参数覆盖。
         val url = ToolNetworkPolicy.url(config.url).newBuilder().apply {
             (config.query + query).forEach { (name, value) -> setQueryParameter(name, value) }
-            if (config.authMode == "Query") {
+            if (config.authMode == ToolAuthMode.Query) {
                 setQueryParameter(config.authHeader, requireNotNull(secret))
             }
         }.build()
         // 构造请求头与请求体；Header 类认证统一经此注入。
         val builder = Request.Builder().url(url).header("Accept-Encoding", "gzip, deflate")
         config.headers.forEach { (name, value) -> builder.header(name, value) }
-        if (config.authMode in setOf("Bearer", "ApiKey", "Header")) {
+        if (config.authMode in setOf(
+                ToolAuthMode.Bearer,
+                ToolAuthMode.ApiKey,
+                ToolAuthMode.Header
+            )
+        ) {
             builder.header(
                 config.authHeader,
-                if (config.authMode == "Bearer") "Bearer $secret" else requireNotNull(secret),
+                if (config.authMode == ToolAuthMode.Bearer) "Bearer $secret" else requireNotNull(
+                    secret
+                ),
             )
         }
         val requestBody = body?.toRequestBody("application/json; charset=utf-8".toMediaType())
         val request = builder.method(
             config.method,
-            if (config.method in setOf("POST", "PUT", "PATCH")) {
+            if (config.method in ToolHttpMethod.requiresBody) {
                 requestBody ?: "{}".toRequestBody()
             } else {
                 requestBody
@@ -121,7 +129,7 @@ class ToolHttpEngine(
                 config.allowPrivateAddresses && !readUrl
             )
             val remaining = deadline - System.nanoTime()
-            if (remaining <= 0) throw ToolHttpException("http_timeout")
+            if (remaining <= 0) throw ToolHttpException(ToolErrorCode.HTTP_TIMEOUT)
             val result = await(client, request, config.maxResponseBytes, remaining, readUrl)
             if (result is HopResult.Payload) {
                 val payload = result.value
@@ -133,25 +141,26 @@ class ToolHttpEngine(
                 )
             }
             result as HopResult.Redirect
-            if (hop == 5) throw ToolHttpException("http_redirect_limit")
+            if (hop == 5) throw ToolHttpException(ToolErrorCode.HTTP_REDIRECT_LIMIT)
             val next =
-                request.url.resolve(result.location) ?: throw ToolHttpException("http_invalid_url")
+                request.url.resolve(result.location)
+                    ?: throw ToolHttpException(ToolErrorCode.HTTP_INVALID_URL)
             ToolNetworkPolicy.url(next.toString())
             val sameOrigin =
                 request.url.scheme == next.scheme && request.url.host == next.host && request.url.port == next.port
-            val writes = request.method !in setOf("GET", "HEAD")
+            val writes = request.method !in ToolHttpMethod.reads
             if (writes && (!sameOrigin || result.status !in setOf(
                     307,
                     308
                 ))
-            ) throw ToolHttpException("http_unsafe_redirect")
-            if (request.url.isHttps && !next.isHttps) throw ToolHttpException("http_unsafe_redirect")
+            ) throw ToolHttpException(ToolErrorCode.HTTP_UNSAFE_REDIRECT)
+            if (request.url.isHttps && !next.isHttps) throw ToolHttpException(ToolErrorCode.HTTP_UNSAFE_REDIRECT)
             request = if (sameOrigin) request.newBuilder().url(next).build() else {
                 Request.Builder().url(next).method(request.method, null)
                     .header("Accept-Encoding", "gzip, deflate").build()
             }
         }
-        throw ToolHttpException("http_redirect_limit")
+        throw ToolHttpException(ToolErrorCode.HTTP_REDIRECT_LIMIT)
     }
 
     private suspend fun await(
@@ -170,8 +179,8 @@ class ToolHttpEngine(
                 if (continuation.isCancelled) return
                 val error = when (e) {
                     is ToolHttpException -> e
-                    is SocketTimeoutException -> ToolHttpException("http_timeout")
-                    else -> ToolHttpException("http_network_error")
+                    is SocketTimeoutException -> ToolHttpException(ToolErrorCode.HTTP_TIMEOUT)
+                    else -> ToolHttpException(ToolErrorCode.HTTP_NETWORK_ERROR)
                 }
                 continuation.resumeWithException(error)
             }
@@ -183,7 +192,7 @@ class ToolHttpEngine(
                     onFailure = {
                         continuation.resumeWithException(
                             if (it is ToolHttpException) it else ToolHttpException(
-                                "http_invalid_response"
+                                ToolErrorCode.HTTP_INVALID_RESPONSE
                             )
                         )
                     },
@@ -195,19 +204,24 @@ class ToolHttpEngine(
     private fun consume(response: Response, maxBytes: Int, readUrl: Boolean): HopResult {
         if (response.code in setOf(301, 302, 303, 307, 308)) {
             return HopResult.Redirect(
-                response.header("Location") ?: throw ToolHttpException("http_invalid_redirect"),
+                response.header("Location")
+                    ?: throw ToolHttpException(ToolErrorCode.HTTP_INVALID_REDIRECT),
                 response.code
             )
         }
         if (!response.isSuccessful) throw ToolHttpException(
             when (response.code) {
-                401, 403 -> "http_auth_required"
-                429 -> "http_rate_limited"
-                else -> "http_status_error"
+                401, 403 -> ToolErrorCode.HTTP_AUTH_REQUIRED
+                429 -> ToolErrorCode.HTTP_RATE_LIMITED
+                else -> ToolErrorCode.HTTP_STATUS_ERROR
             }
         )
         // HEAD 和无正文成功状态仍可提供明确结果，避免把已成功的写入误报为未知。
-        if (!readUrl && (response.request.method == "HEAD" || response.code in setOf(204, 205))) {
+        if (!readUrl && (response.request.method == ToolHttpMethod.Head || response.code in setOf(
+                204,
+                205
+            ))
+        ) {
             return HopResult.Payload(
                 ToolHttpPayload(
                     "{\"status\":${response.code}}",
@@ -223,14 +237,15 @@ class ToolHttpEngine(
                 "text/html",
                 "application/xhtml+xml"
             )
-        ) throw ToolHttpException("http_unsupported_content")
-        val input = response.body?.byteStream() ?: throw ToolHttpException("http_invalid_response")
+        ) throw ToolHttpException(ToolErrorCode.HTTP_UNSUPPORTED_CONTENT)
+        val input = response.body?.byteStream()
+            ?: throw ToolHttpException(ToolErrorCode.HTTP_INVALID_RESPONSE)
         // 显式处理 gzip/deflate，并在解压流上限流，不能信任 Content-Length。
         val decoded = when (response.header("Content-Encoding")?.lowercase()?.trim()) {
             null, "", "identity" -> input
             "gzip" -> GZIPInputStream(input)
             "deflate" -> InflaterInputStream(input)
-            else -> throw ToolHttpException("http_unsupported_encoding")
+            else -> throw ToolHttpException(ToolErrorCode.HTTP_UNSUPPORTED_ENCODING)
         }
         val bytes = decoded.use { readBounded(it, maxBytes) }
         val charset = response.body?.contentType()?.charset(Charsets.UTF_8) ?: Charsets.UTF_8
@@ -243,7 +258,7 @@ class ToolHttpEngine(
         while (true) {
             val count = input.read(buffer, 0, minOf(buffer.size, maxBytes + 1 - output.size()))
             if (count < 0) return output.toByteArray()
-            if (output.size() + count > maxBytes) throw ToolHttpException("http_response_too_large")
+            if (output.size() + count > maxBytes) throw ToolHttpException(ToolErrorCode.HTTP_RESPONSE_TOO_LARGE)
             output.write(buffer, 0, count)
         }
     }
